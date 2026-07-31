@@ -65,12 +65,12 @@ export function SiteHeader({ locale, onLocaleChange }: SiteHeaderProps) {
           <Button
             type="button"
             variant="outline"
-            className="h-8 gap-0.5 rounded-full border-primary/15 bg-card p-0.5 shadow-sm transition-all hover:-translate-y-0.5 hover:border-primary/30 hover:bg-card hover:shadow-md sm:h-11 sm:gap-1 sm:p-1"
+            className="h-8 w-[4.25rem] justify-between gap-0 rounded-full border-primary/15 bg-card p-0.5 shadow-sm transition-all hover:-translate-y-0.5 hover:border-primary/30 hover:bg-card hover:shadow-md sm:h-11 sm:w-[5.35rem] sm:p-1"
             onClick={() => onLocaleChange(locale === "en" ? "ar" : "en")}
             aria-label={locale === "en" ? "Switch to Arabic" : "Switch to English"}
           >
-            <span className={cn("rounded-full px-1.5 py-1 text-[0.68rem] font-bold transition-colors sm:px-2.5 sm:py-1.5 sm:text-xs", locale === "en" ? "bg-accent text-accent-foreground shadow-sm" : "text-muted-foreground")}>EN</span>
-            <span className={cn("rounded-full px-1.5 py-1 text-[0.68rem] font-bold transition-colors sm:px-2.5 sm:py-1.5 sm:text-xs", locale === "ar" ? "bg-accent text-accent-foreground shadow-sm" : "text-muted-foreground")}>AR</span>
+            <span className={cn("flex h-7 w-8 items-center justify-center rounded-full text-[0.68rem] font-bold leading-none transition-colors sm:h-9 sm:w-9 sm:text-xs", locale === "en" ? "bg-accent text-accent-foreground shadow-sm" : "text-muted-foreground")}>EN</span>
+            <span className={cn("flex h-7 w-8 items-center justify-center rounded-full text-[0.68rem] font-bold leading-none transition-colors sm:h-9 sm:w-9 sm:text-xs", locale === "ar" ? "bg-accent text-accent-foreground shadow-sm" : "text-muted-foreground")}>AR</span>
           </Button>
         </div>
       </div>
