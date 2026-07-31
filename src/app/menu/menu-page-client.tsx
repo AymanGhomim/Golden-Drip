@@ -281,8 +281,8 @@ export function MenuPageClient() {
                   <Price
                     value={product.price}
                     locale={locale}
-                    className="absolute right-2 top-2 rounded-full border border-white/35 bg-white/18 px-2 py-1 text-xs font-black text-[#4a2413] shadow-[0_8px_20px_rgba(0,0,0,0.18)] backdrop-blur-md transition-all duration-300 group-hover:border-white/55 group-hover:bg-white/24 dark:text-[#6b3a22] sm:right-3 sm:top-3 sm:px-3 sm:py-1.5 sm:text-sm"
-                    currencyClassName="text-[#6c3c22]/75 dark:text-[#7b4b30]/75"
+                    className="absolute right-2 top-2 rounded-full border border-white/35 bg-white/18 px-2 py-1 text-xs font-black text-white shadow-[0_8px_20px_rgba(0,0,0,0.18)] backdrop-blur-md transition-all duration-300 group-hover:border-white/55 group-hover:bg-white/24 sm:right-3 sm:top-3 sm:px-3 sm:py-1.5 sm:text-sm"
+                    currencyClassName="text-white/75"
                   />
                   {quantity > 0 ? (
                     <Badge className="absolute left-2 top-2 gap-1 rounded-full border border-white/25 bg-accent px-2 py-1 text-[0.68rem] font-bold text-accent-foreground shadow-sm sm:left-3 sm:top-3 sm:px-3 sm:py-1.5">
