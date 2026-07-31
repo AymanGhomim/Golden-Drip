@@ -235,7 +235,7 @@ export function MenuPageClient() {
           ))}
         </div>
 
-        <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
+        <div className="grid grid-cols-2 gap-3 sm:gap-5 lg:grid-cols-3">
           {products.map((product) => {
             const quantity = quantitiesByProduct.get(product.id) ?? 0;
             const translatedProductText = translatedProduct(product.id, locale);
@@ -253,13 +253,13 @@ export function MenuPageClient() {
                   }
                 }}
               >
-                <div className="relative aspect-[5/4] overflow-hidden bg-muted">
+                <div className="relative aspect-[4/3] overflow-hidden bg-muted sm:aspect-[5/4]">
                   {product.image ? (
                     <Image
                       src={product.image}
                       alt={translatedProductText.name}
                       fill
-                      sizes="(min-width: 1024px) 33vw, (min-width: 640px) 50vw, 100vw"
+                      sizes="(min-width: 1024px) 33vw, 50vw"
                       className="object-cover transition-transform duration-700 ease-out group-hover:scale-[1.07]"
                     />
                   ) : (
@@ -274,58 +274,58 @@ export function MenuPageClient() {
                   <Price
                     value={product.price}
                     locale={locale}
-                    className="absolute right-3 top-3 rounded-full border border-white/25 bg-white/20 px-3 py-1.5 text-sm font-bold text-white shadow-sm backdrop-blur-md"
+                    className="absolute right-2 top-2 rounded-full border border-white/25 bg-white/20 px-2 py-1 text-xs font-bold text-white shadow-sm backdrop-blur-md sm:right-3 sm:top-3 sm:px-3 sm:py-1.5 sm:text-sm"
                     currencyClassName="text-white/75"
                   />
                   {quantity > 0 ? (
-                    <Badge className="absolute left-3 top-3 gap-1 rounded-full bg-accent px-3 py-1.5 text-accent-foreground shadow-sm">
-                      <ShoppingCart className="h-3.5 w-3.5" />
+                    <Badge className="absolute left-2 top-2 gap-1 rounded-full bg-accent px-2 py-1 text-[0.68rem] text-accent-foreground shadow-sm sm:left-3 sm:top-3 sm:px-3 sm:py-1.5">
+                      <ShoppingCart className="h-3 w-3 sm:h-3.5 sm:w-3.5" />
                       {quantity}
                     </Badge>
                   ) : null}
-                  <div className="absolute bottom-3 left-3 right-3">
-                    <h2 className="line-clamp-2 text-xl font-bold leading-snug text-white drop-shadow-sm transition-transform duration-500 ease-out group-hover:-translate-y-1">
+                  <div className="absolute bottom-2 left-2 right-2 sm:bottom-3 sm:left-3 sm:right-3">
+                    <h2 className="line-clamp-2 text-sm font-bold leading-snug text-white drop-shadow-sm transition-transform duration-500 ease-out group-hover:-translate-y-1 sm:text-xl">
                       {translatedProductText.name}
                     </h2>
                   </div>
                 </div>
-                <CardContent className="flex flex-col gap-3 p-4">
-                  <p className="line-clamp-3 text-sm leading-7 text-muted-foreground">
+                <CardContent className="flex flex-col gap-2 p-2.5 sm:gap-3 sm:p-4">
+                  <p className="line-clamp-2 text-xs leading-5 text-muted-foreground sm:line-clamp-3 sm:text-sm sm:leading-7">
                     {translatedProductText.description}
                   </p>
 
                   <div>
                     {quantity > 0 ? (
                       <div
-                        className="flex h-11 items-center justify-between overflow-hidden rounded-md border border-accent/30 bg-accent/10"
+                        className="flex h-9 items-center justify-between overflow-hidden rounded-md border border-accent/30 bg-accent/10 sm:h-11"
                         onClick={(event) => event.stopPropagation()}
                       >
                         <Button
                           type="button"
                           variant="ghost"
                           size="icon"
-                          className="h-11 w-12 rounded-none hover:bg-accent hover:text-accent-foreground"
+                          className="h-9 w-9 rounded-none hover:bg-accent hover:text-accent-foreground sm:h-11 sm:w-12"
                           onClick={() => decreaseQuantity(product.id)}
                           aria-label="Decrease quantity"
                         >
-                          <Minus className="h-4 w-4" />
+                          <Minus className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
                         </Button>
-                        <span className="min-w-12 text-center text-base font-bold">{quantity}</span>
+                        <span className="min-w-8 text-center text-sm font-bold sm:min-w-12 sm:text-base">{quantity}</span>
                         <Button
                           type="button"
                           variant="ghost"
                           size="icon"
-                          className="h-11 w-12 rounded-none hover:bg-accent hover:text-accent-foreground"
+                          className="h-9 w-9 rounded-none hover:bg-accent hover:text-accent-foreground sm:h-11 sm:w-12"
                           onClick={() => increaseQuantity(product.id)}
                           aria-label="Increase quantity"
                         >
-                          <Plus className="h-4 w-4" />
+                          <Plus className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
                         </Button>
                       </div>
                     ) : (
                       <Button
                         type="button"
-                        className="h-11 w-full gap-2 shadow-sm transition-all duration-300 group-hover:shadow-md active:scale-[0.99]"
+                        className="h-9 w-full gap-1.5 px-2 text-xs shadow-sm transition-all duration-300 group-hover:shadow-md active:scale-[0.99] sm:h-11 sm:gap-2 sm:text-sm"
                         onClick={(event) => {
                           event.stopPropagation();
                           addItem({
@@ -337,7 +337,7 @@ export function MenuPageClient() {
                           });
                         }}
                       >
-                        <Plus className="h-4 w-4" />
+                        <Plus className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
                         {copy.add}
                       </Button>
                     )}
