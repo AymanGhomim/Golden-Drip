@@ -243,7 +243,7 @@ export function MenuPageClient() {
             return (
               <Card
                 key={product.id}
-                className="menu-card group cursor-pointer overflow-hidden rounded-md border bg-card/95 shadow-sm transition-all duration-500 hover:-translate-y-1.5 hover:border-accent/60 hover:shadow-[0_20px_45px_hsl(var(--foreground)/0.18)]"
+                className="menu-card group cursor-pointer overflow-hidden rounded-md border border-border/70 bg-card shadow-sm transition-all duration-500 hover:-translate-y-1.5 hover:border-accent/55 hover:shadow-[0_20px_45px_hsl(var(--foreground)/0.14)]"
                 role="button"
                 tabIndex={0}
                 onClick={() => router.push(`/menu/${product.id}`)}
@@ -260,7 +260,7 @@ export function MenuPageClient() {
                       alt={translatedProductText.name}
                       fill
                       sizes="(min-width: 1024px) 33vw, 50vw"
-                      className="object-cover transition-transform duration-700 ease-out group-hover:scale-[1.07]"
+                      className="object-cover transition-transform duration-700 ease-out group-hover:scale-[1.08]"
                     />
                   ) : (
                     <div className="flex h-full items-center justify-center text-muted-foreground">
@@ -270,34 +270,37 @@ export function MenuPageClient() {
                   <div className="absolute inset-0 opacity-0 transition-opacity duration-500 group-hover:opacity-100">
                     <div className="absolute -left-1/2 top-0 h-full w-1/2 skew-x-[-18deg] bg-white/12 blur-md transition-transform duration-700 ease-out group-hover:translate-x-[330%]" />
                   </div>
-                  <div className="absolute inset-x-0 bottom-0 h-24 bg-gradient-to-t from-black/55 to-transparent" />
+                  <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/10 to-black/10" />
                   <Price
                     value={product.price}
                     locale={locale}
-                    className="absolute right-2 top-2 rounded-full border border-white/25 bg-white/20 px-2 py-1 text-xs font-bold text-white shadow-sm backdrop-blur-md sm:right-3 sm:top-3 sm:px-3 sm:py-1.5 sm:text-sm"
+                    className="absolute right-2 top-2 rounded-full border border-white/35 bg-white/25 px-2 py-1 text-xs font-black text-white shadow-[0_8px_20px_rgba(0,0,0,0.18)] backdrop-blur-md sm:right-3 sm:top-3 sm:px-3 sm:py-1.5 sm:text-sm"
                     currencyClassName="text-white/75"
                   />
                   {quantity > 0 ? (
-                    <Badge className="absolute left-2 top-2 gap-1 rounded-full bg-accent px-2 py-1 text-[0.68rem] text-accent-foreground shadow-sm sm:left-3 sm:top-3 sm:px-3 sm:py-1.5">
+                    <Badge className="absolute left-2 top-2 gap-1 rounded-full border border-white/25 bg-accent px-2 py-1 text-[0.68rem] font-bold text-accent-foreground shadow-sm sm:left-3 sm:top-3 sm:px-3 sm:py-1.5">
                       <ShoppingCart className="h-3 w-3 sm:h-3.5 sm:w-3.5" />
                       {quantity}
                     </Badge>
                   ) : null}
-                  <div className="absolute bottom-2 left-2 right-2 sm:bottom-3 sm:left-3 sm:right-3">
-                    <h2 className="line-clamp-2 text-sm font-bold leading-snug text-white drop-shadow-sm transition-transform duration-500 ease-out group-hover:-translate-y-1 sm:text-xl">
+                  <div className="absolute bottom-0 left-0 right-0 p-2.5 sm:p-3.5">
+                    <p className="mb-1 hidden w-fit rounded-full border border-white/20 bg-white/15 px-2 py-0.5 text-[0.65rem] font-semibold text-white/90 backdrop-blur-sm sm:block">
+                      {translatedCategoryName(product.categoryId, locale)}
+                    </p>
+                    <h2 className="line-clamp-2 text-sm font-black leading-snug text-white drop-shadow-sm transition-transform duration-500 ease-out group-hover:-translate-y-1 sm:text-xl">
                       {translatedProductText.name}
                     </h2>
                   </div>
                 </div>
-                <CardContent className="flex flex-col gap-2 p-2.5 sm:gap-3 sm:p-4">
-                  <p className="line-clamp-2 text-xs leading-5 text-muted-foreground sm:line-clamp-3 sm:text-sm sm:leading-7">
+                <CardContent className="flex flex-1 flex-col gap-2 border-t bg-gradient-to-b from-card to-muted/25 p-2.5 sm:gap-3 sm:p-4">
+                  <p className="min-h-10 line-clamp-2 text-xs leading-5 text-muted-foreground sm:min-h-[4.5rem] sm:line-clamp-3 sm:text-sm sm:leading-6">
                     {translatedProductText.description}
                   </p>
 
-                  <div>
+                  <div className="mt-auto">
                     {quantity > 0 ? (
                       <div
-                        className="flex h-9 items-center justify-between overflow-hidden rounded-md border border-accent/30 bg-accent/10 sm:h-11"
+                        className="flex h-9 items-center justify-between overflow-hidden rounded-md border border-accent/35 bg-accent/10 shadow-inner sm:h-11"
                         onClick={(event) => event.stopPropagation()}
                       >
                         <Button
@@ -325,7 +328,7 @@ export function MenuPageClient() {
                     ) : (
                       <Button
                         type="button"
-                        className="h-9 w-full gap-1.5 px-2 text-xs shadow-sm transition-all duration-300 group-hover:shadow-md active:scale-[0.99] sm:h-11 sm:gap-2 sm:text-sm"
+                        className="h-9 w-full gap-1.5 rounded-md bg-[#21100a] px-2 text-xs font-bold text-[#fff5ee] shadow-sm transition-all duration-300 hover:bg-[#2f170e] group-hover:shadow-md active:scale-[0.99] sm:h-11 sm:gap-2 sm:text-sm"
                         onClick={(event) => {
                           event.stopPropagation();
                           addItem({
