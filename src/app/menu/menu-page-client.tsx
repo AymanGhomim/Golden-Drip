@@ -200,7 +200,13 @@ export function MenuPageClient() {
             </div>
 
             {activeOffers.length > 1 ? (
-              <div className="absolute bottom-4 right-4 flex gap-2" dir="ltr">
+              <div
+                className={cn(
+                  "absolute bottom-4 flex gap-2",
+                  locale === "ar" ? "left-4" : "right-4"
+                )}
+                dir="ltr"
+              >
                 {activeOffers.map((offer, index) => (
                   <button
                     key={offer.id}
