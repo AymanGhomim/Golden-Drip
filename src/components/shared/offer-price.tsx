@@ -20,7 +20,7 @@ export function OfferPrice({
   const currency = locale === "ar" ? APP_CONFIG.currencySymbol : "EGP";
 
   return (
-    <div className={cn("inline-flex items-end gap-4", className)}>
+    <div className={cn("flex max-w-full flex-wrap items-end gap-2 sm:inline-flex sm:gap-4", className)}>
       <div className="space-y-0.5">
         <p
           className={cn(
@@ -28,12 +28,12 @@ export function OfferPrice({
             variant === "light" ? "text-white/70" : "text-muted-foreground"
           )}
         >
-          Offer price
+          {locale === "ar" ? "سعر العرض" : "Offer price"}
         </p>
         <div className="flex items-baseline gap-1.5">
           <span
             className={cn(
-              "text-3xl font-black leading-none tracking-normal sm:text-4xl",
+              "text-2xl font-black leading-none tracking-normal sm:text-4xl",
               variant === "light" ? "text-white drop-shadow-sm" : "text-foreground"
             )}
           >
@@ -51,7 +51,7 @@ export function OfferPrice({
       </div>
       <div
         className={cn(
-          "mb-1 rounded-md border px-2.5 py-1 text-xs font-semibold",
+          "mb-0.5 rounded-md border px-2 py-1 text-[0.68rem] font-semibold sm:mb-1 sm:px-2.5 sm:text-xs",
           variant === "light"
             ? "border-white/25 bg-white/10 text-white/75 backdrop-blur-sm"
             : "border-border bg-muted text-muted-foreground"

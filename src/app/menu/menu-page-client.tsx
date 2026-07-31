@@ -125,6 +125,7 @@ export function MenuPageClient() {
         {featuredOffer ? (
           <div
             className="relative mb-6 touch-pan-y overflow-hidden rounded-md"
+            dir="ltr"
             onPointerDown={(event) => {
               if (activeOffers.length <= 1) return;
               dragStartX.current = event.clientX;
@@ -154,7 +155,7 @@ export function MenuPageClient() {
                 <button
                   key={offer.id}
                   type="button"
-                  className="group relative block min-h-56 w-full shrink-0 overflow-hidden rounded-md border bg-muted text-start shadow-sm transition-all duration-500 hover:-translate-y-1 hover:border-accent/60 hover:shadow-[0_22px_55px_hsl(var(--foreground)/0.22)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring sm:min-h-64"
+                  className="group relative block min-h-[17rem] w-full shrink-0 overflow-hidden rounded-md border bg-muted text-start shadow-sm transition-all duration-500 hover:-translate-y-1 hover:border-accent/60 hover:shadow-[0_22px_55px_hsl(var(--foreground)/0.22)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring sm:min-h-64"
                   onClick={() => {
                     if (didDrag.current) return;
                     router.push(`/offers/${offer.id}`);
@@ -172,16 +173,16 @@ export function MenuPageClient() {
                     <div className="absolute -left-1/3 top-0 h-full w-1/3 skew-x-[-18deg] bg-white/15 blur-md transition-transform duration-700 ease-out group-hover:translate-x-[420%]" />
                   </div>
                   <div className="absolute inset-0 bg-gradient-to-t from-black/75 via-black/35 to-black/10" />
-                  <div className="absolute inset-x-0 bottom-0 p-5 text-white sm:p-6">
-                    <div className="max-w-2xl space-y-3 transition-transform duration-500 ease-out group-hover:-translate-y-1">
-                      <Badge className="border-white/30 bg-white/20 text-white backdrop-blur-sm hover:bg-white/20">
+                  <div className="absolute inset-x-0 bottom-0 p-4 text-white sm:p-6" dir={locale === "ar" ? "rtl" : "ltr"}>
+                    <div className="max-w-[42rem] space-y-2.5 transition-transform duration-500 ease-out group-hover:-translate-y-1 sm:space-y-3">
+                      <Badge className="w-fit border-white/30 bg-white/20 text-white backdrop-blur-sm hover:bg-white/20">
                         {locale === "ar" ? "عرض خاص" : "Special offer"}
                       </Badge>
-                      <div className="space-y-2">
-                        <h2 className="text-2xl font-bold tracking-tight drop-shadow-sm sm:text-4xl">
+                      <div className="space-y-1.5 sm:space-y-2">
+                        <h2 className="line-clamp-2 text-xl font-bold leading-tight tracking-tight drop-shadow-sm sm:text-4xl">
                           {offer.title}
                         </h2>
-                        <p className="max-w-xl text-sm leading-7 text-white/90 drop-shadow-sm sm:text-base">
+                        <p className="line-clamp-2 max-w-xl text-xs leading-5 text-white/90 drop-shadow-sm sm:line-clamp-3 sm:text-base sm:leading-7">
                           {offer.description}
                         </p>
                         <OfferPrice
