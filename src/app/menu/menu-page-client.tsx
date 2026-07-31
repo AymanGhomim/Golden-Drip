@@ -217,7 +217,7 @@ export function MenuPageClient() {
           </div>
         ) : null}
 
-        <div className="mb-6 flex gap-2 overflow-x-auto pb-2">
+        <div className="scrollbar-hidden mb-6 flex gap-2 overflow-x-auto pb-2">
           <CategoryButton
             isSelected={selectedCategory === allCategoryId}
             onClick={() => setSelectedCategory(allCategoryId)}

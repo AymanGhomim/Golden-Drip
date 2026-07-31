@@ -107,6 +107,15 @@
 .menu-card:nth-child(5) { animation-delay: 280ms; }
 .menu-card:nth-child(6) { animation-delay: 350ms; }
 
+.scrollbar-hidden {
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+
+.scrollbar-hidden::-webkit-scrollbar {
+  display: none;
+}
+
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after {
     animation-duration: 1ms !important;
