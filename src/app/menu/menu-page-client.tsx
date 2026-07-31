@@ -328,7 +328,7 @@ export function MenuPageClient() {
                     ) : (
                       <Button
                         type="button"
-                        className="h-9 w-full gap-1.5 rounded-md border border-[#21100a]/10 bg-[#21100a] px-2 text-xs font-bold text-[#fff5ee] shadow-sm transition-all duration-300 hover:-translate-y-0.5 hover:bg-accent hover:text-accent-foreground hover:shadow-[0_10px_22px_hsl(var(--accent)/0.22)] active:translate-y-0 active:scale-[0.99] sm:h-11 sm:gap-2 sm:text-sm"
+                        className="h-9 w-full gap-1.5 rounded-md border border-[#8a735d]/30 bg-[#8a735d] px-2 text-xs font-bold text-[#fffaf4] shadow-sm transition-all duration-300 hover:-translate-y-0.5 hover:bg-[#9a826b] hover:text-white hover:shadow-[0_10px_22px_rgba(138,115,93,0.26)] active:translate-y-0 active:scale-[0.99] sm:h-11 sm:gap-2 sm:text-sm"
                         onClick={(event) => {
                           event.stopPropagation();
                           addItem({
