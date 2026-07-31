@@ -125,7 +125,7 @@ export function AdminShell({ children }: { children: React.ReactNode }) {
           <p className="mb-2 truncate px-2.5 text-xs text-[#a99080]">{user?.email}</p>
           <Button
             variant="outline"
-            className="h-9 w-full justify-start gap-2.5 border-red-400/30 bg-red-500/10 px-2.5 text-xs font-bold text-red-200 hover:border-red-300/50 hover:bg-red-500/20 hover:text-red-100"
+            className="h-9 w-full justify-start gap-2.5 border-white/70 bg-white px-2.5 text-xs font-bold text-[#21100a] shadow-sm hover:border-accent/50 hover:bg-[#fff5ee] hover:text-[#21100a]"
             onClick={() => {
               logout();
               router.replace("/admin/login");
@@ -153,9 +153,9 @@ export function AdminShell({ children }: { children: React.ReactNode }) {
               <AppLogo showText={false} />
             </div>
             <Button
-              variant="ghost"
+              variant="outline"
               size="sm"
-              className="h-9 px-2"
+              className="h-9 border-red-100 bg-red-50 px-2 text-red-700 hover:bg-red-100 hover:text-red-800"
               onClick={() => {
                 logout();
                 router.replace("/admin/login");
@@ -203,7 +203,7 @@ export function AdminShell({ children }: { children: React.ReactNode }) {
                 <p className="mb-2 truncate px-2.5 text-xs text-[#a99080]">{user?.email}</p>
                 <Button
                   variant="outline"
-                  className="h-9 w-full justify-start gap-2.5 border-red-400/30 bg-red-500/10 px-2.5 text-xs font-bold text-red-200 hover:border-red-300/50 hover:bg-red-500/20 hover:text-red-100"
+                  className="h-9 w-full justify-start gap-2.5 border-white/70 bg-white px-2.5 text-xs font-bold text-[#21100a] shadow-sm hover:border-accent/50 hover:bg-[#fff5ee] hover:text-[#21100a]"
                   onClick={() => {
                     setIsMobileSidebarOpen(false);
                     logout();
