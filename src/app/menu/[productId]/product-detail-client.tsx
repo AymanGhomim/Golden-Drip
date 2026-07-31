@@ -2,12 +2,18 @@
 
 import Image from "next/image";
 import { useEffect, useState } from "react";
-import { Minus, Plus, ShoppingCart } from "lucide-react";
-import { Button } from "@/components/ui/button";
+import { Minus, Plus, ShoppingCart, Sparkles } from "lucide-react";
+
 import { BackButtonRow } from "@/components/shared/back-button-row";
-import { SiteHeader } from "@/components/shared/site-header";
 import { Price } from "@/components/shared/price";
-import { menuCopy, translatedProduct, type Locale } from "@/lib/menu-translations";
+import { SiteHeader } from "@/components/shared/site-header";
+import { Button } from "@/components/ui/button";
+import {
+  menuCopy,
+  translatedCategoryName,
+  translatedProduct,
+  type Locale,
+} from "@/lib/menu-translations";
 import { useCartStore } from "@/store/cart.store";
 import type { Product } from "@/types/product.types";
 
@@ -29,6 +35,7 @@ export function ProductDetailClient({ product }: { product: Product }) {
 
   const copy = menuCopy[locale];
   const text = translatedProduct(product.id, locale);
+  const categoryName = translatedCategoryName(product.categoryId, locale);
 
   function addToCart() {
     addItem({
@@ -45,28 +52,98 @@ export function ProductDetailClient({ product }: { product: Product }) {
       <SiteHeader locale={locale} onLocaleChange={setLocale} />
       <BackButtonRow locale={locale} />
 
-      <section className="animate-content-enter mx-auto grid w-full max-w-6xl gap-8 px-4 py-8 lg:grid-cols-2 lg:items-start sm:px-6">
-        <div className="animate-image-enter relative aspect-square overflow-hidden rounded-2xl bg-muted shadow-sm">
-          {product.image ? <Image src={product.image} alt={text.name} fill sizes="(min-width: 1024px) 50vw, 100vw" className="object-cover" /> : null}
-        </div>
-        <div className="space-y-7 lg:py-4">
-          <div className="space-y-3">
-            <p className="text-sm font-semibold uppercase tracking-[0.2em] text-accent">Golden Drip Café</p>
-            <h1 className="text-3xl font-bold tracking-tight sm:text-4xl">{text.name}</h1>
-            <p className="max-w-xl text-base leading-8 text-muted-foreground">{text.description}</p>
-            <Price value={product.price} locale={locale} className="text-2xl" />
-          </div>
-
-          <div className="flex items-center justify-between rounded-xl border bg-card p-4">
-            <span className="font-semibold">{copy.quantity}</span>
-            <div className="flex items-center gap-4">
-              <Button type="button" size="icon" variant="outline" onClick={() => setQuantity((value) => Math.max(1, value - 1))} aria-label="Decrease quantity"><Minus className="h-4 w-4" /></Button>
-              <span className="min-w-6 text-center text-lg font-bold">{quantity}</span>
-              <Button type="button" size="icon" variant="outline" onClick={() => setQuantity((value) => value + 1)} aria-label="Increase quantity"><Plus className="h-4 w-4" /></Button>
+      <section className="animate-content-enter mx-auto w-full max-w-6xl px-4 pb-28 pt-3 sm:px-6 sm:py-8">
+        <div className="overflow-hidden rounded-md border bg-card shadow-sm lg:grid lg:grid-cols-[1.05fr_0.95fr]">
+          <div className="animate-image-enter relative min-h-[19rem] overflow-hidden bg-muted sm:min-h-[30rem]">
+            {product.image ? (
+              <Image
+                src={product.image}
+                alt={text.name}
+                fill
+                sizes="(min-width: 1024px) 50vw, 100vw"
+                className="object-cover"
+                priority
+              />
+            ) : null}
+            <div className="absolute inset-0 bg-gradient-to-t from-black/72 via-black/18 to-black/5 lg:bg-gradient-to-r lg:from-transparent lg:via-black/5 lg:to-black/35" />
+            <Price
+              value={product.price}
+              locale={locale}
+              className="absolute right-3 top-3 rounded-full border border-white/35 bg-white/18 px-3 py-1.5 text-sm font-black text-white shadow-[0_10px_24px_rgba(0,0,0,0.2)] backdrop-blur-md sm:right-5 sm:top-5 sm:text-base"
+              currencyClassName="text-white/75"
+            />
+            <div className="absolute bottom-4 left-4 right-4 text-white lg:hidden">
+              <p className="mb-2 w-fit rounded-full border border-white/25 bg-white/15 px-2.5 py-1 text-[0.68rem] font-bold backdrop-blur-md">
+                {categoryName}
+              </p>
+              <h1 className="line-clamp-2 text-2xl font-black leading-tight drop-shadow-sm">
+                {text.name}
+              </h1>
             </div>
           </div>
 
-          <Button type="button" size="lg" className="w-full gap-2" onClick={addToCart}><ShoppingCart className="h-5 w-5" />{copy.addToCart}</Button>
+          <div className="-mt-8 rounded-t-[1.6rem] bg-card p-4 shadow-[0_-18px_40px_rgba(0,0,0,0.18)] lg:mt-0 lg:rounded-none lg:p-8 lg:shadow-none">
+            <div className="space-y-5 lg:space-y-7">
+              <div className="hidden space-y-3 lg:block">
+                <p className="inline-flex items-center gap-2 rounded-full border bg-muted px-3 py-1 text-xs font-bold text-muted-foreground">
+                  <Sparkles className="h-3.5 w-3.5 text-accent" />
+                  {categoryName}
+                </p>
+                <h1 className="text-4xl font-black tracking-tight">{text.name}</h1>
+              </div>
+
+              <div className="space-y-3">
+                <p className="text-sm leading-7 text-muted-foreground sm:text-base sm:leading-8">
+                  {text.description}
+                </p>
+                <div className="hidden lg:block">
+                  <Price value={product.price} locale={locale} className="text-3xl font-black" />
+                </div>
+              </div>
+
+              <div className="rounded-md border bg-background/60 p-3.5 sm:p-4">
+                <div className="mb-3 flex items-center justify-between">
+                  <span className="text-sm font-bold">{copy.quantity}</span>
+                  <span className="rounded-full bg-muted px-2 py-0.5 text-xs font-semibold text-muted-foreground">
+                    x{quantity}
+                  </span>
+                </div>
+                <div className="flex h-11 items-center justify-between overflow-hidden rounded-md border border-accent/30 bg-accent/8">
+                  <Button
+                    type="button"
+                    size="icon"
+                    variant="ghost"
+                    className="h-11 w-12 rounded-none hover:bg-accent/15"
+                    onClick={() => setQuantity((value) => Math.max(1, value - 1))}
+                    aria-label="Decrease quantity"
+                  >
+                    <Minus className="h-4 w-4" />
+                  </Button>
+                  <span className="min-w-12 text-center text-lg font-black">{quantity}</span>
+                  <Button
+                    type="button"
+                    size="icon"
+                    variant="ghost"
+                    className="h-11 w-12 rounded-none hover:bg-accent/15"
+                    onClick={() => setQuantity((value) => value + 1)}
+                    aria-label="Increase quantity"
+                  >
+                    <Plus className="h-4 w-4" />
+                  </Button>
+                </div>
+              </div>
+
+              <Button
+                type="button"
+                size="lg"
+                className="h-12 w-full gap-2 rounded-md bg-[#21100a] font-bold text-[#fff5ee] shadow-sm transition-all hover:-translate-y-0.5 hover:bg-[#2f170e] dark:bg-[#b9a58f] dark:text-[#1b0d08] dark:hover:bg-[#c7b39d]"
+                onClick={addToCart}
+              >
+                <ShoppingCart className="h-5 w-5" />
+                {copy.addToCart}
+              </Button>
+            </div>
+          </div>
         </div>
       </section>
     </main>
