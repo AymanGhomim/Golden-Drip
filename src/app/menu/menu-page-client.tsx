@@ -243,7 +243,7 @@ export function MenuPageClient() {
             return (
               <Card
                 key={product.id}
-                className="menu-card group cursor-pointer overflow-hidden rounded-md border border-border/70 bg-card shadow-sm transition-all duration-500 hover:-translate-y-1.5 hover:border-accent/55 hover:shadow-[0_20px_45px_hsl(var(--foreground)/0.14)]"
+                className="menu-card group cursor-pointer overflow-hidden rounded-md border border-border/70 bg-card shadow-sm transition-[border-color,box-shadow,transform] duration-300 ease-out hover:-translate-y-1 hover:border-accent/45 hover:shadow-[0_14px_34px_hsl(var(--accent)/0.16)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/40"
                 role="button"
                 tabIndex={0}
                 onClick={() => router.push(`/menu/${product.id}`)}
@@ -260,21 +260,21 @@ export function MenuPageClient() {
                       alt={translatedProductText.name}
                       fill
                       sizes="(min-width: 1024px) 33vw, 50vw"
-                      className="object-cover transition-transform duration-700 ease-out group-hover:scale-[1.08]"
+                      className="object-cover transition-transform duration-500 ease-out group-hover:scale-[1.035]"
                     />
                   ) : (
                     <div className="flex h-full items-center justify-center text-muted-foreground">
                       <ShoppingBag className="h-10 w-10" />
                     </div>
                   )}
-                  <div className="absolute inset-0 opacity-0 transition-opacity duration-500 group-hover:opacity-100">
-                    <div className="absolute -left-1/2 top-0 h-full w-1/2 skew-x-[-18deg] bg-white/12 blur-md transition-transform duration-700 ease-out group-hover:translate-x-[330%]" />
+                  <div className="absolute inset-0 bg-gradient-to-t from-black/68 via-black/12 to-black/5 transition-colors duration-300 group-hover:from-black/62 group-hover:via-black/8" />
+                  <div className="absolute inset-0 opacity-0 transition-opacity duration-300 group-hover:opacity-100">
+                    <div className="absolute inset-0 bg-accent/8" />
                   </div>
-                  <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/10 to-black/10" />
                   <Price
                     value={product.price}
                     locale={locale}
-                    className="absolute right-2 top-2 rounded-full border border-white/35 bg-white/25 px-2 py-1 text-xs font-black text-white shadow-[0_8px_20px_rgba(0,0,0,0.18)] backdrop-blur-md sm:right-3 sm:top-3 sm:px-3 sm:py-1.5 sm:text-sm"
+                    className="absolute right-2 top-2 rounded-full border border-white/35 bg-white/25 px-2 py-1 text-xs font-black text-white shadow-[0_8px_20px_rgba(0,0,0,0.16)] backdrop-blur-md transition-all duration-300 group-hover:border-accent/60 group-hover:bg-white/30 sm:right-3 sm:top-3 sm:px-3 sm:py-1.5 sm:text-sm"
                     currencyClassName="text-white/75"
                   />
                   {quantity > 0 ? (
@@ -287,12 +287,12 @@ export function MenuPageClient() {
                     <p className="mb-1 hidden w-fit rounded-full border border-white/20 bg-white/15 px-2 py-0.5 text-[0.65rem] font-semibold text-white/90 backdrop-blur-sm sm:block">
                       {translatedCategoryName(product.categoryId, locale)}
                     </p>
-                    <h2 className="line-clamp-2 text-sm font-black leading-snug text-white drop-shadow-sm transition-transform duration-500 ease-out group-hover:-translate-y-1 sm:text-xl">
+                    <h2 className="line-clamp-2 text-sm font-black leading-snug text-white drop-shadow-sm transition-transform duration-300 ease-out group-hover:-translate-y-0.5 sm:text-xl">
                       {translatedProductText.name}
                     </h2>
                   </div>
                 </div>
-                <CardContent className="flex flex-1 flex-col gap-2 border-t bg-gradient-to-b from-card to-muted/25 p-2.5 sm:gap-3 sm:p-4">
+                <CardContent className="flex flex-1 flex-col gap-2 border-t bg-gradient-to-b from-card to-muted/25 p-2.5 transition-colors duration-300 group-hover:from-card group-hover:to-accent/8 sm:gap-3 sm:p-4">
                   <p className="min-h-10 line-clamp-2 text-xs leading-5 text-muted-foreground sm:min-h-[4.5rem] sm:line-clamp-3 sm:text-sm sm:leading-6">
                     {translatedProductText.description}
                   </p>
@@ -300,14 +300,14 @@ export function MenuPageClient() {
                   <div className="mt-auto">
                     {quantity > 0 ? (
                       <div
-                        className="flex h-9 items-center justify-between overflow-hidden rounded-md border border-accent/35 bg-accent/10 shadow-inner sm:h-11"
+                        className="flex h-9 items-center justify-between overflow-hidden rounded-md border border-accent/30 bg-accent/8 shadow-inner transition-colors duration-300 group-hover:border-accent/45 group-hover:bg-accent/12 sm:h-11"
                         onClick={(event) => event.stopPropagation()}
                       >
                         <Button
                           type="button"
                           variant="ghost"
                           size="icon"
-                          className="h-9 w-9 rounded-none hover:bg-accent hover:text-accent-foreground sm:h-11 sm:w-12"
+                          className="h-9 w-9 rounded-none transition-colors hover:bg-accent/18 hover:text-foreground sm:h-11 sm:w-12"
                           onClick={() => decreaseQuantity(product.id)}
                           aria-label="Decrease quantity"
                         >
@@ -318,7 +318,7 @@ export function MenuPageClient() {
                           type="button"
                           variant="ghost"
                           size="icon"
-                          className="h-9 w-9 rounded-none hover:bg-accent hover:text-accent-foreground sm:h-11 sm:w-12"
+                          className="h-9 w-9 rounded-none transition-colors hover:bg-accent/18 hover:text-foreground sm:h-11 sm:w-12"
                           onClick={() => increaseQuantity(product.id)}
                           aria-label="Increase quantity"
                         >
@@ -328,7 +328,7 @@ export function MenuPageClient() {
                     ) : (
                       <Button
                         type="button"
-                        className="h-9 w-full gap-1.5 rounded-md bg-[#21100a] px-2 text-xs font-bold text-[#fff5ee] shadow-sm transition-all duration-300 hover:bg-[#2f170e] group-hover:shadow-md active:scale-[0.99] sm:h-11 sm:gap-2 sm:text-sm"
+                        className="h-9 w-full gap-1.5 rounded-md border border-[#21100a]/10 bg-[#21100a] px-2 text-xs font-bold text-[#fff5ee] shadow-sm transition-all duration-300 hover:-translate-y-0.5 hover:bg-accent hover:text-accent-foreground hover:shadow-[0_10px_22px_hsl(var(--accent)/0.22)] active:translate-y-0 active:scale-[0.99] sm:h-11 sm:gap-2 sm:text-sm"
                         onClick={(event) => {
                           event.stopPropagation();
                           addItem({
