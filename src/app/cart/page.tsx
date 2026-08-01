@@ -100,7 +100,7 @@ export default function CartPage() {
         {items.length === 0 ? (
           <Card className="overflow-hidden rounded-md border-[#3d2014]/20 bg-card shadow-sm">
             <CardContent className="flex flex-col items-center px-5 py-12 text-center sm:px-8 sm:py-14">
-              <div className="mb-6 flex h-28 w-28 items-center justify-center rounded-full border bg-muted p-3 shadow-sm dark:bg-[#21100a]">
+              <div className="mb-6 h-28 w-28">
                 <svg
                   viewBox="0 0 420 320"
                   role="img"
