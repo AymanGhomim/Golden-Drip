@@ -15,6 +15,7 @@ interface AdminDataPageProps<T> {
   title: string;
   description: string;
   actionLabel?: string;
+  actionContent?: React.ReactNode;
   stats: AdminStat[];
   tableTitle: string;
   tableDescription: string;
@@ -28,6 +29,7 @@ export function AdminDataPage<T>({
   title,
   description,
   actionLabel,
+  actionContent,
   stats,
   tableTitle,
   tableDescription,
@@ -49,12 +51,12 @@ export function AdminDataPage<T>({
                 <h1 className="mt-1.5 text-2xl font-bold tracking-tight sm:text-3xl">{title}</h1>
                 <p className="mt-1.5 max-w-xl text-sm leading-6 text-muted-foreground">{description}</p>
               </div>
-              {actionLabel ? (
+              {actionContent ?? (actionLabel ? (
                 <Button className="h-9 gap-2 rounded-md px-3 text-sm shadow-sm">
                   <Plus className="h-4 w-4" />
                   {actionLabel}
                 </Button>
-              ) : null}
+              ) : null)}
             </div>
           </div>
         </div>
