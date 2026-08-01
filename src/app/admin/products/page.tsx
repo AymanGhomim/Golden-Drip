@@ -105,6 +105,7 @@ export default function ProductsPage() {
           cancel: "إلغاء",
           save: "حفظ الصنف",
         };
+  const selectItemClassName = locale === "ar" ? "justify-end pl-2 pr-8 text-right [&>span]:left-auto [&>span]:right-2" : undefined;
 
   const columns = [
     {
@@ -189,9 +190,9 @@ export default function ProductsPage() {
                     <SelectTrigger className={locale === "ar" ? "flex-row-reverse" : undefined}>
                       <SelectValue placeholder={formText.categoryPlaceholder} />
                     </SelectTrigger>
-                    <SelectContent>
+                    <SelectContent dir={locale === "ar" ? "rtl" : "ltr"}>
                       {mockCategories.map((category) => (
-                        <SelectItem key={category.id} value={category.id}>
+                        <SelectItem key={category.id} value={category.id} className={selectItemClassName}>
                           {category.name}
                         </SelectItem>
                       ))}
@@ -239,9 +240,9 @@ export default function ProductsPage() {
                   <SelectTrigger className={locale === "ar" ? "flex-row-reverse" : undefined}>
                     <SelectValue />
                   </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="available">{text.active}</SelectItem>
-                    <SelectItem value="hidden">{text.hidden}</SelectItem>
+                  <SelectContent dir={locale === "ar" ? "rtl" : "ltr"}>
+                    <SelectItem value="available" className={selectItemClassName}>{text.active}</SelectItem>
+                    <SelectItem value="hidden" className={selectItemClassName}>{text.hidden}</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
