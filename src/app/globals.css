@@ -97,15 +97,21 @@
   to { opacity: 1; transform: scale(1); }
 }
 
-@keyframes contact-ticker {
-  from { transform: translateX(0); }
-  to { transform: translateX(-50%); }
+@keyframes contact-ticker-ltr {
+  from { transform: translateX(-100%); }
+  to { transform: translateX(100vw); }
+}
+
+@keyframes contact-ticker-rtl {
+  from { transform: translateX(100vw); }
+  to { transform: translateX(-100%); }
 }
 
 .animate-header-enter { animation: header-enter 220ms ease-out both; }
 .animate-content-enter { animation: content-enter 240ms ease-out both; }
 .animate-image-enter { animation: image-enter 240ms ease-out both; }
-.contact-ticker { animation: contact-ticker 18s linear infinite; }
+.contact-ticker-ltr { animation: contact-ticker-ltr 16s linear infinite; }
+.contact-ticker-rtl { animation: contact-ticker-rtl 16s linear infinite; }
 .menu-card { animation: content-enter 220ms ease-out both; }
 .menu-card:nth-child(2) { animation-delay: 24ms; }
 .menu-card:nth-child(3) { animation-delay: 48ms; }
