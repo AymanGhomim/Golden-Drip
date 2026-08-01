@@ -98,28 +98,14 @@ export default function CartPage() {
         </div>
 
         {items.length === 0 ? (
-          <Card className="overflow-hidden rounded-md border-[#3d2014]/30 bg-card shadow-[0_24px_70px_rgba(33,16,10,0.14)]">
-            <CardContent className="grid gap-6 p-5 sm:p-8 lg:grid-cols-[1fr_0.85fr] lg:items-center">
-              <div className="order-2 space-y-5 text-center lg:order-1 lg:text-start">
-                <div className="mx-auto w-fit rounded-full border bg-muted px-3 py-1 text-[0.7rem] font-black uppercase tracking-[0.12em] text-muted-foreground lg:mx-0">
-                  {text.items}: 0
-                </div>
-                <div className="space-y-3">
-                  <h2 className="text-3xl font-black tracking-tight sm:text-5xl">{text.empty}</h2>
-                  <p className="mx-auto max-w-md text-sm leading-7 text-muted-foreground sm:text-base lg:mx-0">
-                    {text.emptyText}
-                  </p>
-                </div>
-                <Button asChild className="h-12 rounded-md bg-primary px-6 font-bold text-primary-foreground shadow-sm transition-all hover:-translate-y-0.5 hover:bg-primary/90 dark:bg-[#b9a58f] dark:text-[#1b0d08] dark:hover:bg-[#c7b39d]">
-                  <Link href="/menu">{text.browse}</Link>
-                </Button>
-              </div>
-              <div className="order-1 rounded-md border bg-muted p-4 shadow-sm dark:bg-[#21100a] dark:shadow-[0_22px_55px_rgba(33,16,10,0.22)] lg:order-2">
+          <Card className="overflow-hidden rounded-md border-[#3d2014]/20 bg-card shadow-sm">
+            <CardContent className="flex flex-col items-center px-5 py-12 text-center sm:px-8 sm:py-14">
+              <div className="mb-6 flex h-28 w-28 items-center justify-center rounded-full border bg-muted p-3 shadow-sm dark:bg-[#21100a]">
                 <svg
                   viewBox="0 0 420 320"
                   role="img"
                   aria-label={text.empty}
-                  className="h-auto w-full"
+                  className="h-full w-full"
                 >
                   <defs>
                     <linearGradient id="cartSteam" x1="0" x2="1" y1="0" y2="1">
@@ -156,6 +142,18 @@ export default function CartPage() {
                   <path d="M316 143 L337 164 L379 119" stroke="#f7d7a3" strokeWidth="12" strokeLinecap="round" strokeLinejoin="round" fill="none" />
                 </svg>
               </div>
+              <div className="mb-6 space-y-3">
+                <div className="mx-auto w-fit rounded-full border bg-muted px-3 py-1 text-[0.7rem] font-black uppercase tracking-[0.12em] text-muted-foreground">
+                  {text.items}: 0
+                </div>
+                <h2 className="text-3xl font-black tracking-tight sm:text-4xl">{text.empty}</h2>
+                <p className="mx-auto max-w-md text-sm leading-7 text-muted-foreground sm:text-base">
+                  {text.emptyText}
+                </p>
+              </div>
+              <Button asChild className="h-11 min-w-44 rounded-md bg-primary px-6 text-sm font-bold text-primary-foreground shadow-sm transition-all hover:-translate-y-0.5 hover:bg-primary/90 dark:bg-[#b9a58f] dark:text-[#1b0d08] dark:hover:bg-[#c7b39d]">
+                <Link href="/menu">{text.browse}</Link>
+              </Button>
             </CardContent>
           </Card>
         ) : (
