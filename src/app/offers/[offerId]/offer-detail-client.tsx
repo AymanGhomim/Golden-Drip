@@ -7,7 +7,6 @@ import { BadgePercent, Minus, Plus, ShoppingCart } from "lucide-react";
 import { BackButtonRow } from "@/components/shared/back-button-row";
 import { OfferPrice } from "@/components/shared/offer-price";
 import { SiteHeader } from "@/components/shared/site-header";
-import { SocialLinks } from "@/components/shared/social-links";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import type { Locale } from "@/lib/menu-translations";
@@ -117,7 +116,6 @@ export function OfferDetailClient({ offer }: { offer: Offer }) {
             {copy.addToCart}
           </Button>
         </div>
-        <SocialLinks locale={locale} className="lg:col-span-2" />
       </section>
     </main>
   );

@@ -9,7 +9,6 @@ import { Banknote, CreditCard, MapPin, MessageSquareText, Minus, PackageCheck, P
 import { BackButtonRow } from "@/components/shared/back-button-row";
 import { Price } from "@/components/shared/price";
 import { SiteHeader } from "@/components/shared/site-header";
-import { SocialLinks } from "@/components/shared/social-links";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -423,7 +422,6 @@ export default function CartPage() {
             </Card>
           </div>
         )}
-        <SocialLinks locale={locale} />
       </section>
     </main>
   );

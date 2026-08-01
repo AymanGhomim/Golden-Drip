@@ -1,6 +1,6 @@
 "use client";
 
-import { ExternalLink, Facebook, Instagram, MapPin, Music2 } from "lucide-react";
+import { Facebook, Instagram, MapPin, Music2 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import type { Locale } from "@/lib/menu-translations";
@@ -33,26 +33,20 @@ const links = [
   },
 ];
 
-export function SocialLinks({ locale, className }: { locale: Locale; className?: string }) {
-  const title = locale === "ar" ? "تابعنا و زورنا" : "Follow us and visit";
-
+export function SocialLinks({ locale: _locale, className }: { locale: Locale; className?: string }) {
   return (
-    <div className={cn("mt-8 rounded-md border bg-card p-4 shadow-sm", className)}>
-      <div className="mb-3 flex items-center justify-between gap-3">
-        <p className="text-sm font-black">{title}</p>
-        <ExternalLink className="h-4 w-4 text-muted-foreground" />
-      </div>
-      <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+    <div className={cn("border-b bg-background/95 backdrop-blur", className)}>
+      <div className="mx-auto flex w-full max-w-6xl items-center justify-center gap-2 px-3 py-2 sm:px-6">
         {links.map(({ key, label, href, icon: Icon }) => (
           <Button
             key={key}
             asChild
             variant="outline"
-            className="h-11 gap-2 rounded-md bg-background/60 text-xs font-bold hover:bg-accent/10"
+            size="icon"
+            className="h-9 w-9 rounded-full border-primary/15 bg-card shadow-sm transition-all hover:-translate-y-0.5 hover:border-primary/30 hover:bg-accent/10"
           >
-            <a href={href} target="_blank" rel="noreferrer">
+            <a href={href} target="_blank" rel="noreferrer" aria-label={label} title={label}>
               <Icon className="h-4 w-4" />
-              {label}
             </a>
           </Button>
         ))}

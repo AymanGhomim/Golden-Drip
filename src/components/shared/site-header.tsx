@@ -7,6 +7,7 @@ import { useTheme } from "next-themes";
 import { Moon, ShoppingCart, Sun } from "lucide-react";
 
 import { AppLogo } from "@/components/shared/app-logo";
+import { SocialLinks } from "@/components/shared/social-links";
 import { Button } from "@/components/ui/button";
 import { ROUTES } from "@/constants/routes";
 import { cn } from "@/lib/utils";
@@ -51,8 +52,8 @@ export function SiteHeader({ locale, onLocaleChange }: SiteHeaderProps) {
     : ROUTES.cart;
 
   return (
-    <header className="sticky top-0 z-20 border-b bg-background/95 backdrop-blur animate-header-enter">
-      <div className="mx-auto flex min-h-[4.75rem] w-full max-w-6xl items-center justify-between gap-4 px-3 py-3.5 sm:min-h-[6rem] sm:gap-6 sm:px-6 sm:py-5">
+    <header className="sticky top-0 z-20 bg-background/95 backdrop-blur animate-header-enter">
+      <div className="mx-auto flex min-h-[4.75rem] w-full max-w-6xl items-center justify-between gap-4 border-b px-3 py-3.5 sm:min-h-[6rem] sm:gap-6 sm:px-6 sm:py-5">
         <div className="flex min-w-0 items-center gap-3">
           <Link href={ROUTES.menu} className="shrink-0" aria-label="Golden Drip Cafe menu">
             <AppLogo showText={false} size="sm" className="mb-0.5 [&_div]:h-12 [&_div]:w-12 sm:[&_div]:h-16 sm:[&_div]:w-16" />
@@ -100,6 +101,7 @@ export function SiteHeader({ locale, onLocaleChange }: SiteHeaderProps) {
           </Button>
         </div>
       </div>
+      <SocialLinks locale={locale} className="border-b-0" />
     </header>
   );
 }
