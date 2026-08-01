@@ -340,7 +340,7 @@ export function MenuPageClient() {
                     ) : (
                       <Button
                         type="button"
-                        className="h-9 w-full gap-1.5 rounded-md border border-[#21100a]/10 bg-[#21100a] px-2 text-xs font-bold text-[#fff5ee] shadow-sm transition-all duration-300 hover:-translate-y-0.5 hover:bg-[#2f170e] hover:text-white hover:shadow-[0_10px_22px_rgba(47,23,14,0.24)] active:translate-y-0 active:scale-[0.99] dark:border-[#b9a58f]/35 dark:bg-[#b9a58f] dark:text-[#1b0d08] dark:hover:bg-[#c7b39d] dark:hover:text-[#1b0d08] dark:hover:shadow-[0_10px_22px_rgba(185,165,143,0.18)] sm:h-11 sm:gap-2 sm:text-sm"
+                        className="h-9 w-full gap-1.5 rounded-md border border-[#21100a]/10 bg-[#21100a] px-2 text-xs font-bold text-[#fff5ee] shadow-sm transition-all duration-300 hover:-translate-y-0.5 hover:bg-[#21100a]/90 hover:text-white hover:shadow-[0_10px_22px_rgba(33,16,10,0.24)] active:translate-y-0 active:scale-[0.99] dark:border-[#b9a58f]/35 dark:bg-[#b9a58f] dark:text-[#21100a] dark:hover:bg-[#c7b39d] dark:hover:text-[#21100a] dark:hover:shadow-[0_10px_22px_rgba(185,165,143,0.18)] sm:h-11 sm:gap-2 sm:text-sm"
                         onClick={(event) => {
                           event.stopPropagation();
                           addItem({
@@ -383,7 +383,7 @@ function CategoryButton({
       className={cn(
         "h-9 shrink-0 rounded-full border border-border/70 bg-card/70 px-4 text-xs font-bold text-muted-foreground shadow-sm backdrop-blur-sm transition-all duration-200 hover:-translate-y-0.5 hover:border-accent/35 hover:bg-accent/10 hover:text-foreground",
         isSelected &&
-          "border-[#21100a] bg-[#21100a] text-[#fff5ee] shadow-[0_10px_22px_rgba(33,16,10,0.18)] hover:bg-[#2f170e] hover:text-white dark:border-[#b9a58f] dark:bg-[#b9a58f] dark:text-[#1b0d08] dark:hover:bg-[#c7b39d]"
+          "border-[#21100a] bg-[#21100a] text-[#fff5ee] shadow-[0_10px_22px_rgba(33,16,10,0.18)] hover:bg-[#21100a]/90 hover:text-white dark:border-[#b9a58f] dark:bg-[#b9a58f] dark:text-[#21100a] dark:hover:bg-[#c7b39d]"
       )}
       onClick={onClick}
     >

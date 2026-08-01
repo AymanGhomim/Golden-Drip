@@ -60,7 +60,7 @@ export function ProductDetailClient({ product }: { product: Product }) {
 
       <section className="animate-content-enter mx-auto grid w-full max-w-6xl gap-6 px-4 py-8 lg:grid-cols-[1fr_22rem] sm:px-6">
         <div className="animate-image-enter relative min-h-[26rem] overflow-hidden rounded-md border bg-muted shadow-sm">
-          <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 bg-gradient-to-br from-[#32170d] via-[#6f513c] to-[#b49a80] text-white">
+          <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 bg-[#21100a] text-white">
             <Coffee className="h-12 w-12 text-white/80" />
             <span className="max-w-48 text-center text-sm font-bold leading-6 text-white/85">
               {text.name}
@@ -132,7 +132,7 @@ export function ProductDetailClient({ product }: { product: Product }) {
           <Button
             type="button"
             size="lg"
-            className="w-full gap-2 rounded-md bg-[#21100a] font-bold text-[#fff5ee] shadow-sm transition-all hover:-translate-y-0.5 hover:bg-[#2f170e] dark:bg-[#b9a58f] dark:text-[#1b0d08] dark:hover:bg-[#c7b39d]"
+            className="w-full gap-2 rounded-md bg-[#21100a] font-bold text-[#fff5ee] shadow-sm transition-all hover:-translate-y-0.5 hover:bg-[#21100a]/90 dark:bg-[#b9a58f] dark:text-[#21100a] dark:hover:bg-[#c7b39d]"
             onClick={addToCart}
           >
             <ShoppingCart className="h-5 w-5" />
