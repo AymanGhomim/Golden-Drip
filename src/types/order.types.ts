@@ -5,6 +5,8 @@ export type OrderStatus =
   | "COMPLETED"
   | "CANCELLED";
 
+export type OrderType = "TABLE" | "TAKEAWAY" | "DELIVERY";
+
 export type OrderItem = {
   id: string;
   productId: string;
@@ -19,6 +21,11 @@ export type Order = {
   id: string;
   orderNumber: string;
   tableNumber: number;
+  orderType: OrderType;
+  customerName?: string;
+  customerPhone?: string;
+  customerAddress?: string;
+  customerNotes?: string;
   status: OrderStatus;
   items: OrderItem[];
   subtotal: number;

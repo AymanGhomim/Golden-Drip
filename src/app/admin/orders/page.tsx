@@ -14,7 +14,7 @@ import {
 } from "@/components/ui/dialog";
 import { mockOrders } from "@/mocks/orders.mock";
 import { useAdminLocale } from "@/providers/admin-locale-provider";
-import type { Order, OrderStatus } from "@/types/order.types";
+import type { Order, OrderStatus, OrderType } from "@/types/order.types";
 import { Activity, CheckCircle2, Eye, ReceiptText, ShoppingBag, WalletCards, XCircle } from "lucide-react";
 import { useState } from "react";
 
@@ -24,6 +24,12 @@ const statusStyle: Record<OrderStatus, string> = {
   READY: "border-emerald-200 bg-emerald-100 text-emerald-800 hover:bg-emerald-100 dark:border-emerald-300/30 dark:bg-emerald-300/15 dark:text-emerald-100 dark:hover:bg-emerald-300/15",
   COMPLETED: "border-stone-300 bg-stone-100 text-stone-800 hover:bg-stone-100 dark:border-stone-300/25 dark:bg-stone-200/10 dark:text-stone-100 dark:hover:bg-stone-200/10",
   CANCELLED: "border-red-200 bg-red-100 text-red-800 hover:bg-red-100 dark:border-red-300/30 dark:bg-red-300/15 dark:text-red-100 dark:hover:bg-red-300/15",
+};
+
+const orderTypeStyle: Record<OrderType, string> = {
+  TABLE: "border-primary/20 bg-primary/10 text-primary hover:bg-primary/10",
+  TAKEAWAY: "border-amber-200 bg-amber-100 text-amber-900 hover:bg-amber-100",
+  DELIVERY: "border-emerald-200 bg-emerald-100 text-emerald-800 hover:bg-emerald-100",
 };
 
 export default function OrdersPage() {
@@ -94,6 +100,35 @@ export default function OrdersPage() {
           createdAt: "وقت الطلب",
         };
 
+  const typeText =
+    locale === "en"
+      ? {
+          header: "Type",
+          table: "Table",
+          takeaway: "Take away",
+          delivery: "Delivery",
+          customer: "Customer",
+          phone: "Phone",
+          address: "Address",
+          notes: "Notes",
+        }
+      : {
+          header: "نوع الطلب",
+          table: "ترابيزة",
+          takeaway: "تيك أواي",
+          delivery: "دليفري",
+          customer: "العميل",
+          phone: "الهاتف",
+          address: "العنوان",
+          notes: "ملاحظات",
+        };
+
+  const orderTypeLabels: Record<OrderType, string> = {
+    TABLE: typeText.table,
+    TAKEAWAY: typeText.takeaway,
+    DELIVERY: typeText.delivery,
+  };
+
   const activeOrders = orders.filter(
     (order) => order.status !== "COMPLETED" && order.status !== "CANCELLED"
   );
@@ -137,6 +172,17 @@ export default function OrdersPage() {
       key: "table",
       header: text.table,
       cell: (order: Order) => <span className="font-semibold">#{order.tableNumber}</span>,
+    },
+    {
+      key: "type",
+      header: typeText.header,
+      headerClassName: "w-[120px] text-center",
+      cellClassName: "w-[120px] text-center",
+      cell: (order: Order) => (
+        <Badge variant="outline" className={orderTypeStyle[order.orderType]}>
+          {orderTypeLabels[order.orderType]}
+        </Badge>
+      ),
     },
     {
       key: "contents",
@@ -199,6 +245,12 @@ export default function OrdersPage() {
                       <p className="mt-1 text-sm font-bold">#{order.tableNumber}</p>
                     </div>
                     <div>
+                      <p className="text-xs font-semibold text-muted-foreground">{typeText.header}</p>
+                      <Badge variant="outline" className={orderTypeStyle[order.orderType]}>
+                        {orderTypeLabels[order.orderType]}
+                      </Badge>
+                    </div>
+                    <div>
                       <p className="text-xs font-semibold text-muted-foreground">{text.status}</p>
                       <Badge variant="outline" className={statusStyle[order.status]}>{order.status}</Badge>
                     </div>
@@ -210,6 +262,30 @@ export default function OrdersPage() {
                       <p className="text-xs font-semibold text-muted-foreground">{text.total}</p>
                       <div className="mt-1 text-sm font-bold"><Price value={order.total} locale={locale} /></div>
                     </div>
+                  </div>
+                  <div className="grid gap-3 rounded-md border bg-card p-4 sm:grid-cols-2">
+                    <div>
+                      <p className="text-xs font-semibold text-muted-foreground">{typeText.customer}</p>
+                      <p className="mt-1 text-sm font-bold">{order.customerName ?? "-"}</p>
+                    </div>
+                    {order.customerPhone ? (
+                      <div>
+                        <p className="text-xs font-semibold text-muted-foreground">{typeText.phone}</p>
+                        <p className="mt-1 text-sm font-bold">{order.customerPhone}</p>
+                      </div>
+                    ) : null}
+                    {order.customerAddress ? (
+                      <div className="sm:col-span-2">
+                        <p className="text-xs font-semibold text-muted-foreground">{typeText.address}</p>
+                        <p className="mt-1 text-sm font-bold">{order.customerAddress}</p>
+                      </div>
+                    ) : null}
+                    {order.customerNotes ? (
+                      <div className="sm:col-span-2">
+                        <p className="text-xs font-semibold text-muted-foreground">{typeText.notes}</p>
+                        <p className="mt-1 text-sm font-bold">{order.customerNotes}</p>
+                      </div>
+                    ) : null}
                   </div>
                   <div className="overflow-hidden rounded-md border">
                     {order.items.map((item) => (
@@ -312,7 +388,7 @@ export default function OrdersPage() {
       keyExtractor={(order) => order.id}
       searchPlaceholder={controlsText.search}
       searchValue={(order) =>
-        `${order.orderNumber} ${order.tableNumber} ${order.status} ${order.items
+        `${order.orderNumber} ${order.tableNumber} ${order.status} ${orderTypeLabels[order.orderType]} ${order.customerName ?? ""} ${order.customerPhone ?? ""} ${order.customerAddress ?? ""} ${order.customerNotes ?? ""} ${order.items
           .map((item) => `${item.productName} ${item.notes ?? ""}`)
           .join(" ")}`
       }

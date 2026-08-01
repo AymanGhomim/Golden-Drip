@@ -5,6 +5,9 @@ export const mockOrders: Order[] = [
     id: "ord-1",
     orderNumber: "ORD-001",
     tableNumber: 5,
+    orderType: "TABLE",
+    customerName: "Ahmed",
+    customerNotes: "Near the window",
     status: "NEW",
     items: [
       {
@@ -33,6 +36,10 @@ export const mockOrders: Order[] = [
     id: "ord-2",
     orderNumber: "ORD-002",
     tableNumber: 3,
+    orderType: "TAKEAWAY",
+    customerName: "Mona",
+    customerPhone: "01050555375",
+    customerNotes: "Ready in 15 minutes",
     status: "PREPARING",
     items: [
       {
@@ -61,6 +68,11 @@ export const mockOrders: Order[] = [
     id: "ord-3",
     orderNumber: "ORD-003",
     tableNumber: 8,
+    orderType: "DELIVERY",
+    customerName: "Omar",
+    customerPhone: "01011329575",
+    customerAddress: "El Estad St, behind City Club back gate",
+    customerNotes: "Call on arrival",
     status: "READY",
     items: [
       {
@@ -88,6 +100,8 @@ export const mockOrders: Order[] = [
     id: "ord-4",
     orderNumber: "ORD-004",
     tableNumber: 2,
+    orderType: "TABLE",
+    customerName: "Sara",
     status: "COMPLETED",
     items: [
       {
