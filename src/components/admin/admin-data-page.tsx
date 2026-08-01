@@ -9,6 +9,7 @@ import { DataTable, type DataTableColumn } from "@/components/shared/data-table"
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
+import { cn } from "@/lib/utils";
 import {
   Select,
   SelectContent,
@@ -95,6 +96,7 @@ export function AdminDataPage<T>({
   );
   const hasControls = Boolean(searchValue) || resolvedFilterGroups.length > 0;
   const activeFilterCount = Object.values(activeFilters).filter((value) => value !== "all").length;
+  const isArabicControls = filterLabel !== "Filter";
   const filterTitle = filterLabel === "Filter" ? "Filter results" : "تصفية النتائج";
   const filterDescription =
     filterLabel === "Filter" ? "Choose what you need to reach results faster." : "اختر ما يناسبك للوصول للنتائج بسرعة.";
@@ -187,7 +189,7 @@ export function AdminDataPage<T>({
                 </div>
                 {isFilterPanelOpen && resolvedFilterGroups.length > 0 ? (
                   <div className="mt-4 overflow-hidden rounded-md border bg-background shadow-[0_16px_40px_rgba(42,16,10,0.10)]">
-                    <div className="flex items-center justify-between gap-3 border-b p-4">
+                    <div className={cn("flex items-center justify-between gap-3 border-b p-4", isArabicControls && "flex-row-reverse")}>
                       <Button
                         type="button"
                         variant="ghost"
@@ -198,7 +200,7 @@ export function AdminDataPage<T>({
                       >
                         <X className="h-4 w-4" />
                       </Button>
-                      <div className="text-right">
+                      <div className={cn("flex-1", isArabicControls ? "text-right" : "text-left")}>
                         <h3 className="text-sm font-semibold">{filterTitle}</h3>
                         <p className="mt-1 text-xs text-muted-foreground">{filterDescription}</p>
                       </div>
