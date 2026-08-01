@@ -195,8 +195,8 @@ export function MenuPageClient() {
                     priority={index === 0}
                   />
                   <div className="absolute inset-0 bg-gradient-to-t from-black/85 via-black/45 via-55% to-black/5" />
-                  <div className="absolute inset-x-0 bottom-0 p-4 text-white sm:p-8" dir={locale === "ar" ? "rtl" : "ltr"}>
-                    <div className="max-w-[44rem] space-y-4 transition-transform duration-200 ease-out group-hover:-translate-y-0.5 sm:space-y-6">
+                  <div className="absolute inset-x-0 bottom-0 p-4 pt-10 text-white sm:p-8 sm:pt-14" dir={locale === "ar" ? "rtl" : "ltr"}>
+                    <div className="max-w-[44rem] space-y-4 pt-5 transition-transform duration-200 ease-out group-hover:-translate-y-0.5 sm:space-y-6 sm:pt-6">
                       <div className="flex flex-wrap items-center gap-2">
                         <Badge className="w-fit border-white/30 bg-white/20 text-white backdrop-blur-sm hover:bg-white/20">
                           {locale === "ar" ? "عرض خاص" : "Special offer"}
