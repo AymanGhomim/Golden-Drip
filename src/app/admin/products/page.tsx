@@ -1,7 +1,7 @@
 "use client";
 
 import Image from "next/image";
-import { Plus } from "lucide-react";
+import { LinkIcon, Plus, Upload } from "lucide-react";
 import { useState } from "react";
 
 import { AdminDataPage } from "@/components/admin/admin-data-page";
@@ -35,6 +35,7 @@ import type { Product } from "@/types/product.types";
 export default function ProductsPage() {
   const { locale } = useAdminLocale();
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
+  const [imageInputMode, setImageInputMode] = useState<"url" | "upload">("url");
   const available = mockProducts.filter((product) => product.isAvailable).length;
   const text =
     locale === "en"
@@ -81,6 +82,9 @@ export default function ProductsPage() {
           description: "Create a new product for the customer menu.",
           name: "Product name",
           image: "Image URL",
+          imageModeUrl: "Link",
+          imageModeUpload: "Upload",
+          imageUpload: "Upload image",
           categoryPlaceholder: "Select category",
           descriptionLabel: "Description",
           availability: "Availability",
@@ -92,6 +96,9 @@ export default function ProductsPage() {
           description: "أضف صنف جديد لمنيو العميل.",
           name: "اسم الصنف",
           image: "رابط الصورة",
+          imageModeUrl: "لينك",
+          imageModeUpload: "رفع",
+          imageUpload: "رفع صورة",
           categoryPlaceholder: "اختر القسم",
           descriptionLabel: "الوصف",
           availability: "التوفر",
@@ -192,8 +199,34 @@ export default function ProductsPage() {
                   </Select>
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="product-image">{formText.image}</Label>
-                  <Input id="product-image" name="image" type="url" />
+                  <Label htmlFor={imageInputMode === "url" ? "product-image-url" : "product-image-file"}>
+                    {imageInputMode === "url" ? formText.image : formText.imageUpload}
+                  </Label>
+                  <div className="grid grid-cols-2 gap-2 rounded-md border bg-background p-1">
+                    <Button
+                      type="button"
+                      variant={imageInputMode === "url" ? "default" : "ghost"}
+                      className="h-9 gap-2 rounded-md text-xs"
+                      onClick={() => setImageInputMode("url")}
+                    >
+                      <LinkIcon className="h-3.5 w-3.5" />
+                      {formText.imageModeUrl}
+                    </Button>
+                    <Button
+                      type="button"
+                      variant={imageInputMode === "upload" ? "default" : "ghost"}
+                      className="h-9 gap-2 rounded-md text-xs"
+                      onClick={() => setImageInputMode("upload")}
+                    >
+                      <Upload className="h-3.5 w-3.5" />
+                      {formText.imageModeUpload}
+                    </Button>
+                  </div>
+                  {imageInputMode === "url" ? (
+                    <Input id="product-image-url" name="imageUrl" type="url" />
+                  ) : (
+                    <Input id="product-image-file" name="imageFile" type="file" accept="image/*" />
+                  )}
                 </div>
               </div>
               <div className="space-y-2">
