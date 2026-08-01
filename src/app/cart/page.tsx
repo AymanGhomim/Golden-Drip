@@ -322,7 +322,6 @@ export default function CartPage() {
                       {orderText.takeaway}
                     </Button>
                   </div>
-                  {orderType ? (
                   <div className="space-y-3">
                     <p className="text-sm font-bold">{orderText.customerInfo}</p>
                     <div className="space-y-2">
@@ -332,13 +331,15 @@ export default function CartPage() {
                       </Label>
                       <Input id="customer-name" name="customerName" autoComplete="name" />
                     </div>
-                    <div className="space-y-2">
-                      <Label htmlFor="customer-phone" className="flex items-center gap-2 text-xs font-bold">
-                        <Phone className="h-3.5 w-3.5 text-muted-foreground" />
-                        {orderText.phone}
-                      </Label>
-                      <Input id="customer-phone" name="customerPhone" type="tel" autoComplete="tel" />
-                    </div>
+                    {orderType ? (
+                      <div className="space-y-2">
+                        <Label htmlFor="customer-phone" className="flex items-center gap-2 text-xs font-bold">
+                          <Phone className="h-3.5 w-3.5 text-muted-foreground" />
+                          {orderText.phone}
+                        </Label>
+                        <Input id="customer-phone" name="customerPhone" type="tel" autoComplete="tel" />
+                      </div>
+                    ) : null}
                     {orderType === "delivery" ? (
                       <div className="space-y-2">
                         <Label htmlFor="customer-address" className="flex items-center gap-2 text-xs font-bold">
@@ -366,7 +367,6 @@ export default function CartPage() {
                       />
                     </div>
                   </div>
-                  ) : null}
                 </div>
                 <div className="space-y-3">
                   <p className="text-sm font-bold">{text.payment}</p>
