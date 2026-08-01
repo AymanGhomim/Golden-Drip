@@ -130,8 +130,9 @@ export default function CartPage() {
                   {text.emptyText}
                 </p>
               </div>
-              <Button asChild className="inline-flex h-11 w-auto rounded-full bg-primary p-0 text-sm font-bold text-primary-foreground shadow-sm transition-all hover:-translate-y-0.5 hover:bg-primary/90 dark:bg-[hsl(var(--background))] dark:text-[#21100a] dark:hover:bg-[hsl(var(--background))]">
-                <Link href="/menu" className="inline-flex h-full items-center justify-center whitespace-nowrap px-6">
+              <Button asChild className="h-11 gap-2 rounded-md bg-[#21100a] px-5 text-sm font-bold text-primary-foreground shadow-sm transition-all hover:-translate-y-0.5 hover:bg-[#21100a]/90 hover:text-primary-foreground dark:bg-[hsl(var(--background))] dark:text-[#21100a] dark:hover:bg-[hsl(var(--background))]">
+                <Link href="/menu" className="inline-flex items-center justify-center whitespace-nowrap">
+                  <ShoppingBag className="h-4 w-4" />
                   {text.browse}
                 </Link>
               </Button>
