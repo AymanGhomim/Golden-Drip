@@ -2,6 +2,7 @@
 
 import Image from "next/image";
 import Link from "next/link";
+import { useSearchParams } from "next/navigation";
 import { useEffect, useState } from "react";
 import { Banknote, CreditCard, MapPin, MessageSquareText, Minus, PackageCheck, Phone, Plus, ShoppingBag, Store, Trash2, Truck, User } from "lucide-react";
 
@@ -54,7 +55,9 @@ const copy = {
 export default function CartPage() {
   const [locale, setLocale] = useState<Locale>("en");
   const [paymentMethod, setPaymentMethod] = useState<"cash" | "instapay">("cash");
-  const [orderType, setOrderType] = useState<"delivery" | "takeaway">("delivery");
+  const [orderType, setOrderType] = useState<"delivery" | "takeaway" | null>(null);
+  const [scannedTableNumber, setScannedTableNumber] = useState<string | null>(null);
+  const searchParams = useSearchParams();
   const items = useCartStore((state) => state.items);
   const increaseQuantity = useCartStore((state) => state.increaseQuantity);
   const decreaseQuantity = useCartStore((state) => state.decreaseQuantity);
@@ -62,8 +65,18 @@ export default function CartPage() {
 
   useEffect(() => {
     if (window.localStorage.getItem("golden-drip-locale") === "ar") setLocale("ar");
+    const tableFromUrl =
+      searchParams.get("table") ?? searchParams.get("tableNumber") ?? searchParams.get("t");
+
+    if (tableFromUrl) {
+      window.localStorage.setItem("golden-drip-table", tableFromUrl);
+      setScannedTableNumber(tableFromUrl);
+    } else {
+      setScannedTableNumber(window.localStorage.getItem("golden-drip-table"));
+    }
+
     void useCartStore.persist.rehydrate();
-  }, []);
+  }, [searchParams]);
 
   useEffect(() => {
     document.documentElement.lang = locale;
@@ -78,6 +91,10 @@ export default function CartPage() {
           orderType: "Order type",
           delivery: "Delivery",
           takeaway: "Take away",
+          tableOrder: "Table order",
+          tablePrefix: "Table",
+          tableFallback: "Scanned table",
+          chooseExternal: "Choose only if the order is not from the table.",
           customerInfo: "Customer details",
           name: "Name",
           phone: "Phone number",
@@ -103,6 +120,20 @@ export default function CartPage() {
       : {
           label: "ملاحظات",
           hint: "أي تفاصيل تحب تضيفها على الطلب",
+        };
+  const tableText =
+    locale === "en"
+      ? {
+          tableOrder: "Table order",
+          tablePrefix: "Table",
+          tableFallback: "Scanned table",
+          chooseExternal: "Choose only if the order is not from the table.",
+        }
+      : {
+          tableOrder: "طلب من الترابيزة",
+          tablePrefix: "ترابيزة",
+          tableFallback: "الترابيزة الممسوحة",
+          chooseExternal: "اختار فقط لو الطلب مش من الترابيزة.",
         };
   const total = items.reduce((sum, item) => sum + item.price * item.quantity, 0);
   const totalItems = items.reduce((sum, item) => sum + item.quantity, 0);
@@ -268,7 +299,31 @@ export default function CartPage() {
                     <PackageCheck className="h-4 w-4 text-accent" />
                     <p className="text-sm font-bold">{orderText.orderType}</p>
                   </div>
-                  <div className="grid grid-cols-2 gap-2">
+                  {orderType === null ? (
+                    <div className="rounded-md border border-accent/25 bg-accent/8 p-3 text-sm">
+                      <div className="flex items-center justify-between gap-3">
+                        <span className="font-bold">{tableText.tableOrder}</span>
+                        <span className="rounded-full bg-background px-3 py-1 text-xs font-black shadow-sm">
+                          {scannedTableNumber
+                            ? `${tableText.tablePrefix} #${scannedTableNumber}`
+                            : tableText.tableFallback}
+                        </span>
+                      </div>
+                      <p className="mt-2 text-xs leading-5 text-muted-foreground">
+                        {tableText.chooseExternal}
+                      </p>
+                    </div>
+                  ) : null}
+                  <div className="grid gap-2 sm:grid-cols-3">
+                    <Button
+                      type="button"
+                      variant={orderType === null ? "default" : "outline"}
+                      className="h-11 gap-2 rounded-md text-xs font-bold"
+                      onClick={() => setOrderType(null)}
+                    >
+                      <PackageCheck className="h-4 w-4" />
+                      {tableText.tableOrder}
+                    </Button>
                     <Button
                       type="button"
                       variant={orderType === "delivery" ? "default" : "outline"}
@@ -288,6 +343,7 @@ export default function CartPage() {
                       {orderText.takeaway}
                     </Button>
                   </div>
+                  {orderType ? (
                   <div className="space-y-3">
                     <p className="text-sm font-bold">{orderText.customerInfo}</p>
                     <div className="space-y-2">
@@ -331,6 +387,7 @@ export default function CartPage() {
                       />
                     </div>
                   </div>
+                  ) : null}
                 </div>
                 <div className="space-y-3">
                   <p className="text-sm font-bold">{text.payment}</p>

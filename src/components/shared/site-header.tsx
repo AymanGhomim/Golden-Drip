@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { useSearchParams } from "next/navigation";
 import { useEffect, useState } from "react";
 import { useTheme } from "next-themes";
 import { Moon, ShoppingCart, Sun } from "lucide-react";
@@ -20,6 +21,8 @@ interface SiteHeaderProps {
 export function SiteHeader({ locale, onLocaleChange }: SiteHeaderProps) {
   const [isMounted, setIsMounted] = useState(false);
   const [isCartHydrated, setIsCartHydrated] = useState(false);
+  const [scannedTableNumber, setScannedTableNumber] = useState<string | null>(null);
+  const searchParams = useSearchParams();
   const items = useCartStore((state) => state.items);
   const totalItems = isCartHydrated
     ? items.reduce((sum, item) => sum + item.quantity, 0)
@@ -28,10 +31,24 @@ export function SiteHeader({ locale, onLocaleChange }: SiteHeaderProps) {
 
   useEffect(() => {
     setIsMounted(true);
+    const tableFromUrl =
+      searchParams.get("table") ?? searchParams.get("tableNumber") ?? searchParams.get("t");
+
+    if (tableFromUrl) {
+      window.localStorage.setItem("golden-drip-table", tableFromUrl);
+      setScannedTableNumber(tableFromUrl);
+    } else {
+      setScannedTableNumber(window.localStorage.getItem("golden-drip-table"));
+    }
+
     void Promise.resolve(useCartStore.persist.rehydrate()).then(() => {
       setIsCartHydrated(true);
     });
-  }, []);
+  }, [searchParams]);
+
+  const cartHref = scannedTableNumber
+    ? `${ROUTES.cart}?table=${encodeURIComponent(scannedTableNumber)}`
+    : ROUTES.cart;
 
   return (
     <header className="sticky top-0 z-20 border-b bg-background/95 backdrop-blur animate-header-enter">
@@ -49,7 +66,7 @@ export function SiteHeader({ locale, onLocaleChange }: SiteHeaderProps) {
               locale === "en" ? "order-3" : "order-1"
             )}
           >
-            <Link href={ROUTES.cart} aria-label="Cart">
+            <Link href={cartHref} aria-label="Cart">
               <ShoppingCart className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
               <span>{totalItems}</span>
             </Link>
