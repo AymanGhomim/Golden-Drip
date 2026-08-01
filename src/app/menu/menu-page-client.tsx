@@ -194,7 +194,7 @@ export function MenuPageClient() {
                     onLoad={() => markImageLoaded(`offer-${offer.id}`)}
                     priority={index === 0}
                   />
-                  <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/45 to-black/15" />
+                  <div className="absolute inset-0 bg-gradient-to-t from-black/85 via-black/45 via-55% to-black/5" />
                   <div className="absolute inset-x-0 bottom-0 p-4 text-white sm:p-8" dir={locale === "ar" ? "rtl" : "ltr"}>
                     <div className="max-w-[44rem] space-y-4 transition-transform duration-200 ease-out group-hover:-translate-y-0.5 sm:space-y-6">
                       <div className="flex flex-wrap items-center gap-2">
