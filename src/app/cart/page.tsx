@@ -77,20 +77,20 @@ export default function CartPage() {
       <BackButtonRow locale={locale} />
 
       <section className="animate-content-enter mx-auto w-full max-w-6xl px-4 pb-28 pt-3 sm:px-6 sm:py-8">
-        <div className="mb-5 overflow-hidden rounded-md border border-[#3d2014] bg-[#21100a] text-[#fff5ee] shadow-[0_22px_60px_rgba(33,16,10,0.22)]">
+        <div className="mb-5 overflow-hidden rounded-md border bg-card text-foreground shadow-sm dark:border-[#3d2014] dark:bg-[#21100a] dark:text-[#fff5ee] dark:shadow-[0_22px_60px_rgba(33,16,10,0.22)]">
           <div className="relative p-5 sm:p-7">
             <div className="absolute inset-x-0 top-0 h-1 bg-gradient-to-r from-accent via-[#d6a15c] to-accent" />
             <div className="flex items-center justify-between gap-4">
               <div>
-                <p className="mb-2 w-fit rounded-full border border-white/15 bg-white/10 px-2.5 py-1 text-[0.68rem] font-bold text-[#f5ddc9] backdrop-blur">
+                <p className="mb-2 w-fit rounded-full border bg-muted px-2.5 py-1 text-[0.68rem] font-bold text-muted-foreground backdrop-blur dark:border-white/15 dark:bg-white/10 dark:text-[#f5ddc9]">
                 {text.items}: {totalItems}
               </p>
                 <h1 className="text-3xl font-black tracking-tight sm:text-5xl">{text.title}</h1>
-                <p className="mt-2 max-w-2xl text-sm leading-6 text-[#d8c0ad] sm:text-base">
+                <p className="mt-2 max-w-2xl text-sm leading-6 text-muted-foreground sm:text-base dark:text-[#d8c0ad]">
                 {text.subtitle}
               </p>
               </div>
-              <div className="hidden h-16 w-16 shrink-0 items-center justify-center rounded-md border border-white/10 bg-white/10 text-accent sm:flex">
+              <div className="hidden h-16 w-16 shrink-0 items-center justify-center rounded-md border bg-accent/10 text-accent sm:flex dark:border-white/10 dark:bg-white/10">
                 <ReceiptText className="h-8 w-8" />
               </div>
             </div>
@@ -110,11 +110,11 @@ export default function CartPage() {
                     {text.emptyText}
                   </p>
                 </div>
-                <Button asChild className="h-12 rounded-md bg-[#21100a] px-6 font-bold text-[#fff5ee] shadow-sm transition-all hover:-translate-y-0.5 hover:bg-[#2f170e] dark:bg-[#b9a58f] dark:text-[#1b0d08] dark:hover:bg-[#c7b39d]">
+                <Button asChild className="h-12 rounded-md bg-primary px-6 font-bold text-primary-foreground shadow-sm transition-all hover:-translate-y-0.5 hover:bg-primary/90 dark:bg-[#b9a58f] dark:text-[#1b0d08] dark:hover:bg-[#c7b39d]">
                   <Link href="/menu">{text.browse}</Link>
                 </Button>
               </div>
-              <div className="order-1 rounded-md border bg-[#21100a] p-4 shadow-[0_22px_55px_rgba(33,16,10,0.22)] lg:order-2">
+              <div className="order-1 rounded-md border bg-muted p-4 shadow-sm dark:bg-[#21100a] dark:shadow-[0_22px_55px_rgba(33,16,10,0.22)] lg:order-2">
                 <svg
                   viewBox="0 0 420 320"
                   role="img"
@@ -134,10 +134,10 @@ export default function CartPage() {
                       <feDropShadow dx="0" dy="18" stdDeviation="18" floodColor="#000000" floodOpacity="0.28" />
                     </filter>
                   </defs>
-                  <rect width="420" height="320" rx="18" fill="#21100a" />
-                  <path d="M35 248 C90 220 115 258 168 235 C218 214 241 218 292 239 C335 257 361 238 391 218 L391 320 L35 320 Z" fill="#2f170e" />
-                  <circle cx="332" cy="72" r="38" fill="#ffffff" opacity="0.08" />
-                  <circle cx="84" cy="88" r="20" fill="#ffffff" opacity="0.08" />
+                  <rect width="420" height="320" rx="18" fill="#f2e3d6" />
+                  <path d="M35 248 C90 220 115 258 168 235 C218 214 241 218 292 239 C335 257 361 238 391 218 L391 320 L35 320 Z" fill="#e0c9b7" />
+                  <circle cx="332" cy="72" r="38" fill="#7b3f20" opacity="0.08" />
+                  <circle cx="84" cy="88" r="20" fill="#7b3f20" opacity="0.08" />
                   <path d="M132 122 C125 94 153 86 145 58" stroke="url(#cartSteam)" strokeWidth="10" strokeLinecap="round" fill="none" opacity="0.85" />
                   <path d="M183 116 C172 83 208 75 196 42" stroke="url(#cartSteam)" strokeWidth="10" strokeLinecap="round" fill="none" opacity="0.65" />
                   <path d="M238 122 C229 96 260 86 251 58" stroke="url(#cartSteam)" strokeWidth="10" strokeLinecap="round" fill="none" opacity="0.8" />
@@ -229,22 +229,22 @@ export default function CartPage() {
               </div>
             </div>
 
-            <Card className="h-fit overflow-hidden rounded-md border-[#3d2014] bg-[#21100a] text-[#fff5ee] shadow-[0_22px_60px_rgba(33,16,10,0.2)] lg:sticky lg:top-24">
+            <Card className="h-fit overflow-hidden rounded-md shadow-sm dark:border-[#3d2014] dark:bg-[#21100a] dark:text-[#fff5ee] dark:shadow-[0_22px_60px_rgba(33,16,10,0.2)] lg:sticky lg:top-24">
               <CardContent className="space-y-5 p-5">
                 <div>
                   <h2 className="text-lg font-black">{text.summary}</h2>
-                  <p className="mt-1 text-xs text-[#cdb5a5]">
+                  <p className="mt-1 text-xs text-muted-foreground dark:text-[#cdb5a5]">
                     {text.items}: {totalItems}
                   </p>
                 </div>
-                <div className="space-y-3 rounded-md border border-white/10 bg-white/8 p-4">
+                <div className="space-y-3 rounded-md border bg-background/60 p-4 dark:border-white/10 dark:bg-white/8">
                   <div className="flex items-center justify-between text-sm">
-                    <span className="text-[#cdb5a5]">{text.subtotal}</span>
-                    <Price value={total} locale={locale} currencyClassName="text-[#cdb5a5]" />
+                    <span className="text-muted-foreground dark:text-[#cdb5a5]">{text.subtotal}</span>
+                    <Price value={total} locale={locale} currencyClassName="dark:text-[#cdb5a5]" />
                   </div>
-                  <div className="flex items-center justify-between border-t border-white/10 pt-3 text-lg font-black">
+                  <div className="flex items-center justify-between border-t pt-3 text-lg font-black dark:border-white/10">
                     <span>{text.total}</span>
-                    <Price value={total} locale={locale} className="text-xl" currencyClassName="text-[#cdb5a5]" />
+                    <Price value={total} locale={locale} className="text-xl" currencyClassName="dark:text-[#cdb5a5]" />
                   </div>
                 </div>
                 <div className="space-y-3">
