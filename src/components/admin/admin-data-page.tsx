@@ -221,7 +221,7 @@ export function AdminDataPage<T>({
                               }))
                             }
                           >
-                            <SelectTrigger className="h-12 rounded-md bg-card text-sm shadow-sm">
+                            <SelectTrigger className={cn("h-12 rounded-md bg-card text-sm shadow-sm", isArabicControls && "flex-row-reverse")}>
                               <SelectValue />
                             </SelectTrigger>
                             <SelectContent>
