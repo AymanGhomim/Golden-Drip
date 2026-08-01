@@ -1,3 +1,5 @@
+"use client";
+
 import { LoadingState } from "@/components/shared/loading-state";
 
 export function PageLoader() {
