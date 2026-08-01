@@ -45,42 +45,45 @@ export function ContactTicker({ locale }: { locale: Locale }) {
     ...phoneNumbers.map((phone) => ({ key: phone, icon: Phone, text: phone })),
     ...socialLinks,
   ];
-  const tickerItems = [...items, ...items, ...items];
 
   return (
     <div className="overflow-hidden border-t bg-accent/10 text-foreground">
       <div
         className={cn(
-          "flex w-max min-w-full items-center gap-8 py-2",
+          "flex w-max min-w-[200%] items-center py-2 will-change-transform",
           locale === "ar" ? "contact-ticker-rtl" : "contact-ticker-ltr",
         )}
       >
-        {tickerItems.map(({ key, icon: Icon, text, href }, index) => {
-          const content = (
-            <>
-              <span className="flex h-7 w-7 items-center justify-center rounded-full bg-card text-accent shadow-sm">
-                <Icon className="h-3.5 w-3.5" />
-              </span>
-              <span className="whitespace-nowrap">{text}</span>
-            </>
-          );
+        {[0, 1].map((groupIndex) => (
+          <div key={groupIndex} className="flex w-1/2 shrink-0 items-center justify-around gap-8 px-4">
+            {items.map(({ key, icon: Icon, text, href }) => {
+              const content = (
+                <>
+                  <span className="flex h-7 w-7 items-center justify-center rounded-full bg-card text-accent shadow-sm">
+                    <Icon className="h-3.5 w-3.5" />
+                  </span>
+                  <span className="whitespace-nowrap">{text}</span>
+                </>
+              );
 
-          return href ? (
-            <a
-              key={`${key}-${index}`}
-              href={href}
-              target="_blank"
-              rel="noreferrer"
-              className="flex shrink-0 items-center gap-2 px-2 text-xs font-bold transition-colors hover:text-accent sm:text-sm"
-            >
-              {content}
-            </a>
-          ) : (
-            <div key={`${key}-${index}`} className="flex shrink-0 items-center gap-2 px-2 text-xs font-bold sm:text-sm">
-              {content}
-            </div>
-          );
-        })}
+              return href ? (
+                <a
+                  key={`${key}-${groupIndex}`}
+                  href={href}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="flex shrink-0 items-center gap-2 text-xs font-bold transition-colors hover:text-accent sm:text-sm"
+                >
+                  {content}
+                </a>
+              ) : (
+                <div key={`${key}-${groupIndex}`} className="flex shrink-0 items-center gap-2 text-xs font-bold sm:text-sm">
+                  {content}
+                </div>
+              );
+            })}
+          </div>
+        ))}
       </div>
     </div>
   );
