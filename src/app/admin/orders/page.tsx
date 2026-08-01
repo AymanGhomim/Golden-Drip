@@ -130,6 +130,8 @@ export default function OrdersPage() {
     {
       key: "status",
       header: text.status,
+      headerClassName: "w-[120px] text-center",
+      cellClassName: "w-[120px] text-center",
       cell: (order: Order) => <Badge className={statusStyle[order.status]}>{order.status}</Badge>,
     },
     {
