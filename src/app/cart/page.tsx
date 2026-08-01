@@ -3,7 +3,7 @@
 import Image from "next/image";
 import Link from "next/link";
 import { useEffect, useState } from "react";
-import { Banknote, CreditCard, MapPin, Minus, PackageCheck, Phone, Plus, ShoppingBag, Store, Trash2, Truck, User } from "lucide-react";
+import { Banknote, CreditCard, MapPin, MessageSquareText, Minus, PackageCheck, Phone, Plus, ShoppingBag, Store, Trash2, Truck, User } from "lucide-react";
 
 import { BackButtonRow } from "@/components/shared/back-button-row";
 import { Price } from "@/components/shared/price";
@@ -93,6 +93,16 @@ export default function CartPage() {
           phone: "رقم الهاتف",
           address: "عنوان الدليفري",
           addressHint: "الشارع، العمارة، الدور، وأقرب علامة",
+        };
+  const notesText =
+    locale === "en"
+      ? {
+          label: "Notes",
+          hint: "Anything we should know about your order",
+        }
+      : {
+          label: "ملاحظات",
+          hint: "أي تفاصيل تحب تضيفها على الطلب",
         };
   const total = items.reduce((sum, item) => sum + item.price * item.quantity, 0);
   const totalItems = items.reduce((sum, item) => sum + item.quantity, 0);
@@ -308,6 +318,18 @@ export default function CartPage() {
                         />
                       </div>
                     ) : null}
+                    <div className="space-y-2">
+                      <Label htmlFor="customer-notes" className="flex items-center gap-2 text-xs font-bold">
+                        <MessageSquareText className="h-3.5 w-3.5 text-muted-foreground" />
+                        {notesText.label}
+                      </Label>
+                      <Textarea
+                        id="customer-notes"
+                        name="customerNotes"
+                        placeholder={notesText.hint}
+                        className="min-h-20 resize-none"
+                      />
+                    </div>
                   </div>
                 </div>
                 <div className="space-y-3">
