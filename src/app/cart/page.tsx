@@ -3,7 +3,7 @@
 import Image from "next/image";
 import Link from "next/link";
 import { useEffect, useState } from "react";
-import { Banknote, CreditCard, Minus, Plus, ShoppingBag, Trash2 } from "lucide-react";
+import { Banknote, CreditCard, Minus, Plus, ReceiptText, ShoppingBag, Trash2 } from "lucide-react";
 
 import { BackButtonRow } from "@/components/shared/back-button-row";
 import { Price } from "@/components/shared/price";
@@ -77,19 +77,22 @@ export default function CartPage() {
       <BackButtonRow locale={locale} />
 
       <section className="animate-content-enter mx-auto w-full max-w-6xl px-4 pb-28 pt-3 sm:px-6 sm:py-8">
-        <div className="mb-5 overflow-hidden rounded-md border bg-card shadow-sm">
-          <div className="flex items-center justify-between gap-4 p-4 sm:p-5">
-            <div>
-              <p className="mb-2 w-fit rounded-full border bg-muted px-2.5 py-1 text-[0.68rem] font-bold text-muted-foreground">
+        <div className="mb-5 overflow-hidden rounded-md border border-[#3d2014] bg-[#21100a] text-[#fff5ee] shadow-[0_22px_60px_rgba(33,16,10,0.22)]">
+          <div className="relative p-5 sm:p-7">
+            <div className="absolute inset-x-0 top-0 h-1 bg-gradient-to-r from-accent via-[#d6a15c] to-accent" />
+            <div className="flex items-center justify-between gap-4">
+              <div>
+                <p className="mb-2 w-fit rounded-full border border-white/15 bg-white/10 px-2.5 py-1 text-[0.68rem] font-bold text-[#f5ddc9] backdrop-blur">
                 {text.items}: {totalItems}
               </p>
-              <h1 className="text-2xl font-black tracking-tight sm:text-4xl">{text.title}</h1>
-              <p className="mt-2 max-w-2xl text-sm leading-6 text-muted-foreground sm:text-base">
+                <h1 className="text-3xl font-black tracking-tight sm:text-5xl">{text.title}</h1>
+                <p className="mt-2 max-w-2xl text-sm leading-6 text-[#d8c0ad] sm:text-base">
                 {text.subtitle}
               </p>
-            </div>
-            <div className="hidden h-14 w-14 shrink-0 items-center justify-center rounded-md bg-accent/12 text-accent sm:flex">
-              <ShoppingBag className="h-7 w-7" />
+              </div>
+              <div className="hidden h-16 w-16 shrink-0 items-center justify-center rounded-md border border-white/10 bg-white/10 text-accent sm:flex">
+                <ReceiptText className="h-8 w-8" />
+              </div>
             </div>
           </div>
         </div>
@@ -109,38 +112,41 @@ export default function CartPage() {
           </Card>
         ) : (
           <div className="grid gap-5 lg:grid-cols-[1fr_22rem]">
-            <div className="space-y-3">
+            <div className="overflow-hidden rounded-md border bg-card shadow-sm">
+              <div className="border-b bg-muted/35 px-4 py-3">
+                <h2 className="text-sm font-black">{text.items}</h2>
+              </div>
+              <div className="divide-y">
               {items.map((item) => (
-                <Card key={item.productId} className="overflow-hidden rounded-md border-border/70 shadow-sm">
-                  <CardContent className="grid grid-cols-[5.5rem_1fr] gap-3 p-3 sm:grid-cols-[7rem_1fr] sm:gap-4 sm:p-4">
-                    <div className="relative h-24 overflow-hidden rounded-md bg-muted sm:h-28">
+                <div key={item.productId} className="group grid grid-cols-[5.75rem_1fr] gap-3 p-3 transition-colors hover:bg-muted/25 sm:grid-cols-[8rem_1fr] sm:gap-4 sm:p-4">
+                    <div className="relative h-24 overflow-hidden rounded-md bg-muted shadow-sm sm:h-32">
                       {item.image ? (
-                        <Image src={item.image} alt={item.name} fill sizes="112px" className="object-cover" />
+                        <Image src={item.image} alt={item.name} fill sizes="128px" className="object-cover transition-transform duration-500 group-hover:scale-[1.04]" />
                       ) : (
                         <div className="flex h-full items-center justify-center text-muted-foreground">
                           <ShoppingBag className="h-7 w-7" />
                         </div>
                       )}
                     </div>
-                    <div className="min-w-0">
+                    <div className="min-w-0 self-center">
                       <div className="flex items-start justify-between gap-3">
                         <div className="min-w-0">
-                          <h2 className="line-clamp-2 text-sm font-black leading-5 sm:text-base">{item.name}</h2>
+                          <h2 className="line-clamp-2 text-base font-black leading-5 sm:text-lg">{item.name}</h2>
                           <Price value={item.price} locale={locale} className="mt-1 text-xs text-muted-foreground" />
                         </div>
                         <Price
                           value={item.price * item.quantity}
                           locale={locale}
-                          className="shrink-0 rounded-full border bg-muted px-2 py-1 text-xs font-black text-foreground"
+                          className="shrink-0 rounded-full border bg-background px-2.5 py-1 text-xs font-black text-foreground shadow-sm"
                         />
                       </div>
                       <div className="mt-4 flex flex-wrap items-center justify-between gap-2">
-                        <div className="flex h-9 items-center overflow-hidden rounded-md border border-accent/30 bg-accent/8">
+                        <div className="flex h-10 items-center overflow-hidden rounded-md border border-accent/30 bg-accent/8 shadow-inner">
                           <Button
                             type="button"
                             size="icon"
                             variant="ghost"
-                            className="h-9 w-10 rounded-none transition-colors hover:bg-accent hover:text-accent-foreground"
+                            className="h-10 w-10 rounded-none transition-colors hover:bg-accent hover:text-accent-foreground"
                             onClick={() => decreaseQuantity(item.productId)}
                             aria-label="Decrease quantity"
                           >
@@ -151,7 +157,7 @@ export default function CartPage() {
                             type="button"
                             size="icon"
                             variant="ghost"
-                            className="h-9 w-10 rounded-none transition-colors hover:bg-accent hover:text-accent-foreground"
+                            className="h-10 w-10 rounded-none transition-colors hover:bg-accent hover:text-accent-foreground"
                             onClick={() => increaseQuantity(item.productId)}
                             aria-label="Increase quantity"
                           >
@@ -170,27 +176,27 @@ export default function CartPage() {
                         </Button>
                       </div>
                     </div>
-                  </CardContent>
-                </Card>
+                </div>
               ))}
+              </div>
             </div>
 
-            <Card className="h-fit rounded-md shadow-sm lg:sticky lg:top-24">
+            <Card className="h-fit overflow-hidden rounded-md border-[#3d2014] bg-[#21100a] text-[#fff5ee] shadow-[0_22px_60px_rgba(33,16,10,0.2)] lg:sticky lg:top-24">
               <CardContent className="space-y-5 p-5">
                 <div>
                   <h2 className="text-lg font-black">{text.summary}</h2>
-                  <p className="mt-1 text-xs text-muted-foreground">
+                  <p className="mt-1 text-xs text-[#cdb5a5]">
                     {text.items}: {totalItems}
                   </p>
                 </div>
-                <div className="space-y-3 rounded-md border bg-background/60 p-4">
+                <div className="space-y-3 rounded-md border border-white/10 bg-white/8 p-4">
                   <div className="flex items-center justify-between text-sm">
-                    <span className="text-muted-foreground">{text.subtotal}</span>
-                    <Price value={total} locale={locale} />
+                    <span className="text-[#cdb5a5]">{text.subtotal}</span>
+                    <Price value={total} locale={locale} currencyClassName="text-[#cdb5a5]" />
                   </div>
-                  <div className="flex items-center justify-between border-t pt-3 text-lg font-black">
+                  <div className="flex items-center justify-between border-t border-white/10 pt-3 text-lg font-black">
                     <span>{text.total}</span>
-                    <Price value={total} locale={locale} className="text-xl" />
+                    <Price value={total} locale={locale} className="text-xl" currencyClassName="text-[#cdb5a5]" />
                   </div>
                 </div>
                 <div className="space-y-3">
@@ -218,7 +224,7 @@ export default function CartPage() {
                 </div>
                 <Button
                   type="button"
-                  className="h-12 w-full rounded-md bg-[#21100a] font-bold text-[#fff5ee] shadow-sm transition-all hover:-translate-y-0.5 hover:bg-[#2f170e] dark:bg-[#b9a58f] dark:text-[#1b0d08] dark:hover:bg-[#c7b39d]"
+                  className="h-12 w-full rounded-md bg-accent font-bold text-accent-foreground shadow-sm transition-all hover:-translate-y-0.5 hover:bg-accent/90"
                 >
                   {text.checkout}
                 </Button>
