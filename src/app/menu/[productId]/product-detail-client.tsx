@@ -59,7 +59,7 @@ export function ProductDetailClient({ product }: { product: Product }) {
 
       <section className="animate-content-enter mx-auto w-full max-w-6xl px-4 pb-28 pt-3 sm:px-6 sm:py-8">
         <div className="overflow-hidden rounded-md border bg-card shadow-sm lg:grid lg:grid-cols-[1.05fr_0.95fr]">
-          <div className="animate-image-enter relative min-h-[19rem] overflow-hidden bg-muted sm:min-h-[30rem]">
+          <div className="animate-image-enter relative min-h-[25rem] overflow-hidden bg-muted sm:min-h-[32rem]">
             <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 bg-gradient-to-br from-[#32170d] via-[#6f513c] to-[#b49a80] text-white">
               <Coffee className="h-12 w-12 text-white/80" />
               <span className="max-w-48 text-center text-sm font-bold leading-6 text-white/85">
@@ -77,20 +77,27 @@ export function ProductDetailClient({ product }: { product: Product }) {
                 onError={() => setImageFailed(true)}
               />
             ) : null}
-            <div className="absolute inset-0 z-10 bg-gradient-to-t from-black/64 via-black/10 to-black/0 lg:bg-gradient-to-r lg:from-transparent lg:via-black/0 lg:to-black/28" />
-            <Price
-              value={product.price}
-              locale={locale}
-              className="absolute right-3 top-3 z-20 rounded-full border border-white/35 bg-white/18 px-3 py-1.5 text-sm font-black text-white shadow-[0_10px_24px_rgba(0,0,0,0.2)] backdrop-blur-md sm:right-5 sm:top-5 sm:text-base"
-              currencyClassName="text-white/75"
-            />
+            <div className="absolute inset-0 z-10 bg-gradient-to-t from-black/82 via-black/24 to-black/0 lg:bg-gradient-to-r lg:from-transparent lg:via-black/0 lg:to-black/28" />
             <div className="absolute bottom-4 left-4 right-4 z-20 text-white lg:hidden">
               <p className="mb-2 w-fit rounded-full border border-white/25 bg-white/15 px-2.5 py-1 text-[0.68rem] font-bold backdrop-blur-md">
                 {categoryName}
               </p>
-              <h1 className="line-clamp-2 text-2xl font-black leading-tight drop-shadow-sm">
-                {text.name}
-              </h1>
+              <div className="space-y-3 rounded-md border border-white/18 bg-black/18 p-3.5 shadow-[0_14px_34px_rgba(0,0,0,0.22)] backdrop-blur-sm">
+                <div className="flex items-start justify-between gap-3">
+                  <h1 className="line-clamp-2 text-2xl font-black leading-tight drop-shadow-sm">
+                    {text.name}
+                  </h1>
+                  <Price
+                    value={product.price}
+                    locale={locale}
+                    className="shrink-0 rounded-full border border-white/35 bg-white/18 px-2.5 py-1 text-sm font-black text-white shadow-[0_10px_24px_rgba(0,0,0,0.2)] backdrop-blur-md"
+                    currencyClassName="text-white/75"
+                  />
+                </div>
+                <p className="line-clamp-3 text-xs leading-6 text-white/88">
+                  {text.description}
+                </p>
+              </div>
             </div>
           </div>
 
@@ -105,7 +112,7 @@ export function ProductDetailClient({ product }: { product: Product }) {
               </div>
 
               <div className="space-y-3">
-                <p className="text-sm leading-7 text-muted-foreground sm:text-base sm:leading-8">
+                <p className="hidden text-sm leading-7 text-muted-foreground sm:text-base sm:leading-8 lg:block">
                   {text.description}
                 </p>
                 <div className="hidden lg:block">
