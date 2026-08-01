@@ -277,7 +277,7 @@ export function MenuPageClient() {
             onChange={(event) => setSearchQuery(event.target.value)}
             placeholder={locale === "ar" ? "ابحث عن منتج" : "Search products"}
             className={cn(
-              "h-12 rounded-full border-border/70 bg-card/80 text-sm font-semibold shadow-[0_8px_18px_hsl(var(--foreground)/0.06)] backdrop-blur-sm transition-all focus-visible:ring-accent/40",
+              "h-12 rounded-full border-border/70 bg-card/80 text-base font-semibold shadow-[0_8px_18px_hsl(var(--foreground)/0.06)] backdrop-blur-sm transition-all focus-visible:ring-accent/40 sm:text-sm",
               locale === "ar" ? "pr-11 text-right" : "pl-11"
             )}
           />
