@@ -8,7 +8,6 @@ import { Moon, ShoppingCart, Sun } from "lucide-react";
 
 import { AppLogo } from "@/components/shared/app-logo";
 import { ContactTicker } from "@/components/shared/contact-ticker";
-import { SocialLinks } from "@/components/shared/social-links";
 import { Button } from "@/components/ui/button";
 import { ROUTES } from "@/constants/routes";
 import { cn } from "@/lib/utils";
@@ -60,9 +59,7 @@ export function SiteHeader({ locale, onLocaleChange }: SiteHeaderProps) {
             <AppLogo showText={false} size="sm" className="mb-0.5 [&_div]:h-12 [&_div]:w-12 sm:[&_div]:h-16 sm:[&_div]:w-16" />
           </Link>
         </div>
-        <SocialLinks locale={locale} className="mx-auto hidden sm:flex" />
         <div dir="ltr" className="flex min-w-0 items-center justify-end gap-2 sm:gap-3">
-          <SocialLinks locale={locale} className="order-1 sm:hidden" />
           <Button
             asChild
             className={cn(
