@@ -177,21 +177,21 @@ export function MenuPageClient() {
                     priority={index === 0}
                   />
                   <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/45 to-black/15" />
-                  <div className="absolute inset-x-0 bottom-0 p-5 text-white sm:p-7" dir={locale === "ar" ? "rtl" : "ltr"}>
-                    <div className="max-w-[44rem] space-y-3.5 transition-transform duration-500 ease-out group-hover:-translate-y-1 sm:space-y-5">
+                  <div className="absolute inset-x-0 bottom-0 p-4 text-white sm:p-8" dir={locale === "ar" ? "rtl" : "ltr"}>
+                    <div className="max-w-[44rem] space-y-4 transition-transform duration-500 ease-out group-hover:-translate-y-1 sm:space-y-6">
                       <div className="flex flex-wrap items-center gap-2">
                         <Badge className="w-fit border-white/30 bg-white/20 text-white backdrop-blur-sm hover:bg-white/20">
                           {locale === "ar" ? "عرض خاص" : "Special offer"}
                         </Badge>
                       </div>
-                      <div className="space-y-2.5 sm:space-y-3.5">
+                      <div className="space-y-2 sm:space-y-4">
                         <h2 className="line-clamp-2 text-3xl font-black leading-[1.05] tracking-normal drop-shadow-sm sm:text-5xl">
                           {offer.title}
                         </h2>
                         <p className="line-clamp-2 max-w-2xl text-sm leading-6 text-white/85 drop-shadow-sm sm:text-base sm:leading-7">
                           {offer.description}
                         </p>
-                        <div className="flex flex-wrap items-end gap-3 pt-1 sm:gap-4">
+                        <div className="flex flex-wrap items-end gap-4 pt-2">
                           <Price
                             value={offer.price}
                             locale={locale}
@@ -238,7 +238,7 @@ export function MenuPageClient() {
         ) : null}
 
         <div className="relative mb-6">
-          <div className="scrollbar-hidden flex gap-3 overflow-x-auto pb-2 pr-10">
+          <div className="scrollbar-hidden flex gap-4 overflow-x-auto pb-2 pr-10">
             <CategoryButton
               isSelected={selectedCategory === allCategoryId}
               onClick={() => setSelectedCategory(allCategoryId)}
@@ -258,7 +258,7 @@ export function MenuPageClient() {
           <div className="pointer-events-none absolute inset-y-0 right-0 w-12 bg-gradient-to-l from-background to-transparent" />
         </div>
 
-        <div className="grid grid-cols-2 gap-3 sm:gap-5 lg:grid-cols-3">
+        <div className="grid grid-cols-2 gap-4 sm:gap-6 lg:grid-cols-3">
           {products.map((product) => {
             const quantity = quantitiesByProduct.get(product.id) ?? 0;
             const translatedProductText = translatedProduct(product.id, locale);
@@ -298,19 +298,19 @@ export function MenuPageClient() {
                     <div className="absolute inset-0 bg-accent/8" />
                   </div>
                   {quantity > 0 ? (
-                    <Badge className="absolute left-2 top-2 gap-1 rounded-full border border-white/25 bg-accent px-2 py-1 text-[0.68rem] font-bold text-accent-foreground shadow-sm sm:left-3 sm:top-3 sm:px-3 sm:py-1.5">
+                    <Badge className="absolute left-4 top-4 gap-2 rounded-full border border-white/25 bg-accent px-2 py-2 text-[0.68rem] font-bold text-accent-foreground shadow-sm">
                       <ShoppingCart className="h-3 w-3 sm:h-3.5 sm:w-3.5" />
                       {quantity}
                     </Badge>
                   ) : null}
-                  <div className="absolute bottom-0 left-0 right-0 p-3 sm:p-4">
+                  <div className="absolute bottom-0 left-0 right-0 p-4">
                     <p className="mb-1 hidden w-fit rounded-full border border-white/20 bg-white/15 px-2 py-0.5 text-[0.65rem] font-semibold text-white/90 backdrop-blur-sm sm:block">
                       {translatedCategoryName(product.categoryId, locale)}
                     </p>
                   </div>
                 </div>
-                <CardContent className="flex flex-1 flex-col gap-3 border-t bg-gradient-to-b from-card to-muted/25 p-3.5 transition-colors duration-500 group-hover:from-card group-hover:to-accent/8 sm:gap-4 sm:p-5">
-                  <div className="space-y-1.5">
+                <CardContent className="flex flex-1 flex-col gap-4 border-t bg-gradient-to-b from-card to-muted/25 p-4 transition-colors duration-500 group-hover:from-card group-hover:to-accent/8 sm:p-6">
+                  <div className="space-y-2">
                     <h2 className="line-clamp-2 text-sm font-black leading-snug text-foreground transition-colors duration-300 group-hover:text-foreground sm:text-xl">
                       {translatedProductText.name}
                     </h2>
@@ -335,7 +335,7 @@ export function MenuPageClient() {
                     {translatedProductText.description}
                   </p>
 
-                  <div className="mt-auto pt-1">
+                  <div className="mt-auto pt-2">
                     {quantity > 0 ? (
                       <div
                         className="flex h-9 items-center justify-between overflow-hidden rounded-md border border-accent/30 bg-accent/8 shadow-inner transition-colors duration-300 group-hover:border-accent/45 group-hover:bg-accent/12 sm:h-11"
@@ -366,7 +366,7 @@ export function MenuPageClient() {
                     ) : (
                       <Button
                         type="button"
-                        className="h-12 w-full gap-2 rounded-lg border border-[#21100a]/10 bg-[#21100a] px-3 text-sm font-bold text-primary-foreground shadow-[0_10px_22px_rgba(33,16,10,0.16)] transition-all duration-300 ease-out hover:-translate-y-0.5 hover:bg-[#21100a]/90 hover:text-primary-foreground hover:shadow-[0_16px_30px_rgba(33,16,10,0.24)] active:translate-y-0 active:scale-[0.985] focus-visible:ring-2 focus-visible:ring-accent/50 focus-visible:ring-offset-2 dark:border-[hsl(30_33%_84%)]/35 dark:bg-[hsl(30_33%_84%)] dark:text-[#21100a] dark:hover:bg-[hsl(30_33%_84%)] dark:hover:text-[#21100a] dark:hover:shadow-[0_14px_28px_rgba(228,214,201,0.2)]"
+                        className="h-12 w-full gap-2 rounded-lg border border-[#21100a]/10 bg-[#21100a] px-4 text-sm font-bold text-primary-foreground shadow-[0_10px_22px_rgba(33,16,10,0.16)] transition-all duration-300 ease-out hover:-translate-y-0.5 hover:bg-[#21100a]/90 hover:text-primary-foreground hover:shadow-[0_16px_30px_rgba(33,16,10,0.24)] active:translate-y-0 active:scale-[0.985] focus-visible:ring-2 focus-visible:ring-accent/50 focus-visible:ring-offset-2 dark:border-[hsl(30_33%_84%)]/35 dark:bg-[hsl(30_33%_84%)] dark:text-[#21100a] dark:hover:bg-[hsl(30_33%_84%)] dark:hover:text-[#21100a] dark:hover:shadow-[0_14px_28px_rgba(228,214,201,0.2)]"
                         onClick={(event) => {
                           event.stopPropagation();
                           addItem({
