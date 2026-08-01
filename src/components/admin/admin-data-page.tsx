@@ -188,7 +188,12 @@ export function AdminDataPage<T>({
                   ) : null}
                 </div>
                 {isFilterPanelOpen && resolvedFilterGroups.length > 0 ? (
-                  <div className="mt-4 overflow-hidden rounded-md border bg-background shadow-[0_16px_40px_rgba(42,16,10,0.10)]">
+                  <div
+                    className={cn(
+                      "mt-4 w-full max-w-2xl overflow-hidden rounded-md border bg-background shadow-[0_16px_40px_rgba(42,16,10,0.10)]",
+                      isArabicControls ? "ml-auto" : "mr-auto",
+                    )}
+                  >
                     <div className={cn("flex items-center justify-between gap-3 border-b p-4", isArabicControls && "flex-row-reverse")}>
                       <Button
                         type="button"
