@@ -98,16 +98,64 @@ export default function CartPage() {
         </div>
 
         {items.length === 0 ? (
-          <Card className="overflow-hidden rounded-md">
-            <CardContent className="flex flex-col items-center px-5 py-16 text-center">
-              <div className="mb-5 flex h-16 w-16 items-center justify-center rounded-full bg-muted">
-                <ShoppingBag className="h-8 w-8 text-muted-foreground" />
+          <Card className="overflow-hidden rounded-md border-[#3d2014]/30 bg-card shadow-[0_24px_70px_rgba(33,16,10,0.14)]">
+            <CardContent className="grid gap-6 p-5 sm:p-8 lg:grid-cols-[1fr_0.85fr] lg:items-center">
+              <div className="order-2 space-y-5 text-center lg:order-1 lg:text-start">
+                <div className="mx-auto w-fit rounded-full border bg-muted px-3 py-1 text-[0.7rem] font-black uppercase tracking-[0.12em] text-muted-foreground lg:mx-0">
+                  {text.items}: 0
+                </div>
+                <div className="space-y-3">
+                  <h2 className="text-3xl font-black tracking-tight sm:text-5xl">{text.empty}</h2>
+                  <p className="mx-auto max-w-md text-sm leading-7 text-muted-foreground sm:text-base lg:mx-0">
+                    {text.emptyText}
+                  </p>
+                </div>
+                <Button asChild className="h-12 rounded-md bg-[#21100a] px-6 font-bold text-[#fff5ee] shadow-sm transition-all hover:-translate-y-0.5 hover:bg-[#2f170e] dark:bg-[#b9a58f] dark:text-[#1b0d08] dark:hover:bg-[#c7b39d]">
+                  <Link href="/menu">{text.browse}</Link>
+                </Button>
               </div>
-              <h2 className="text-xl font-black">{text.empty}</h2>
-              <p className="mt-2 max-w-sm text-sm leading-6 text-muted-foreground">{text.emptyText}</p>
-              <Button asChild className="mt-6 h-11 rounded-md px-5 font-bold">
-                <Link href="/menu">{text.browse}</Link>
-              </Button>
+              <div className="order-1 rounded-md border bg-[#21100a] p-4 shadow-[0_22px_55px_rgba(33,16,10,0.22)] lg:order-2">
+                <svg
+                  viewBox="0 0 420 320"
+                  role="img"
+                  aria-label={text.empty}
+                  className="h-auto w-full"
+                >
+                  <defs>
+                    <linearGradient id="cartSteam" x1="0" x2="1" y1="0" y2="1">
+                      <stop offset="0%" stopColor="#f7d7a3" />
+                      <stop offset="100%" stopColor="#c78332" />
+                    </linearGradient>
+                    <linearGradient id="cartCup" x1="0" x2="0" y1="0" y2="1">
+                      <stop offset="0%" stopColor="#fff5ee" />
+                      <stop offset="100%" stopColor="#d6b79c" />
+                    </linearGradient>
+                    <filter id="cartShadow" x="-20%" y="-20%" width="140%" height="160%">
+                      <feDropShadow dx="0" dy="18" stdDeviation="18" floodColor="#000000" floodOpacity="0.28" />
+                    </filter>
+                  </defs>
+                  <rect width="420" height="320" rx="18" fill="#21100a" />
+                  <path d="M35 248 C90 220 115 258 168 235 C218 214 241 218 292 239 C335 257 361 238 391 218 L391 320 L35 320 Z" fill="#2f170e" />
+                  <circle cx="332" cy="72" r="38" fill="#ffffff" opacity="0.08" />
+                  <circle cx="84" cy="88" r="20" fill="#ffffff" opacity="0.08" />
+                  <path d="M132 122 C125 94 153 86 145 58" stroke="url(#cartSteam)" strokeWidth="10" strokeLinecap="round" fill="none" opacity="0.85" />
+                  <path d="M183 116 C172 83 208 75 196 42" stroke="url(#cartSteam)" strokeWidth="10" strokeLinecap="round" fill="none" opacity="0.65" />
+                  <path d="M238 122 C229 96 260 86 251 58" stroke="url(#cartSteam)" strokeWidth="10" strokeLinecap="round" fill="none" opacity="0.8" />
+                  <g filter="url(#cartShadow)">
+                    <path d="M112 137 H275 L254 251 H135 Z" fill="url(#cartCup)" />
+                    <path d="M277 160 H302 C326 160 333 196 309 209 L267 232" fill="none" stroke="#fff5ee" strokeWidth="18" strokeLinecap="round" />
+                    <path d="M126 157 H263 L257 189 H132 Z" fill="#7b3f20" opacity="0.9" />
+                    <path d="M143 251 H246" stroke="#8a735d" strokeWidth="14" strokeLinecap="round" />
+                  </g>
+                  <g transform="translate(74 244)">
+                    <circle cx="32" cy="32" r="22" fill="#f7d7a3" />
+                    <circle cx="242" cy="32" r="22" fill="#f7d7a3" />
+                    <path d="M20 0 H259" stroke="#f7d7a3" strokeWidth="14" strokeLinecap="round" />
+                    <path d="M0 -54 H46 L70 0" stroke="#f7d7a3" strokeWidth="14" strokeLinecap="round" strokeLinejoin="round" fill="none" />
+                  </g>
+                  <path d="M316 143 L337 164 L379 119" stroke="#f7d7a3" strokeWidth="12" strokeLinecap="round" strokeLinejoin="round" fill="none" />
+                </svg>
+              </div>
             </CardContent>
           </Card>
         ) : (
