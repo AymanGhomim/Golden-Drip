@@ -1,7 +1,7 @@
 "use client";
 
 import Image from "next/image";
-import { LinkIcon, Plus, Upload } from "lucide-react";
+import { Edit3, LinkIcon, Plus, Power, Trash2, Upload } from "lucide-react";
 import { useState } from "react";
 
 import { AdminDataPage } from "@/components/admin/admin-data-page";
@@ -34,9 +34,11 @@ import type { Product } from "@/types/product.types";
 
 export default function ProductsPage() {
   const { locale } = useAdminLocale();
+  const [products, setProducts] = useState<Product[]>(mockProducts);
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
+  const [editingProduct, setEditingProduct] = useState<Product | null>(null);
   const [imageInputMode, setImageInputMode] = useState<"url" | "upload">("url");
-  const available = mockProducts.filter((product) => product.isAvailable).length;
+  const available = products.filter((product) => product.isAvailable).length;
   const text =
     locale === "en"
       ? {
@@ -106,6 +108,66 @@ export default function ProductsPage() {
           save: "حفظ الصنف",
         };
   const selectItemClassName = locale === "ar" ? "justify-end pl-2 pr-8 text-right [&>span]:left-auto [&>span]:right-2" : undefined;
+  const actionText =
+    locale === "en"
+      ? {
+          actions: "Actions",
+          edit: "Edit",
+          delete: "Delete",
+          deactivate: "Deactivate",
+          activate: "Activate",
+          editTitle: "Edit menu item",
+          editDescription: "Update this product information.",
+        }
+      : {
+          actions: "الإجراءات",
+          edit: "تعديل",
+          delete: "حذف",
+          deactivate: "إيقاف",
+          activate: "تفعيل",
+          editTitle: "تعديل الصنف",
+          editDescription: "حدث بيانات هذا الصنف.",
+        };
+
+  function closeProductDialog() {
+    setIsAddDialogOpen(false);
+    setEditingProduct(null);
+    setImageInputMode("url");
+  }
+
+  function toggleProductAvailability(productId: string) {
+    setProducts((current) =>
+      current.map((product) =>
+        product.id === productId ? { ...product, isAvailable: !product.isAvailable } : product
+      )
+    );
+  }
+
+  function deleteProduct(productId: string) {
+    setProducts((current) => current.filter((product) => product.id !== productId));
+  }
+
+  function saveProduct(formData: FormData) {
+    const file = formData.get("imageFile");
+    const fileImage = file instanceof File && file.size > 0 ? URL.createObjectURL(file) : "";
+    const imageUrl = String(formData.get("imageUrl") ?? "");
+    const nextProduct: Product = {
+      id: editingProduct?.id ?? `prod-${Date.now()}`,
+      name: String(formData.get("name") ?? ""),
+      description: String(formData.get("description") ?? ""),
+      price: Number(formData.get("price") ?? 0),
+      image: imageInputMode === "upload" ? fileImage || editingProduct?.image : imageUrl || editingProduct?.image,
+      categoryId: String(formData.get("categoryId") ?? mockCategories[0]?.id ?? ""),
+      isAvailable: String(formData.get("isAvailable") ?? "available") === "available",
+    };
+
+    setProducts((current) =>
+      editingProduct
+        ? current.map((product) => (product.id === editingProduct.id ? nextProduct : product))
+        : [nextProduct, ...current]
+    );
+    closeProductDialog();
+  }
 
   const columns = [
     {
@@ -145,6 +207,52 @@ export default function ProductsPage() {
         </Badge>
       ),
     },
+    {
+      key: "actions",
+      header: actionText.actions,
+      className: "text-right",
+      cell: (product: Product) => (
+        <div className="flex justify-end gap-2">
+          <Button
+            type="button"
+            variant="outline"
+            size="icon"
+            className="h-8 w-8"
+            onClick={() => {
+              setEditingProduct(product);
+              setImageInputMode("url");
+              setIsAddDialogOpen(true);
+            }}
+            aria-label={actionText.edit}
+            title={actionText.edit}
+          >
+            <Edit3 className="h-3.5 w-3.5" />
+          </Button>
+          <Button
+            type="button"
+            variant="outline"
+            size="icon"
+            className="h-8 w-8"
+            onClick={() => toggleProductAvailability(product.id)}
+            aria-label={product.isAvailable ? actionText.deactivate : actionText.activate}
+            title={product.isAvailable ? actionText.deactivate : actionText.activate}
+          >
+            <Power className="h-3.5 w-3.5" />
+          </Button>
+          <Button
+            type="button"
+            variant="outline"
+            size="icon"
+            className="h-8 w-8 border-destructive/30 text-destructive hover:bg-destructive/10 hover:text-destructive"
+            onClick={() => deleteProduct(product.id)}
+            aria-label={actionText.delete}
+            title={actionText.delete}
+          >
+            <Trash2 className="h-3.5 w-3.5" />
+          </Button>
+        </div>
+      ),
+    },
   ];
 
   return (
@@ -154,39 +262,54 @@ export default function ProductsPage() {
       description={text.description}
       actionLabel={text.add}
       actionContent={
-        <Dialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen}>
+        <Dialog
+          open={isAddDialogOpen}
+          onOpenChange={(open) => {
+            if (open) {
+              setIsAddDialogOpen(true);
+            } else {
+              closeProductDialog();
+            }
+          }}
+        >
           <DialogTrigger asChild>
-            <Button className="h-9 gap-2 rounded-md px-3 text-sm shadow-sm">
+            <Button
+              className="h-9 gap-2 rounded-md px-3 text-sm shadow-sm"
+              onClick={() => {
+                setEditingProduct(null);
+                setImageInputMode("url");
+              }}
+            >
               <Plus className="h-4 w-4" />
               {text.add}
             </Button>
           </DialogTrigger>
           <DialogContent className="max-h-[92vh] max-w-2xl overflow-hidden rounded-md p-0" dir={locale === "ar" ? "rtl" : "ltr"}>
             <DialogHeader className="px-6 pt-6">
-              <DialogTitle>{formText.title}</DialogTitle>
-              <DialogDescription>{formText.description}</DialogDescription>
+              <DialogTitle>{editingProduct ? actionText.editTitle : formText.title}</DialogTitle>
+              <DialogDescription>{editingProduct ? actionText.editDescription : formText.description}</DialogDescription>
             </DialogHeader>
             <form
               className="grid max-h-[calc(92vh-6rem)] gap-4 overflow-y-auto px-6 pb-6 pt-2"
               onSubmit={(event) => {
                 event.preventDefault();
-                setIsAddDialogOpen(false);
+                saveProduct(new FormData(event.currentTarget));
               }}
             >
               <div className="grid gap-4 sm:grid-cols-2">
                 <div className="space-y-2">
                   <Label htmlFor="product-name">{formText.name}</Label>
-                  <Input id="product-name" name="name" required />
+                  <Input id="product-name" name="name" defaultValue={editingProduct?.name} required />
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="product-price">{text.price}</Label>
-                  <Input id="product-price" name="price" type="number" min="0" required />
+                  <Input id="product-price" name="price" type="number" min="0" defaultValue={editingProduct?.price} required />
                 </div>
               </div>
               <div className="grid gap-4 sm:grid-cols-2">
                 <div className="space-y-2">
                   <Label>{text.category}</Label>
-                  <Select name="categoryId" required>
+                  <Select name="categoryId" defaultValue={editingProduct?.categoryId} required>
                     <SelectTrigger className={locale === "ar" ? "flex-row-reverse" : undefined}>
                       <SelectValue placeholder={formText.categoryPlaceholder} />
                     </SelectTrigger>
@@ -224,7 +347,7 @@ export default function ProductsPage() {
                     </Button>
                   </div>
                   {imageInputMode === "url" ? (
-                    <Input id="product-image-url" name="imageUrl" type="url" />
+                    <Input id="product-image-url" name="imageUrl" type="url" defaultValue={editingProduct?.image} />
                   ) : (
                     <Input id="product-image-file" name="imageFile" type="file" accept="image/*" />
                   )}
@@ -232,11 +355,11 @@ export default function ProductsPage() {
               </div>
               <div className="space-y-2">
                 <Label htmlFor="product-description">{formText.descriptionLabel}</Label>
-                <Textarea id="product-description" name="description" required />
+                <Textarea id="product-description" name="description" defaultValue={editingProduct?.description} required />
               </div>
               <div className="space-y-2">
                 <Label>{formText.availability}</Label>
-                <Select name="isAvailable" defaultValue="available">
+                <Select name="isAvailable" defaultValue={editingProduct?.isAvailable === false ? "hidden" : "available"}>
                   <SelectTrigger className={locale === "ar" ? "flex-row-reverse" : undefined}>
                     <SelectValue />
                   </SelectTrigger>
@@ -247,7 +370,7 @@ export default function ProductsPage() {
                 </Select>
               </div>
               <DialogFooter className="sticky bottom-0 -mx-6 gap-2 border-t bg-background px-6 py-4 sm:gap-2">
-                <Button type="button" variant="outline" onClick={() => setIsAddDialogOpen(false)}>
+                <Button type="button" variant="outline" onClick={closeProductDialog}>
                   {formText.cancel}
                 </Button>
                 <Button type="submit">{formText.save}</Button>
@@ -257,18 +380,20 @@ export default function ProductsPage() {
         </Dialog>
       }
       stats={[
-        { label: text.total, value: mockProducts.length },
+        { label: text.total, value: products.length },
         { label: text.available, value: available },
         { label: text.categories, value: mockCategories.length },
         {
           label: text.avg,
-          value: Math.round(mockProducts.reduce((sum, product) => sum + product.price, 0) / mockProducts.length),
+          value: products.length
+            ? Math.round(products.reduce((sum, product) => sum + product.price, 0) / products.length)
+            : 0,
         },
       ]}
       tableTitle={text.tableTitle}
       tableDescription={text.tableDescription}
       columns={columns}
-      data={mockProducts}
+      data={products}
       keyExtractor={(product) => product.id}
     />
   );
