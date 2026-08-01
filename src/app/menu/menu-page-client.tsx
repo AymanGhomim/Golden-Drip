@@ -13,7 +13,6 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
-import { OfferPrice } from "@/components/shared/offer-price";
 import { Price } from "@/components/shared/price";
 import { SiteHeader } from "@/components/shared/site-header";
 import { cn } from "@/lib/utils";
@@ -177,31 +176,35 @@ export function MenuPageClient() {
                     className="object-cover transition-transform duration-700 ease-out group-hover:scale-[1.06]"
                     priority={index === 0}
                   />
-                  <div className="absolute inset-0 opacity-0 transition-opacity duration-500 group-hover:opacity-100">
-                    <div className="absolute -left-1/3 top-0 h-full w-1/3 skew-x-[-18deg] bg-white/15 blur-md transition-transform duration-700 ease-out group-hover:translate-x-[420%]" />
-                  </div>
-                  <div className="absolute inset-0 bg-gradient-to-t from-black/75 via-black/35 to-black/10" />
-                  <div className="absolute inset-x-0 bottom-0 p-4 text-white sm:p-6" dir={locale === "ar" ? "rtl" : "ltr"}>
-                    <div className="max-w-[42rem] space-y-2.5 transition-transform duration-500 ease-out group-hover:-translate-y-1 sm:space-y-3">
+                  <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/45 to-black/15" />
+                  <div className="absolute inset-x-0 bottom-0 p-5 text-white sm:p-7" dir={locale === "ar" ? "rtl" : "ltr"}>
+                    <div className="max-w-[44rem] space-y-3.5 transition-transform duration-500 ease-out group-hover:-translate-y-1 sm:space-y-5">
                       <div className="flex flex-wrap items-center gap-2">
                         <Badge className="w-fit border-white/30 bg-white/20 text-white backdrop-blur-sm hover:bg-white/20">
                           {locale === "ar" ? "عرض خاص" : "Special offer"}
                         </Badge>
                       </div>
-                      <div className="space-y-1.5 sm:space-y-2">
-                        <h2 className="line-clamp-2 text-xl font-bold leading-tight tracking-tight drop-shadow-sm sm:text-4xl">
+                      <div className="space-y-2.5 sm:space-y-3.5">
+                        <h2 className="line-clamp-2 text-3xl font-black leading-[1.05] tracking-normal drop-shadow-sm sm:text-5xl">
                           {offer.title}
                         </h2>
-                        <p className="line-clamp-2 max-w-xl text-xs leading-5 text-white/90 drop-shadow-sm sm:line-clamp-3 sm:text-base sm:leading-7">
+                        <p className="line-clamp-2 max-w-2xl text-sm leading-6 text-white/85 drop-shadow-sm sm:text-base sm:leading-7">
                           {offer.description}
                         </p>
-                        <OfferPrice
-                          originalPrice={offer.originalPrice}
-                          price={offer.price}
-                          locale={locale}
-                          variant="light"
-                          className="pt-1"
-                        />
+                        <div className="flex flex-wrap items-end gap-3 pt-1 sm:gap-4">
+                          <Price
+                            value={offer.price}
+                            locale={locale}
+                            className="text-4xl font-black leading-none text-white drop-shadow-sm sm:text-6xl"
+                            currencyClassName="text-base font-bold text-white/85 sm:text-xl"
+                          />
+                          <Price
+                            value={offer.originalPrice}
+                            locale={locale}
+                            className="pb-1 text-sm font-bold text-white/50 line-through sm:text-lg"
+                            currencyClassName="text-xs text-white/45 sm:text-sm"
+                          />
+                        </div>
                       </div>
                     </div>
                   </div>
