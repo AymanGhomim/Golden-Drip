@@ -17,6 +17,8 @@ export interface DataTableColumn<T> {
   header: string;
   cell: (item: T) => React.ReactNode;
   className?: string;
+  headerClassName?: string;
+  cellClassName?: string;
 }
 
 interface DataTableProps<T> {
@@ -54,7 +56,11 @@ export function DataTable<T>({
             {columns.map((col) => (
               <TableHead
                 key={col.key}
-                className={cn("h-9 px-3 text-[0.68rem] font-bold uppercase tracking-[0.08em]", col.className)}
+                className={cn(
+                  "h-9 px-3 text-[0.68rem] font-bold uppercase tracking-[0.08em]",
+                  col.className,
+                  col.headerClassName,
+                )}
               >
                 {col.header}
               </TableHead>
@@ -65,7 +71,10 @@ export function DataTable<T>({
           {data.map((item) => (
             <TableRow key={keyExtractor(item)}>
               {columns.map((col) => (
-                <TableCell key={col.key} className={cn("px-3 py-2.5 align-middle", col.className)}>
+                <TableCell
+                  key={col.key}
+                  className={cn("px-3 py-2.5 align-middle", col.className, col.cellClassName)}
+                >
                   {col.cell(item)}
                 </TableCell>
               ))}

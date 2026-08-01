@@ -259,7 +259,8 @@ export default function ProductsPage() {
     {
       key: "actions",
       header: actionText.actions,
-      className: "text-right",
+      headerClassName: "w-[136px] text-center",
+      cellClassName: "w-[136px]",
       cell: (product: Product) => {
         const AvailabilityIcon = product.isAvailable ? EyeOff : Eye;
         const availabilityClassName = product.isAvailable
@@ -267,7 +268,7 @@ export default function ProductsPage() {
           : "h-8 w-8 border-emerald-300/60 text-emerald-700 hover:bg-emerald-50 hover:text-emerald-800 dark:border-emerald-200/40 dark:text-emerald-100 dark:hover:bg-emerald-200/15";
 
         return (
-        <div className="flex justify-end gap-2">
+        <div className="flex justify-center gap-2">
           <Button
             type="button"
             variant="outline"
