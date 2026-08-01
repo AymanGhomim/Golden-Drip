@@ -16,6 +16,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Price } from "@/components/shared/price";
 import { SiteHeader } from "@/components/shared/site-header";
+import { SocialLinks } from "@/components/shared/social-links";
 import { cn } from "@/lib/utils";
 import {
   menuCopy,
@@ -400,6 +401,7 @@ export function MenuPageClient() {
             );
           })}
         </div>
+        <SocialLinks locale={locale} />
       </section>
     </main>
   );
