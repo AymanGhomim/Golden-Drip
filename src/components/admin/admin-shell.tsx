@@ -82,6 +82,22 @@ export function AdminShell({ children }: { children: React.ReactNode }) {
   }, []);
 
   useEffect(() => {
+    const root = document.documentElement;
+    const hadDarkClass = root.classList.contains("dark");
+    const previousColorScheme = root.style.colorScheme;
+
+    root.classList.remove("dark");
+    root.classList.add("light");
+    root.style.colorScheme = "light";
+
+    return () => {
+      root.classList.remove("light");
+      if (hadDarkClass) root.classList.add("dark");
+      root.style.colorScheme = previousColorScheme;
+    };
+  }, []);
+
+  useEffect(() => {
     if (ready && !isAuthenticated) router.replace("/admin/login");
   }, [isAuthenticated, ready, router]);
 
