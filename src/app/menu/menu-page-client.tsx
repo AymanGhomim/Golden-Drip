@@ -136,7 +136,7 @@ export function MenuPageClient() {
             onPointerMove={(event) => {
               if (!isDragging) return;
               const nextOffset = event.clientX - dragStartX.current;
-              if (Math.abs(nextOffset) > 8) didDrag.current = true;
+              if (Math.abs(nextOffset) > 18) didDrag.current = true;
               setDragOffset(Math.max(-120, Math.min(120, nextOffset)));
             }}
             onPointerUp={finishOfferDrag}
@@ -175,9 +175,14 @@ export function MenuPageClient() {
                   <div className="absolute inset-0 bg-gradient-to-t from-black/75 via-black/35 to-black/10" />
                   <div className="absolute inset-x-0 bottom-0 p-4 text-white sm:p-6" dir={locale === "ar" ? "rtl" : "ltr"}>
                     <div className="max-w-[42rem] space-y-2.5 transition-transform duration-500 ease-out group-hover:-translate-y-1 sm:space-y-3">
-                      <Badge className="w-fit border-white/30 bg-white/20 text-white backdrop-blur-sm hover:bg-white/20">
-                        {locale === "ar" ? "عرض خاص" : "Special offer"}
-                      </Badge>
+                      <div className="flex flex-wrap items-center gap-2">
+                        <Badge className="w-fit border-white/30 bg-white/20 text-white backdrop-blur-sm hover:bg-white/20">
+                          {locale === "ar" ? "عرض خاص" : "Special offer"}
+                        </Badge>
+                        <span className="rounded-full border border-white/25 bg-white/15 px-2.5 py-1 text-[0.68rem] font-bold text-white backdrop-blur-sm">
+                          {locale === "ar" ? "عرض التفاصيل" : "View details"}
+                        </span>
+                      </div>
                       <div className="space-y-1.5 sm:space-y-2">
                         <h2 className="line-clamp-2 text-xl font-bold leading-tight tracking-tight drop-shadow-sm sm:text-4xl">
                           {offer.title}
