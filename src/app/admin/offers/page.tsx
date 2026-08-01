@@ -1,7 +1,7 @@
 "use client";
 
 import Image from "next/image";
-import { Plus } from "lucide-react";
+import { Eye, EyeOff, Plus, Trash2 } from "lucide-react";
 import { useState } from "react";
 
 import { AdminDataPage } from "@/components/admin/admin-data-page";
@@ -123,6 +123,18 @@ export default function OffersPage() {
     setOffers((current) => [nextOffer, ...current]);
     setIsAddDialogOpen(false);
   }
+
+  function toggleOfferStatus(offerId: string) {
+    setOffers((current) =>
+      current.map((offer) =>
+        offer.id === offerId ? { ...offer, isActive: !offer.isActive } : offer
+      )
+    );
+  }
+
+  function deleteOffer(offerId: string) {
+    setOffers((current) => current.filter((offer) => offer.id !== offerId));
+  }
   const controlsText =
     locale === "en"
       ? {
@@ -176,6 +188,42 @@ export default function OffersPage() {
           {offer.isActive ? text.activeLabel : text.hiddenLabel}
         </Badge>
       ),
+    },
+    {
+      key: "actions",
+      header: locale === "en" ? "Actions" : "الإجراءات",
+      headerClassName: "w-[96px] text-center",
+      cellClassName: "w-[96px]",
+      cell: (offer: Offer) => {
+        const StatusIcon = offer.isActive ? EyeOff : Eye;
+
+        return (
+          <div className="flex justify-center gap-2">
+            <Button
+              type="button"
+              variant="outline"
+              size="icon"
+              className="h-8 w-8 border-amber-300/60 text-amber-700 hover:bg-amber-50 hover:text-amber-800"
+              onClick={() => toggleOfferStatus(offer.id)}
+              aria-label={offer.isActive ? text.hiddenLabel : text.activeLabel}
+              title={offer.isActive ? text.hiddenLabel : text.activeLabel}
+            >
+              <StatusIcon className="h-3.5 w-3.5" />
+            </Button>
+            <Button
+              type="button"
+              variant="outline"
+              size="icon"
+              className="h-8 w-8 border-destructive/30 text-destructive hover:bg-destructive/10 hover:text-destructive"
+              onClick={() => deleteOffer(offer.id)}
+              aria-label={locale === "en" ? "Delete" : "حذف"}
+              title={locale === "en" ? "Delete" : "حذف"}
+            >
+              <Trash2 className="h-3.5 w-3.5" />
+            </Button>
+          </div>
+        );
+      },
     },
   ];
 

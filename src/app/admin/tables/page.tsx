@@ -24,7 +24,7 @@ import {
 import { mockTables } from "@/mocks/tables.mock";
 import { useAdminLocale } from "@/providers/admin-locale-provider";
 import type { Table } from "@/types/table.types";
-import { Plus } from "lucide-react";
+import { Eye, EyeOff, Plus, Trash2 } from "lucide-react";
 import { useState } from "react";
 
 export default function TablesPage() {
@@ -101,6 +101,18 @@ export default function TablesPage() {
     setIsAddDialogOpen(false);
   }
 
+  function toggleTableStatus(tableId: string) {
+    setTables((current) =>
+      current.map((table) =>
+        table.id === tableId ? { ...table, isActive: !table.isActive } : table
+      )
+    );
+  }
+
+  function deleteTable(tableId: string) {
+    setTables((current) => current.filter((table) => table.id !== tableId));
+  }
+
   const columns = [
     { key: "table", header: text.table, cell: (table: Table) => <span className="font-semibold">#{table.number}</span> },
     { key: "qr", header: text.qr, cell: (table: Table) => <code className="rounded bg-muted px-2 py-1 text-xs">{table.qrCode}</code> },
@@ -112,6 +124,42 @@ export default function TablesPage() {
           {table.isActive ? text.active : text.disabled}
         </Badge>
       ),
+    },
+    {
+      key: "actions",
+      header: locale === "en" ? "Actions" : "الإجراءات",
+      headerClassName: "w-[96px] text-center",
+      cellClassName: "w-[96px]",
+      cell: (table: Table) => {
+        const StatusIcon = table.isActive ? EyeOff : Eye;
+
+        return (
+          <div className="flex justify-center gap-2">
+            <Button
+              type="button"
+              variant="outline"
+              size="icon"
+              className="h-8 w-8 border-amber-300/60 text-amber-700 hover:bg-amber-50 hover:text-amber-800"
+              onClick={() => toggleTableStatus(table.id)}
+              aria-label={table.isActive ? text.disabled : text.active}
+              title={table.isActive ? text.disabled : text.active}
+            >
+              <StatusIcon className="h-3.5 w-3.5" />
+            </Button>
+            <Button
+              type="button"
+              variant="outline"
+              size="icon"
+              className="h-8 w-8 border-destructive/30 text-destructive hover:bg-destructive/10 hover:text-destructive"
+              onClick={() => deleteTable(table.id)}
+              aria-label={locale === "en" ? "Delete" : "حذف"}
+              title={locale === "en" ? "Delete" : "حذف"}
+            >
+              <Trash2 className="h-3.5 w-3.5" />
+            </Button>
+          </div>
+        );
+      },
     },
   ];
   const controlsText =

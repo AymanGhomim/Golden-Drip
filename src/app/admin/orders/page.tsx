@@ -3,9 +3,12 @@
 import { Price } from "@/components/shared/price";
 import { AdminDataPage } from "@/components/admin/admin-data-page";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { mockOrders } from "@/mocks/orders.mock";
 import { useAdminLocale } from "@/providers/admin-locale-provider";
 import type { Order, OrderStatus } from "@/types/order.types";
+import { CheckCircle2, XCircle } from "lucide-react";
+import { useState } from "react";
 
 const statusStyle: Record<OrderStatus, string> = {
   NEW: "bg-sky-500/15 text-sky-300",
@@ -17,6 +20,7 @@ const statusStyle: Record<OrderStatus, string> = {
 
 export default function OrdersPage() {
   const { locale } = useAdminLocale();
+  const [orders, setOrders] = useState<Order[]>(mockOrders);
   const text =
     locale === "en"
       ? {
@@ -52,14 +56,51 @@ export default function OrdersPage() {
           items: "أصناف مطلوبة",
         };
 
-  const activeOrders = mockOrders.filter(
+  const actionText =
+    locale === "en"
+      ? {
+          actions: "Actions",
+          advance: "Move to next status",
+          cancel: "Cancel order",
+        }
+      : {
+          actions: "الإجراءات",
+          advance: "نقل للحالة التالية",
+          cancel: "إلغاء الطلب",
+        };
+
+  const activeOrders = orders.filter(
     (order) => order.status !== "COMPLETED" && order.status !== "CANCELLED"
   );
-  const ordersTotal = mockOrders.reduce((sum, order) => sum + order.total, 0);
-  const itemsTotal = mockOrders.reduce(
+  const ordersTotal = orders.reduce((sum, order) => sum + order.total, 0);
+  const itemsTotal = orders.reduce(
     (sum, order) => sum + order.items.reduce((itemSum, item) => itemSum + item.quantity, 0),
     0
   );
+
+  const nextStatusByStatus: Partial<Record<OrderStatus, OrderStatus>> = {
+    NEW: "PREPARING",
+    PREPARING: "READY",
+    READY: "COMPLETED",
+  };
+
+  function advanceOrder(orderId: string) {
+    setOrders((current) =>
+      current.map((order) => {
+        const nextStatus = nextStatusByStatus[order.status];
+
+        return order.id === orderId && nextStatus ? { ...order, status: nextStatus } : order;
+      })
+    );
+  }
+
+  function cancelOrder(orderId: string) {
+    setOrders((current) =>
+      current.map((order) =>
+        order.id === orderId ? { ...order, status: "CANCELLED" } : order
+      )
+    );
+  }
 
   const columns = [
     {
@@ -95,6 +136,44 @@ export default function OrdersPage() {
       key: "total",
       header: text.total,
       cell: (order: Order) => <Price value={order.total} locale={locale} />,
+    },
+    {
+      key: "actions",
+      header: actionText.actions,
+      headerClassName: "w-[96px] text-center",
+      cellClassName: "w-[96px]",
+      cell: (order: Order) => {
+        const isFinished = order.status === "COMPLETED" || order.status === "CANCELLED";
+
+        return (
+          <div className="flex justify-center gap-2">
+            <Button
+              type="button"
+              variant="outline"
+              size="icon"
+              className="h-8 w-8 border-emerald-300/60 text-emerald-700 hover:bg-emerald-50 hover:text-emerald-800 disabled:opacity-40"
+              onClick={() => advanceOrder(order.id)}
+              disabled={isFinished}
+              aria-label={actionText.advance}
+              title={actionText.advance}
+            >
+              <CheckCircle2 className="h-3.5 w-3.5" />
+            </Button>
+            <Button
+              type="button"
+              variant="outline"
+              size="icon"
+              className="h-8 w-8 border-destructive/30 text-destructive hover:bg-destructive/10 hover:text-destructive disabled:opacity-40"
+              onClick={() => cancelOrder(order.id)}
+              disabled={isFinished}
+              aria-label={actionText.cancel}
+              title={actionText.cancel}
+            >
+              <XCircle className="h-3.5 w-3.5" />
+            </Button>
+          </div>
+        );
+      },
     },
   ];
   const controlsText =
@@ -137,7 +216,7 @@ export default function OrdersPage() {
       title={text.title}
       description={text.description}
       stats={[
-        { label: text.totalOrders, value: mockOrders.length },
+        { label: text.totalOrders, value: orders.length },
         { label: text.activeOrders, value: activeOrders.length },
         { label: text.value, value: <Price value={ordersTotal} locale={locale} /> },
         { label: text.items, value: itemsTotal },
@@ -145,7 +224,7 @@ export default function OrdersPage() {
       tableTitle={text.tableTitle}
       tableDescription={text.tableDescription}
       columns={columns}
-      data={mockOrders}
+      data={orders}
       keyExtractor={(order) => order.id}
       searchPlaceholder={controlsText.search}
       searchValue={(order) =>

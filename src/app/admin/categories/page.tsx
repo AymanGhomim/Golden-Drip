@@ -25,7 +25,7 @@ import { mockCategories } from "@/mocks/categories.mock";
 import { mockProducts } from "@/mocks/products.mock";
 import { useAdminLocale } from "@/providers/admin-locale-provider";
 import type { Category } from "@/types/category.types";
-import { Plus } from "lucide-react";
+import { Eye, EyeOff, Trash2, Plus } from "lucide-react";
 import { useState } from "react";
 
 export default function CategoriesPage() {
@@ -105,6 +105,18 @@ export default function CategoriesPage() {
     setIsAddDialogOpen(false);
   }
 
+  function toggleCategoryStatus(categoryId: string) {
+    setCategories((current) =>
+      current.map((category) =>
+        category.id === categoryId ? { ...category, isActive: !category.isActive } : category
+      )
+    );
+  }
+
+  function deleteCategory(categoryId: string) {
+    setCategories((current) => current.filter((category) => category.id !== categoryId));
+  }
+
   const columns = [
     { key: "name", header: text.name, cell: (category: Category) => <span className="font-semibold">{category.name}</span> },
     {
@@ -121,6 +133,42 @@ export default function CategoriesPage() {
           {category.isActive ? text.active : text.hidden}
         </Badge>
       ),
+    },
+    {
+      key: "actions",
+      header: locale === "en" ? "Actions" : "الإجراءات",
+      headerClassName: "w-[96px] text-center",
+      cellClassName: "w-[96px]",
+      cell: (category: Category) => {
+        const StatusIcon = category.isActive ? EyeOff : Eye;
+
+        return (
+          <div className="flex justify-center gap-2">
+            <Button
+              type="button"
+              variant="outline"
+              size="icon"
+              className="h-8 w-8 border-amber-300/60 text-amber-700 hover:bg-amber-50 hover:text-amber-800"
+              onClick={() => toggleCategoryStatus(category.id)}
+              aria-label={category.isActive ? text.hidden : text.active}
+              title={category.isActive ? text.hidden : text.active}
+            >
+              <StatusIcon className="h-3.5 w-3.5" />
+            </Button>
+            <Button
+              type="button"
+              variant="outline"
+              size="icon"
+              className="h-8 w-8 border-destructive/30 text-destructive hover:bg-destructive/10 hover:text-destructive"
+              onClick={() => deleteCategory(category.id)}
+              aria-label={locale === "en" ? "Delete" : "حذف"}
+              title={locale === "en" ? "Delete" : "حذف"}
+            >
+              <Trash2 className="h-3.5 w-3.5" />
+            </Button>
+          </div>
+        );
+      },
     },
   ];
   const controlsText =
