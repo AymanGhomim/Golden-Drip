@@ -3,13 +3,16 @@
 import Image from "next/image";
 import Link from "next/link";
 import { useEffect, useState } from "react";
-import { Banknote, CreditCard, Minus, Plus, ShoppingBag, Trash2 } from "lucide-react";
+import { Banknote, CreditCard, MapPin, Minus, PackageCheck, Phone, Plus, ShoppingBag, Store, Trash2, Truck, User } from "lucide-react";
 
 import { BackButtonRow } from "@/components/shared/back-button-row";
 import { Price } from "@/components/shared/price";
 import { SiteHeader } from "@/components/shared/site-header";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
 import type { Locale } from "@/lib/menu-translations";
 import { useCartStore } from "@/store/cart.store";
 
@@ -51,6 +54,7 @@ const copy = {
 export default function CartPage() {
   const [locale, setLocale] = useState<Locale>("en");
   const [paymentMethod, setPaymentMethod] = useState<"cash" | "instapay">("cash");
+  const [orderType, setOrderType] = useState<"delivery" | "takeaway">("delivery");
   const items = useCartStore((state) => state.items);
   const increaseQuantity = useCartStore((state) => state.increaseQuantity);
   const decreaseQuantity = useCartStore((state) => state.decreaseQuantity);
@@ -68,6 +72,28 @@ export default function CartPage() {
   }, [locale]);
 
   const text = copy[locale];
+  const orderText =
+    locale === "en"
+      ? {
+          orderType: "Order type",
+          delivery: "Delivery",
+          takeaway: "Take away",
+          customerInfo: "Customer details",
+          name: "Name",
+          phone: "Phone number",
+          address: "Delivery address",
+          addressHint: "Street, building, floor, and nearby landmark",
+        }
+      : {
+          orderType: "نوع الطلب",
+          delivery: "دليفري",
+          takeaway: "تيك أواي",
+          customerInfo: "بيانات العميل",
+          name: "الاسم",
+          phone: "رقم الهاتف",
+          address: "عنوان الدليفري",
+          addressHint: "الشارع، العمارة، الدور، وأقرب علامة",
+        };
   const total = items.reduce((sum, item) => sum + item.price * item.quantity, 0);
   const totalItems = items.reduce((sum, item) => sum + item.quantity, 0);
 
@@ -225,6 +251,63 @@ export default function CartPage() {
                   <div className="flex items-center justify-between border-t pt-3 text-lg font-black dark:border-white/10">
                     <span>{text.total}</span>
                     <Price value={total} locale={locale} className="text-xl" />
+                  </div>
+                </div>
+                <div className="space-y-4 rounded-md border bg-background/60 p-4 dark:border-white/10 dark:bg-white/5">
+                  <div className="flex items-center gap-2">
+                    <PackageCheck className="h-4 w-4 text-accent" />
+                    <p className="text-sm font-bold">{orderText.orderType}</p>
+                  </div>
+                  <div className="grid grid-cols-2 gap-2">
+                    <Button
+                      type="button"
+                      variant={orderType === "delivery" ? "default" : "outline"}
+                      className="h-11 gap-2 rounded-md text-xs font-bold"
+                      onClick={() => setOrderType("delivery")}
+                    >
+                      <Truck className="h-4 w-4" />
+                      {orderText.delivery}
+                    </Button>
+                    <Button
+                      type="button"
+                      variant={orderType === "takeaway" ? "default" : "outline"}
+                      className="h-11 gap-2 rounded-md text-xs font-bold"
+                      onClick={() => setOrderType("takeaway")}
+                    >
+                      <Store className="h-4 w-4" />
+                      {orderText.takeaway}
+                    </Button>
+                  </div>
+                  <div className="space-y-3">
+                    <p className="text-sm font-bold">{orderText.customerInfo}</p>
+                    <div className="space-y-2">
+                      <Label htmlFor="customer-name" className="flex items-center gap-2 text-xs font-bold">
+                        <User className="h-3.5 w-3.5 text-muted-foreground" />
+                        {orderText.name}
+                      </Label>
+                      <Input id="customer-name" name="customerName" autoComplete="name" />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="customer-phone" className="flex items-center gap-2 text-xs font-bold">
+                        <Phone className="h-3.5 w-3.5 text-muted-foreground" />
+                        {orderText.phone}
+                      </Label>
+                      <Input id="customer-phone" name="customerPhone" type="tel" autoComplete="tel" />
+                    </div>
+                    {orderType === "delivery" ? (
+                      <div className="space-y-2">
+                        <Label htmlFor="customer-address" className="flex items-center gap-2 text-xs font-bold">
+                          <MapPin className="h-3.5 w-3.5 text-muted-foreground" />
+                          {orderText.address}
+                        </Label>
+                        <Textarea
+                          id="customer-address"
+                          name="customerAddress"
+                          placeholder={orderText.addressHint}
+                          className="min-h-20 resize-none"
+                        />
+                      </div>
+                    ) : null}
                   </div>
                 </div>
                 <div className="space-y-3">
