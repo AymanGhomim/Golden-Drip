@@ -160,13 +160,13 @@ export default function ProductsPage() {
               {text.add}
             </Button>
           </DialogTrigger>
-          <DialogContent className="max-w-2xl rounded-md" dir={locale === "ar" ? "rtl" : "ltr"}>
-            <DialogHeader>
+          <DialogContent className="max-h-[92vh] max-w-2xl overflow-hidden rounded-md p-0" dir={locale === "ar" ? "rtl" : "ltr"}>
+            <DialogHeader className="px-6 pt-6">
               <DialogTitle>{formText.title}</DialogTitle>
               <DialogDescription>{formText.description}</DialogDescription>
             </DialogHeader>
             <form
-              className="grid gap-4"
+              className="grid max-h-[calc(92vh-6rem)] gap-4 overflow-y-auto px-6 pb-6 pt-2"
               onSubmit={(event) => {
                 event.preventDefault();
                 setIsAddDialogOpen(false);
@@ -245,7 +245,7 @@ export default function ProductsPage() {
                   </SelectContent>
                 </Select>
               </div>
-              <DialogFooter className="gap-2 sm:gap-2">
+              <DialogFooter className="sticky bottom-0 -mx-6 gap-2 border-t bg-background px-6 py-4 sm:gap-2">
                 <Button type="button" variant="outline" onClick={() => setIsAddDialogOpen(false)}>
                   {formText.cancel}
                 </Button>
