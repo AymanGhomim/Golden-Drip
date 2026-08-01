@@ -43,7 +43,7 @@ export function SocialLinks({ locale: _locale, className }: { locale: Locale; cl
             asChild
             variant="outline"
             size="icon"
-            className="h-9 w-9 rounded-full border-primary/15 bg-card shadow-sm transition-all hover:-translate-y-0.5 hover:border-primary/30 hover:bg-accent/10"
+            className="h-9 w-9 rounded-full border-primary/15 bg-card text-primary shadow-sm transition-all duration-200 hover:-translate-y-0.5 hover:border-accent hover:bg-accent hover:text-accent-foreground hover:shadow-md"
           >
             <a href={href} target="_blank" rel="noreferrer" aria-label={label} title={label}>
               <Icon className="h-4 w-4" />
