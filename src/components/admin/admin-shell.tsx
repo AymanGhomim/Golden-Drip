@@ -11,6 +11,8 @@ import {
   LogOut,
   Menu,
   Package,
+  PanelLeftClose,
+  PanelLeftOpen,
   Settings,
   TableProperties,
   Tags,
@@ -71,6 +73,7 @@ export function AdminShell({ children }: { children: React.ReactNode }) {
   const logout = useAuthStore((state) => state.logout);
   const [ready, setReady] = useState(false);
   const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false);
+  const [isDesktopSidebarOpen, setIsDesktopSidebarOpen] = useState(true);
   const { locale } = useAdminLocale();
   const text = copy[locale];
 
@@ -88,7 +91,7 @@ export function AdminShell({ children }: { children: React.ReactNode }) {
 
   if (!ready || !isAuthenticated) return <main className="min-h-screen bg-background" />;
 
-  const renderLinks = (onNavigate?: () => void) =>
+  const renderLinks = (onNavigate?: () => void, collapsed = false) =>
     navigation.map((item) => {
       const Icon = item.icon;
       const active = pathname === item.href;
@@ -99,8 +102,10 @@ export function AdminShell({ children }: { children: React.ReactNode }) {
           href={item.href}
           onClick={onNavigate}
           aria-current={active ? "page" : undefined}
+          title={collapsed ? text[item.key] : undefined}
           className={cn(
-            "group relative flex items-center gap-3 rounded-lg px-3 py-2.5 text-xs font-semibold transition-all duration-200 ease-out",
+            "group relative flex items-center rounded-lg py-2.5 text-xs font-semibold transition-all duration-200 ease-out",
+            collapsed ? "justify-center px-2.5" : "gap-3 px-3",
             active
               ? "bg-[hsl(30_33%_84%)] text-[#21100a] shadow-[0_10px_22px_rgba(0,0,0,0.16)]"
               : "text-[#cdb5a5] hover:bg-white/10 hover:text-[#fff5ee]"
@@ -121,33 +126,71 @@ export function AdminShell({ children }: { children: React.ReactNode }) {
           >
             <Icon className="h-3.5 w-3.5" />
           </span>
-          <span className="truncate">{text[item.key]}</span>
+          {collapsed ? null : <span className="truncate">{text[item.key]}</span>}
         </Link>
       );
     });
 
   return (
     <div className="min-h-screen bg-background lg:flex" dir={locale === "ar" ? "rtl" : "ltr"}>
-      <aside className="sticky top-0 hidden h-screen w-64 shrink-0 flex-col border-r border-[#3d2014] bg-[#21100a] p-4 shadow-[8px_0_28px_rgba(0,0,0,0.16)] lg:flex">
-        <Link href="/admin/dashboard" className="mb-6 rounded-lg border border-white/10 bg-white/5 p-3 [&_span]:text-[#fff5ee]">
-          <AppLogo />
-        </Link>
-        <p className="mb-3 px-3 text-[0.65rem] font-semibold uppercase tracking-[0.14em] text-[#a99080]">
-          {text.management}
-        </p>
-        <nav className="min-h-0 flex-1 space-y-1 overflow-y-auto pr-1">{renderLinks()}</nav>
+      <aside
+        className={cn(
+          "sticky top-0 hidden h-screen shrink-0 flex-col border-r border-[#3d2014] bg-[#21100a] p-4 shadow-[8px_0_28px_rgba(0,0,0,0.16)] transition-[width] duration-200 ease-out lg:flex",
+          isDesktopSidebarOpen ? "w-64" : "w-20"
+        )}
+      >
+        <div
+          className={cn(
+            "mb-6 flex rounded-lg border border-white/10 bg-white/5 p-3",
+            isDesktopSidebarOpen ? "items-center justify-between gap-2" : "flex-col items-center gap-2"
+          )}
+        >
+          {isDesktopSidebarOpen ? (
+            <Link href="/admin/dashboard" className="min-w-0 [&_span]:text-[#fff5ee]">
+              <AppLogo />
+            </Link>
+          ) : (
+            <Link href="/admin/dashboard" className="mx-auto" aria-label="Admin dashboard">
+              <AppLogo showText={false} size="sm" />
+            </Link>
+          )}
+          <Button
+            type="button"
+            variant="ghost"
+            size="icon"
+            className="h-8 w-8 shrink-0 text-[#cdb5a5] hover:bg-white/10 hover:text-[#fff5ee]"
+            onClick={() => setIsDesktopSidebarOpen((value) => !value)}
+            aria-label={isDesktopSidebarOpen ? "Collapse sidebar" : "Expand sidebar"}
+            aria-expanded={isDesktopSidebarOpen}
+          >
+            {isDesktopSidebarOpen ? <PanelLeftClose className="h-4 w-4" /> : <PanelLeftOpen className="h-4 w-4" />}
+          </Button>
+        </div>
+        {isDesktopSidebarOpen ? (
+          <p className="mb-3 px-3 text-[0.65rem] font-semibold uppercase tracking-[0.14em] text-[#a99080]">
+            {text.management}
+          </p>
+        ) : null}
+        <nav className="min-h-0 flex-1 space-y-1 overflow-y-auto pr-1">{renderLinks(undefined, !isDesktopSidebarOpen)}</nav>
         <div className="mt-4 shrink-0 rounded-lg border border-white/10 bg-white/5 p-3">
-          <p className="mb-3 truncate text-xs font-medium text-[#cdb5a5]">{user?.email}</p>
+          {isDesktopSidebarOpen ? (
+            <p className="mb-3 truncate text-xs font-medium text-[#cdb5a5]">{user?.email}</p>
+          ) : null}
           <Button
             variant="outline"
-            className="h-10 w-full justify-start gap-2.5 rounded-lg border-white/70 bg-white px-3 text-xs font-bold text-[#21100a] shadow-sm hover:border-accent/50 hover:bg-[#fff5ee] hover:text-[#21100a]"
+            size={isDesktopSidebarOpen ? "default" : "icon"}
+            className={cn(
+              "h-10 rounded-lg border-white/70 bg-white text-xs font-bold text-[#21100a] shadow-sm hover:border-accent/50 hover:bg-[#fff5ee] hover:text-[#21100a]",
+              isDesktopSidebarOpen ? "w-full justify-start gap-2.5 px-3" : "w-full"
+            )}
             onClick={() => {
               logout();
               router.replace("/admin/login");
             }}
+            aria-label={text.signOut}
           >
             <LogOut className="h-3.5 w-3.5" />
-            {text.signOut}
+            {isDesktopSidebarOpen ? text.signOut : null}
           </Button>
         </div>
       </aside>
