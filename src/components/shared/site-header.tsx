@@ -42,7 +42,13 @@ export function SiteHeader({ locale, onLocaleChange }: SiteHeaderProps) {
           </Link>
         </div>
         <div dir="ltr" className="flex min-w-0 items-center justify-end gap-1.5 sm:gap-2">
-          <Button asChild className="h-8 gap-1.5 rounded-md px-2.5 text-xs sm:h-11 sm:gap-2 sm:px-3 sm:text-sm">
+          <Button
+            asChild
+            className={cn(
+              "h-8 gap-1.5 rounded-md px-2.5 text-xs sm:h-11 sm:gap-2 sm:px-3 sm:text-sm",
+              locale === "en" ? "order-3" : "order-1"
+            )}
+          >
             <Link href={ROUTES.cart} aria-label="Cart">
               <ShoppingCart className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
               <span>{totalItems}</span>
@@ -52,7 +58,7 @@ export function SiteHeader({ locale, onLocaleChange }: SiteHeaderProps) {
             type="button"
             variant="outline"
             size="icon"
-            className="h-8 w-8 rounded-full border-primary/15 bg-card shadow-sm transition-all hover:-translate-y-0.5 hover:border-primary/30 hover:bg-card hover:shadow-md sm:h-11 sm:w-11"
+            className="order-2 h-8 w-8 rounded-full border-primary/15 bg-card shadow-sm transition-all hover:-translate-y-0.5 hover:border-primary/30 hover:bg-card hover:shadow-md sm:h-11 sm:w-11"
             onClick={() => setTheme(resolvedTheme === "dark" ? "light" : "dark")}
             aria-label={resolvedTheme === "dark" ? "Switch to light mode" : "Switch to dark mode"}
           >
@@ -65,7 +71,10 @@ export function SiteHeader({ locale, onLocaleChange }: SiteHeaderProps) {
           <Button
             type="button"
             variant="outline"
-            className="h-8 w-[4.25rem] justify-between gap-0 rounded-full border-primary/15 bg-card p-0.5 shadow-sm transition-all hover:-translate-y-0.5 hover:border-primary/30 hover:bg-card hover:shadow-md sm:h-11 sm:w-[5.35rem] sm:p-1"
+            className={cn(
+              "h-8 w-[4.25rem] justify-between gap-0 rounded-full border-primary/15 bg-card p-0.5 shadow-sm transition-all hover:-translate-y-0.5 hover:border-primary/30 hover:bg-card hover:shadow-md sm:h-11 sm:w-[5.35rem] sm:p-1",
+              locale === "en" ? "order-1" : "order-3"
+            )}
             onClick={() => onLocaleChange(locale === "en" ? "ar" : "en")}
             aria-label={locale === "en" ? "Switch to Arabic" : "Switch to English"}
           >
