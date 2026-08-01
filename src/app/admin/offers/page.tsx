@@ -1,7 +1,7 @@
 "use client";
 
 import Image from "next/image";
-import { Eye, EyeOff, Plus, Trash2 } from "lucide-react";
+import { BadgePercent, Eye, EyeOff, ImageIcon, Plus, Trash2, WalletCards } from "lucide-react";
 import { useState } from "react";
 
 import { AdminDataPage } from "@/components/admin/admin-data-page";
@@ -304,10 +304,10 @@ export default function OffersPage() {
         </Dialog>
       }
       stats={[
-        { label: text.active, value: activeOffers.length },
-        { label: text.banners, value: offers.length },
-        { label: text.average, value: averagePrice },
-        { label: text.discount, value: bestDiscount },
+        { label: text.active, value: activeOffers.length, icon: Eye },
+        { label: text.banners, value: offers.length, icon: ImageIcon },
+        { label: text.average, value: averagePrice, icon: WalletCards },
+        { label: text.discount, value: bestDiscount, icon: BadgePercent },
       ]}
       tableTitle={text.tableTitle}
       tableDescription={text.tableDescription}

@@ -25,7 +25,7 @@ import { mockCategories } from "@/mocks/categories.mock";
 import { mockProducts } from "@/mocks/products.mock";
 import { useAdminLocale } from "@/providers/admin-locale-provider";
 import type { Category } from "@/types/category.types";
-import { Eye, EyeOff, Trash2, Plus } from "lucide-react";
+import { Eye, EyeOff, FolderTree, ListTree, PackageCheck, Plus, Trash2 } from "lucide-react";
 import { useState } from "react";
 
 export default function CategoriesPage() {
@@ -253,10 +253,10 @@ export default function CategoriesPage() {
         </Dialog>
       }
       stats={[
-        { label: text.total, value: categories.length },
-        { label: text.visible, value: categories.filter((category) => category.isActive).length },
-        { label: text.linked, value: mockProducts.length },
-        { label: text.first, value: categories[0]?.name ?? "-" },
+        { label: text.total, value: categories.length, icon: FolderTree },
+        { label: text.visible, value: categories.filter((category) => category.isActive).length, icon: Eye },
+        { label: text.linked, value: mockProducts.length, icon: PackageCheck },
+        { label: text.first, value: categories[0]?.name ?? "-", icon: ListTree },
       ]}
       tableTitle={text.tableTitle}
       tableDescription={text.tableDescription}

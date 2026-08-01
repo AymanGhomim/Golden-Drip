@@ -24,7 +24,7 @@ import {
 import { mockTables } from "@/mocks/tables.mock";
 import { useAdminLocale } from "@/providers/admin-locale-provider";
 import type { Table } from "@/types/table.types";
-import { Eye, EyeOff, Plus, Trash2 } from "lucide-react";
+import { Eye, EyeOff, Hash, Plus, QrCode, Table2, Trash2 } from "lucide-react";
 import { useState } from "react";
 
 export default function TablesPage() {
@@ -238,10 +238,10 @@ export default function TablesPage() {
         </Dialog>
       }
       stats={[
-        { label: text.total, value: tables.length },
-        { label: text.linked, value: tables.filter((table) => table.qrCode).length },
-        { label: text.available, value: tables.filter((table) => table.isActive).length },
-        { label: text.range, value: `1-${Math.max(...tables.map((table) => table.number), 0)}` },
+        { label: text.total, value: tables.length, icon: Table2 },
+        { label: text.linked, value: tables.filter((table) => table.qrCode).length, icon: QrCode },
+        { label: text.available, value: tables.filter((table) => table.isActive).length, icon: Eye },
+        { label: text.range, value: `1-${Math.max(...tables.map((table) => table.number), 0)}`, icon: Hash },
       ]}
       tableTitle={text.tableTitle}
       tableDescription={text.tableDescription}

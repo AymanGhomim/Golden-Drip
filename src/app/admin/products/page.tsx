@@ -1,7 +1,7 @@
 "use client";
 
 import Image from "next/image";
-import { Edit3, Eye, EyeOff, LinkIcon, Plus, Trash2, Upload } from "lucide-react";
+import { CheckCircle2, Edit3, Eye, EyeOff, Layers3, LinkIcon, Package, PackageX, Plus, Trash2, Upload } from "lucide-react";
 import { useState } from "react";
 
 import { AdminDataPage } from "@/components/admin/admin-data-page";
@@ -455,10 +455,10 @@ export default function ProductsPage() {
         </Dialog>
       }
       stats={[
-        { label: text.total, value: products.length },
-        { label: text.available, value: available },
-        { label: text.categories, value: mockCategories.length },
-        { label: text.hiddenItems, value: hidden },
+        { label: text.total, value: products.length, icon: Package },
+        { label: text.available, value: available, icon: CheckCircle2 },
+        { label: text.categories, value: mockCategories.length, icon: Layers3 },
+        { label: text.hiddenItems, value: hidden, icon: PackageX },
       ]}
       tableTitle={text.tableTitle}
       tableDescription={text.tableDescription}

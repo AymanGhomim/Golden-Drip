@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button";
 import { mockOrders } from "@/mocks/orders.mock";
 import { useAdminLocale } from "@/providers/admin-locale-provider";
 import type { Order, OrderStatus } from "@/types/order.types";
-import { CheckCircle2, XCircle } from "lucide-react";
+import { Activity, CheckCircle2, ReceiptText, ShoppingBag, WalletCards, XCircle } from "lucide-react";
 import { useState } from "react";
 
 const statusStyle: Record<OrderStatus, string> = {
@@ -218,10 +218,10 @@ export default function OrdersPage() {
       title={text.title}
       description={text.description}
       stats={[
-        { label: text.totalOrders, value: orders.length },
-        { label: text.activeOrders, value: activeOrders.length },
-        { label: text.value, value: <Price value={ordersTotal} locale={locale} /> },
-        { label: text.items, value: itemsTotal },
+        { label: text.totalOrders, value: orders.length, icon: ReceiptText },
+        { label: text.activeOrders, value: activeOrders.length, icon: Activity },
+        { label: text.value, value: <Price value={ordersTotal} locale={locale} />, icon: WalletCards },
+        { label: text.items, value: itemsTotal, icon: ShoppingBag },
       ]}
       tableTitle={text.tableTitle}
       tableDescription={text.tableDescription}
