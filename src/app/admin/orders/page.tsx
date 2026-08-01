@@ -11,11 +11,11 @@ import { CheckCircle2, XCircle } from "lucide-react";
 import { useState } from "react";
 
 const statusStyle: Record<OrderStatus, string> = {
-  NEW: "border border-sky-200 bg-sky-100 text-sky-800 dark:border-sky-300/30 dark:bg-sky-300/15 dark:text-sky-100",
-  PREPARING: "border border-amber-200 bg-amber-100 text-amber-900 dark:border-amber-300/30 dark:bg-amber-300/15 dark:text-amber-100",
-  READY: "border border-emerald-200 bg-emerald-100 text-emerald-800 dark:border-emerald-300/30 dark:bg-emerald-300/15 dark:text-emerald-100",
-  COMPLETED: "border border-stone-300 bg-stone-100 text-stone-800 dark:border-stone-300/25 dark:bg-stone-200/10 dark:text-stone-100",
-  CANCELLED: "border border-red-200 bg-red-100 text-red-800 dark:border-red-300/30 dark:bg-red-300/15 dark:text-red-100",
+  NEW: "border-sky-200 bg-sky-100 text-sky-800 hover:bg-sky-100 dark:border-sky-300/30 dark:bg-sky-300/15 dark:text-sky-100 dark:hover:bg-sky-300/15",
+  PREPARING: "border-amber-200 bg-amber-100 text-amber-900 hover:bg-amber-100 dark:border-amber-300/30 dark:bg-amber-300/15 dark:text-amber-100 dark:hover:bg-amber-300/15",
+  READY: "border-emerald-200 bg-emerald-100 text-emerald-800 hover:bg-emerald-100 dark:border-emerald-300/30 dark:bg-emerald-300/15 dark:text-emerald-100 dark:hover:bg-emerald-300/15",
+  COMPLETED: "border-stone-300 bg-stone-100 text-stone-800 hover:bg-stone-100 dark:border-stone-300/25 dark:bg-stone-200/10 dark:text-stone-100 dark:hover:bg-stone-200/10",
+  CANCELLED: "border-red-200 bg-red-100 text-red-800 hover:bg-red-100 dark:border-red-300/30 dark:bg-red-300/15 dark:text-red-100 dark:hover:bg-red-300/15",
 };
 
 export default function OrdersPage() {
@@ -132,7 +132,7 @@ export default function OrdersPage() {
       header: text.status,
       headerClassName: "w-[120px] text-center",
       cellClassName: "w-[120px] text-center",
-      cell: (order: Order) => <Badge className={statusStyle[order.status]}>{order.status}</Badge>,
+      cell: (order: Order) => <Badge variant="outline" className={statusStyle[order.status]}>{order.status}</Badge>,
     },
     {
       key: "total",
