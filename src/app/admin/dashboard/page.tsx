@@ -2,6 +2,8 @@
 
 import {
   ArrowUpRight,
+  Bell,
+  CalendarDays,
   ClipboardList,
   DoorOpen,
   ReceiptText,
@@ -41,6 +43,10 @@ export default function AdminDashboardPage() {
           latest: "Latest customer orders from the cafe.",
           glance: "Today at a glance",
           viewAll: "View all",
+          headerTitle: "Good day, Golden Drip",
+          headerText: "Monitor QR orders, tables, and cafe performance from one place.",
+          today: "Today",
+          alerts: "No urgent alerts",
         }
       : {
           overview: "نظرة عامة على التشغيل",
@@ -55,6 +61,10 @@ export default function AdminDashboardPage() {
           latest: "آخر طلبات العملاء في الكافيه.",
           glance: "ملخص اليوم",
           viewAll: "عرض الكل",
+          headerTitle: "نهارك سعيد، جولدن دريب",
+          headerText: "تابع طلبات QR والترابيزات وأداء الكافيه من مكان واحد.",
+          today: "اليوم",
+          alerts: "لا توجد تنبيهات عاجلة",
         };
 
   const stats = [
@@ -72,6 +82,23 @@ export default function AdminDashboardPage() {
   return (
     <AdminShell>
       <section className="animate-content-enter mx-auto w-full max-w-7xl px-4 py-8 sm:px-6">
+        <div className="mb-6 flex flex-col justify-between gap-4 rounded-md border bg-card px-5 py-4 shadow-sm sm:flex-row sm:items-center">
+          <div>
+            <h1 className="text-xl font-bold sm:text-2xl">{text.headerTitle}</h1>
+            <p className="mt-1 text-sm leading-6 text-muted-foreground">{text.headerText}</p>
+          </div>
+          <div className="flex flex-wrap items-center gap-2">
+            <span className="inline-flex h-10 items-center gap-2 rounded-md border bg-background px-3 text-sm font-semibold">
+              <CalendarDays className="h-4 w-4 text-accent" />
+              {text.today}
+            </span>
+            <span className="inline-flex h-10 items-center gap-2 rounded-md border bg-background px-3 text-sm font-semibold">
+              <Bell className="h-4 w-4 text-emerald-500" />
+              {text.alerts}
+            </span>
+          </div>
+        </div>
+
         <div className="overflow-hidden rounded-md border bg-card shadow-sm">
           <div className="relative p-6 sm:p-7">
             <div className="absolute inset-x-0 top-0 h-1 bg-gradient-to-r from-accent via-primary to-accent" />
