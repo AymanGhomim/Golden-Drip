@@ -124,8 +124,8 @@ export function AdminShell({ children }: { children: React.ReactNode }) {
         <div className="shrink-0 border-t border-[#3d2014] pt-3">
           <p className="mb-2 truncate px-2.5 text-xs text-[#a99080]">{user?.email}</p>
           <Button
-            variant="ghost"
-            className="h-9 w-full justify-start gap-2.5 px-2.5 text-xs text-[#cdb5a5] hover:bg-white/10 hover:text-[#ffb4a5]"
+            variant="outline"
+            className="h-9 w-full justify-start gap-2.5 border-red-400/30 bg-red-500/10 px-2.5 text-xs font-bold text-red-200 hover:border-red-300/50 hover:bg-red-500/20 hover:text-red-100"
             onClick={() => {
               logout();
               router.replace("/admin/login");
@@ -202,8 +202,8 @@ export function AdminShell({ children }: { children: React.ReactNode }) {
               <div className="shrink-0 border-t border-[#3d2014] pt-3">
                 <p className="mb-2 truncate px-2.5 text-xs text-[#a99080]">{user?.email}</p>
                 <Button
-                  variant="ghost"
-                  className="h-9 w-full justify-start gap-2.5 px-2.5 text-xs text-[#cdb5a5] hover:bg-white/10 hover:text-[#ffb4a5]"
+                  variant="outline"
+                  className="h-9 w-full justify-start gap-2.5 border-red-400/30 bg-red-500/10 px-2.5 text-xs font-bold text-red-200 hover:border-red-300/50 hover:bg-red-500/20 hover:text-red-100"
                   onClick={() => {
                     setIsMobileSidebarOpen(false);
                     logout();
