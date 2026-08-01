@@ -12,7 +12,7 @@ import { EmptyState } from "./empty-state";
 import { LoadingState } from "./loading-state";
 import { cn } from "@/lib/utils";
 
-interface Column<T> {
+export interface DataTableColumn<T> {
   key: string;
   header: string;
   cell: (item: T) => React.ReactNode;
@@ -20,7 +20,7 @@ interface Column<T> {
 }
 
 interface DataTableProps<T> {
-  columns: Column<T>[];
+  columns: DataTableColumn<T>[];
   data: T[];
   loading?: boolean;
   emptyMessage?: string;
