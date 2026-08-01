@@ -475,6 +475,7 @@ export default function ProductsPage() {
 
         return `${product.name} ${product.description} ${categoryName}`;
       }}
+      filterLabel={text.filter}
       filterGroups={[
         {
           label: text.status,
