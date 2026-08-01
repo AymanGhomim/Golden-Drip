@@ -120,7 +120,6 @@ export default function CartPage() {
                       <feDropShadow dx="0" dy="18" stdDeviation="18" floodColor="#000000" floodOpacity="0.28" />
                     </filter>
                   </defs>
-                  <rect width="420" height="320" rx="18" fill="#f2e3d6" />
                   <path d="M35 248 C90 220 115 258 168 235 C218 214 241 218 292 239 C335 257 361 238 391 218 L391 320 L35 320 Z" fill="#e0c9b7" />
                   <circle cx="332" cy="72" r="38" fill="#7b3f20" opacity="0.08" />
                   <circle cx="84" cy="88" r="20" fill="#7b3f20" opacity="0.08" />
