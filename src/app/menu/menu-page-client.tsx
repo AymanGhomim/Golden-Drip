@@ -237,22 +237,25 @@ export function MenuPageClient() {
           </div>
         ) : null}
 
-        <div className="scrollbar-hidden mb-6 flex gap-2 overflow-x-auto pb-1">
-          <CategoryButton
-            isSelected={selectedCategory === allCategoryId}
-            onClick={() => setSelectedCategory(allCategoryId)}
-          >
-            {copy.all}
-          </CategoryButton>
-          {categories.map((category) => (
+        <div className="relative mb-6">
+          <div className="scrollbar-hidden flex gap-3 overflow-x-auto pb-2 pr-10">
             <CategoryButton
-              key={category.id}
-              isSelected={selectedCategory === category.id}
-              onClick={() => setSelectedCategory(category.id)}
+              isSelected={selectedCategory === allCategoryId}
+              onClick={() => setSelectedCategory(allCategoryId)}
             >
-              {translatedCategoryName(category.id, locale)}
+              {copy.all}
             </CategoryButton>
-          ))}
+            {categories.map((category) => (
+              <CategoryButton
+                key={category.id}
+                isSelected={selectedCategory === category.id}
+                onClick={() => setSelectedCategory(category.id)}
+              >
+                {translatedCategoryName(category.id, locale)}
+              </CategoryButton>
+            ))}
+          </div>
+          <div className="pointer-events-none absolute inset-y-0 right-0 w-12 bg-gradient-to-l from-background to-transparent" />
         </div>
 
         <div className="grid grid-cols-2 gap-3 sm:gap-5 lg:grid-cols-3">
@@ -389,9 +392,9 @@ function CategoryButton({
       type="button"
       variant="ghost"
       className={cn(
-        "h-9 shrink-0 rounded-full border border-border/70 bg-card/70 px-4 text-xs font-bold text-muted-foreground shadow-sm backdrop-blur-sm transition-all duration-200 hover:-translate-y-0.5 hover:border-accent/35 hover:bg-accent/10 hover:text-foreground",
+        "h-12 shrink-0 rounded-full border border-border/70 bg-card/70 px-6 text-sm font-bold text-muted-foreground shadow-[0_8px_18px_hsl(var(--foreground)/0.08)] backdrop-blur-sm transition-all duration-300 ease-out hover:-translate-y-0.5 hover:border-accent/35 hover:bg-accent/10 hover:text-foreground hover:shadow-[0_12px_24px_hsl(var(--foreground)/0.12)]",
         isSelected &&
-          "border-[#21100a] bg-[#21100a] text-primary-foreground shadow-[0_10px_22px_rgba(33,16,10,0.18)] hover:bg-[#21100a]/90 hover:text-primary-foreground dark:border-[hsl(30_33%_84%)] dark:bg-[hsl(30_33%_84%)] dark:text-[#21100a] dark:hover:bg-[hsl(30_33%_84%)]"
+          "border-[#21100a] bg-[#21100a] text-primary-foreground shadow-[0_12px_26px_rgba(33,16,10,0.22)] hover:bg-[#21100a]/90 hover:text-primary-foreground dark:border-[hsl(30_33%_84%)] dark:bg-[hsl(30_33%_84%)] dark:text-[#21100a] dark:hover:bg-[hsl(30_33%_84%)]"
       )}
       onClick={onClick}
     >
