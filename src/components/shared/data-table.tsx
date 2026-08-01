@@ -48,11 +48,11 @@ export function DataTable<T>({
 
   return (
     <div className={cn("rounded-md border", className)}>
-      <Table>
+      <Table className="text-xs">
         <TableHeader>
           <TableRow>
             {columns.map((col) => (
-              <TableHead key={col.key} className={col.className}>
+              <TableHead key={col.key} className={cn("h-10 px-3", col.className)}>
                 {col.header}
               </TableHead>
             ))}
@@ -62,7 +62,7 @@ export function DataTable<T>({
           {data.map((item) => (
             <TableRow key={keyExtractor(item)}>
               {columns.map((col) => (
-                <TableCell key={col.key} className={col.className}>
+                <TableCell key={col.key} className={cn("px-3 py-3", col.className)}>
                   {col.cell(item)}
                 </TableCell>
               ))}

@@ -99,13 +99,13 @@ export function AdminShell({ children }: { children: React.ReactNode }) {
           href={item.href}
           onClick={onNavigate}
           className={cn(
-            "flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium transition-colors",
+            "flex items-center gap-2.5 rounded-lg px-2.5 py-2 text-xs font-medium transition-colors",
             active
               ? "bg-primary text-primary-foreground shadow-sm"
               : "text-[#cdb5a5] hover:bg-white/10 hover:text-[#fff5ee]"
           )}
         >
-          <Icon className="h-4 w-4" />
+          <Icon className="h-3.5 w-3.5" />
           {text[item.key]}
         </Link>
       );
@@ -113,54 +113,55 @@ export function AdminShell({ children }: { children: React.ReactNode }) {
 
   return (
     <div className="min-h-screen bg-background lg:flex" dir={locale === "ar" ? "rtl" : "ltr"}>
-      <aside className="sticky top-0 hidden h-screen w-64 shrink-0 flex-col border-r border-[#3d2014] bg-[#21100a] p-4 lg:flex">
-        <Link href="/admin/dashboard" className="mb-8 [&_span]:text-[#fff5ee]">
+      <aside className="sticky top-0 hidden h-screen w-56 shrink-0 flex-col border-r border-[#3d2014] bg-[#21100a] p-3 lg:flex">
+        <Link href="/admin/dashboard" className="mb-6 [&_span]:text-[#fff5ee]">
           <AppLogo />
         </Link>
-        <p className="mb-3 px-3 text-xs font-semibold uppercase tracking-[0.16em] text-[#a99080]">
+        <p className="mb-2 px-2.5 text-[0.65rem] font-semibold uppercase tracking-[0.14em] text-[#a99080]">
           {text.management}
         </p>
-        <nav className="min-h-0 flex-1 space-y-1 overflow-y-auto pr-1">{renderLinks()}</nav>
-        <div className="shrink-0 border-t border-[#3d2014] pt-4">
-          <p className="mb-3 truncate px-3 text-sm text-[#a99080]">{user?.email}</p>
+        <nav className="min-h-0 flex-1 space-y-0.5 overflow-y-auto pr-1">{renderLinks()}</nav>
+        <div className="shrink-0 border-t border-[#3d2014] pt-3">
+          <p className="mb-2 truncate px-2.5 text-xs text-[#a99080]">{user?.email}</p>
           <Button
             variant="ghost"
-            className="w-full justify-start gap-3 text-[#cdb5a5] hover:bg-white/10 hover:text-[#ffb4a5]"
+            className="h-9 w-full justify-start gap-2.5 px-2.5 text-xs text-[#cdb5a5] hover:bg-white/10 hover:text-[#ffb4a5]"
             onClick={() => {
               logout();
               router.replace("/admin/login");
             }}
           >
-            <LogOut className="h-4 w-4" />
+            <LogOut className="h-3.5 w-3.5" />
             {text.signOut}
           </Button>
         </div>
       </aside>
       <div className="min-w-0 flex-1">
-        <header className="sticky top-0 z-20 border-b bg-background/95 px-4 py-3 backdrop-blur lg:hidden">
+        <header className="sticky top-0 z-20 border-b bg-background/95 px-3 py-2.5 backdrop-blur lg:hidden">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
               <Button
                 type="button"
                 variant="outline"
                 size="icon"
-                className="h-10 w-10 rounded-full"
+                className="h-9 w-9 rounded-full"
                 onClick={() => setIsMobileSidebarOpen(true)}
                 aria-label="Open navigation"
               >
-                <Menu className="h-4 w-4" />
+                <Menu className="h-3.5 w-3.5" />
               </Button>
               <AppLogo showText={false} />
             </div>
             <Button
               variant="ghost"
               size="sm"
+              className="h-9 px-2"
               onClick={() => {
                 logout();
                 router.replace("/admin/login");
               }}
             >
-              <LogOut className="h-4 w-4" />
+              <LogOut className="h-3.5 w-3.5" />
             </Button>
           </div>
         </header>
@@ -172,8 +173,8 @@ export function AdminShell({ children }: { children: React.ReactNode }) {
               onClick={() => setIsMobileSidebarOpen(false)}
               aria-label="Close navigation"
             />
-            <aside className="relative flex h-full w-72 max-w-[85vw] flex-col border-r border-[#3d2014] bg-[#21100a] p-4 shadow-2xl">
-              <div className="mb-8 flex items-center justify-between">
+            <aside className="relative flex h-full w-64 max-w-[85vw] flex-col border-r border-[#3d2014] bg-[#21100a] p-3 shadow-2xl">
+              <div className="mb-6 flex items-center justify-between">
                 <Link
                   href="/admin/dashboard"
                   className="[&_span]:text-[#fff5ee]"
@@ -185,31 +186,31 @@ export function AdminShell({ children }: { children: React.ReactNode }) {
                   type="button"
                   variant="ghost"
                   size="icon"
-                  className="h-10 w-10 text-[#cdb5a5] hover:bg-white/10 hover:text-[#fff5ee]"
+                  className="h-9 w-9 text-[#cdb5a5] hover:bg-white/10 hover:text-[#fff5ee]"
                   onClick={() => setIsMobileSidebarOpen(false)}
                   aria-label="Close navigation"
                 >
-                  <X className="h-5 w-5" />
+                  <X className="h-4 w-4" />
                 </Button>
               </div>
-              <p className="mb-3 px-3 text-xs font-semibold uppercase tracking-[0.16em] text-[#a99080]">
+              <p className="mb-2 px-2.5 text-[0.65rem] font-semibold uppercase tracking-[0.14em] text-[#a99080]">
                 {text.management}
               </p>
-              <nav className="min-h-0 flex-1 space-y-1 overflow-y-auto pr-1">
+              <nav className="min-h-0 flex-1 space-y-0.5 overflow-y-auto pr-1">
                 {renderLinks(() => setIsMobileSidebarOpen(false))}
               </nav>
-              <div className="shrink-0 border-t border-[#3d2014] pt-4">
-                <p className="mb-3 truncate px-3 text-sm text-[#a99080]">{user?.email}</p>
+              <div className="shrink-0 border-t border-[#3d2014] pt-3">
+                <p className="mb-2 truncate px-2.5 text-xs text-[#a99080]">{user?.email}</p>
                 <Button
                   variant="ghost"
-                  className="w-full justify-start gap-3 text-[#cdb5a5] hover:bg-white/10 hover:text-[#ffb4a5]"
+                  className="h-9 w-full justify-start gap-2.5 px-2.5 text-xs text-[#cdb5a5] hover:bg-white/10 hover:text-[#ffb4a5]"
                   onClick={() => {
                     setIsMobileSidebarOpen(false);
                     logout();
                     router.replace("/admin/login");
                   }}
                 >
-                  <LogOut className="h-4 w-4" />
+                  <LogOut className="h-3.5 w-3.5" />
                   {text.signOut}
                 </Button>
               </div>

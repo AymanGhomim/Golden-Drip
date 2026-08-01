@@ -140,60 +140,60 @@ export default function AdminDashboardPage() {
 
   return (
     <AdminShell>
-      <section className="animate-content-enter mx-auto w-full max-w-7xl px-4 py-8 sm:px-6">
-        <div className="mb-6 flex flex-col justify-between gap-4 rounded-md border bg-card px-5 py-4 shadow-sm sm:flex-row sm:items-center">
+      <section className="animate-content-enter mx-auto w-full max-w-7xl px-3 py-5 sm:px-5">
+        <div className="mb-4 flex flex-col justify-between gap-3 rounded-md border bg-card px-4 py-3 shadow-sm sm:flex-row sm:items-center">
           <div>
-            <h1 className="text-xl font-bold sm:text-2xl">{text.headerTitle}</h1>
-            <p className="mt-1 text-sm leading-6 text-muted-foreground">{text.headerText}</p>
+            <h1 className="text-lg font-bold sm:text-xl">{text.headerTitle}</h1>
+            <p className="mt-1 text-xs leading-5 text-muted-foreground">{text.headerText}</p>
           </div>
-          <div className="flex flex-wrap items-center gap-2">
-            <span className="inline-flex h-10 items-center gap-2 rounded-md border bg-background px-3 text-sm font-semibold">
-              <CalendarDays className="h-4 w-4 text-accent" />
+          <div className="flex flex-wrap items-center gap-1.5">
+            <span className="inline-flex h-8 items-center gap-1.5 rounded-md border bg-background px-2.5 text-xs font-semibold">
+              <CalendarDays className="h-3.5 w-3.5 text-accent" />
               {text.today}
             </span>
-            <span className="inline-flex h-10 items-center gap-2 rounded-md border bg-background px-3 text-sm font-semibold">
-              <Bell className="h-4 w-4 text-emerald-500" />
+            <span className="inline-flex h-8 items-center gap-1.5 rounded-md border bg-background px-2.5 text-xs font-semibold">
+              <Bell className="h-3.5 w-3.5 text-emerald-500" />
               {text.alerts}
             </span>
-            <Button className="h-10 rounded-md">{text.live}</Button>
+            <Button className="h-8 rounded-md px-3 text-xs">{text.live}</Button>
           </div>
         </div>
 
-        <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+        <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
           {stats.map((stat) => {
             const Icon = stat.icon;
             return (
               <Card key={stat.label} className="overflow-hidden rounded-md border-[#3d2014] bg-[#21100a] text-[#fff5ee] shadow-sm">
-                <CardContent className="p-5">
-                  <div className="mb-5 flex items-center justify-between">
-                    <span className="flex h-11 w-11 items-center justify-center rounded-md bg-accent/20 text-accent">
-                      <Icon className="h-5 w-5" />
+                <CardContent className="p-4">
+                  <div className="mb-4 flex items-center justify-between">
+                    <span className="flex h-9 w-9 items-center justify-center rounded-md bg-accent/20 text-accent">
+                      <Icon className="h-4 w-4" />
                     </span>
                     <span
-                      className={`inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-xs font-bold ${
+                      className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[0.68rem] font-bold ${
                         stat.positive ? "bg-emerald-500/15 text-emerald-300" : "bg-amber-500/15 text-amber-300"
                       }`}
                     >
-                      {stat.positive ? <ArrowUpRight className="h-3.5 w-3.5" /> : <ArrowDownRight className="h-3.5 w-3.5" />}
+                      {stat.positive ? <ArrowUpRight className="h-3 w-3" /> : <ArrowDownRight className="h-3 w-3" />}
                       {stat.change}
                     </span>
                   </div>
-                  <div className="text-3xl font-black">{stat.value}</div>
-                  <p className="mt-2 text-sm text-[#cdb5a5]">{stat.label}</p>
-                  <p className="mt-1 text-xs text-[#a99080]">{text.vsYesterday}</p>
+                  <div className="text-2xl font-black">{stat.value}</div>
+                  <p className="mt-1.5 text-xs text-[#cdb5a5]">{stat.label}</p>
+                  <p className="mt-0.5 text-[0.68rem] text-[#a99080]">{text.vsYesterday}</p>
                 </CardContent>
               </Card>
             );
           })}
         </div>
 
-        <div className="mt-6 grid gap-6 xl:grid-cols-[1.35fr_0.65fr]">
+        <div className="mt-4 grid gap-4 xl:grid-cols-[1.35fr_0.65fr]">
           <Card className="rounded-md">
-            <CardContent className="p-5">
-              <div className="mb-6 flex items-center justify-between">
+            <CardContent className="p-4">
+              <div className="mb-4 flex items-center justify-between">
                 <div>
-                  <h2 className="font-semibold">{text.salesChart}</h2>
-                  <p className="mt-1 text-sm text-muted-foreground">{text.chartHint}</p>
+                  <h2 className="text-sm font-semibold">{text.salesChart}</h2>
+                  <p className="mt-1 text-xs text-muted-foreground">{text.chartHint}</p>
                 </div>
               </div>
               <SalesLineChart locale={locale} />
@@ -201,18 +201,18 @@ export default function AdminDashboardPage() {
           </Card>
 
           <Card className="rounded-md">
-            <CardContent className="p-5">
-              <h2 className="font-semibold">{text.distribution}</h2>
-              <div className="mt-6 grid gap-5 sm:grid-cols-[10rem_1fr] xl:grid-cols-1">
+            <CardContent className="p-4">
+              <h2 className="text-sm font-semibold">{text.distribution}</h2>
+              <div className="mt-4 grid gap-4 sm:grid-cols-[8rem_1fr] xl:grid-cols-1">
                 <SalesDonut />
-                <div className="space-y-3">
+                <div className="space-y-2.5">
                   {categorySales.map((item) => (
                     <div key={item.label} className="flex items-center justify-between gap-3">
                       <div className="flex items-center gap-2">
-                        <span className="h-3 w-3 rounded-full" style={{ backgroundColor: item.color }} />
-                        <span className="text-sm">{isAr ? item.arLabel : item.label}</span>
+                        <span className="h-2.5 w-2.5 rounded-full" style={{ backgroundColor: item.color }} />
+                        <span className="text-xs">{isAr ? item.arLabel : item.label}</span>
                       </div>
-                      <span className="text-sm font-bold">{item.value}%</span>
+                      <span className="text-xs font-bold">{item.value}%</span>
                     </div>
                   ))}
                 </div>
@@ -221,21 +221,21 @@ export default function AdminDashboardPage() {
           </Card>
         </div>
 
-        <div className="mt-6 grid gap-6 lg:grid-cols-[1.35fr_0.65fr]">
+        <div className="mt-4 grid gap-4 lg:grid-cols-[1.35fr_0.65fr]">
           <Card className="rounded-md">
             <CardContent className="p-0">
-              <div className="flex items-center justify-between border-b p-5">
+              <div className="flex items-center justify-between border-b p-4">
                 <div>
-                  <h2 className="font-semibold">{text.recent}</h2>
-                  <p className="mt-1 text-sm text-muted-foreground">{text.latest}</p>
+                  <h2 className="text-sm font-semibold">{text.recent}</h2>
+                  <p className="mt-1 text-xs text-muted-foreground">{text.latest}</p>
                 </div>
-                <Button variant="ghost" size="sm">{text.viewAll}</Button>
+                <Button variant="ghost" size="sm" className="h-8 px-2 text-xs">{text.viewAll}</Button>
               </div>
               <div className="divide-y">
                 {mockRecentOrders.map((order) => (
-                  <div key={order.id} className="grid gap-3 p-5 sm:grid-cols-[1fr_auto_auto_auto] sm:items-center">
+                  <div key={order.id} className="grid gap-2 p-4 text-xs sm:grid-cols-[1fr_auto_auto_auto] sm:items-center">
                     <p className="font-medium">{order.orderNumber}</p>
-                    <p className="text-sm text-muted-foreground">{text.table} {order.tableNumber}</p>
+                    <p className="text-xs text-muted-foreground">{text.table} {order.tableNumber}</p>
                     <Price value={order.total} locale={locale} />
                     <Badge className={statusStyle[order.status]}>{order.status}</Badge>
                   </div>
@@ -245,30 +245,30 @@ export default function AdminDashboardPage() {
           </Card>
 
           <Card className="rounded-md">
-            <CardContent className="p-5">
-              <h2 className="font-semibold">{text.topProducts}</h2>
-              <div className="mt-5 space-y-4">
+            <CardContent className="p-4">
+              <h2 className="text-sm font-semibold">{text.topProducts}</h2>
+              <div className="mt-4 space-y-3">
                 {topProducts.map((entry, index) => {
                   const product = mockProducts.find((item) => item.id === entry.id);
                   const progress = Math.round((entry.orders / topProducts[0].orders) * 100);
                   return product ? (
-                    <div key={entry.id} className="flex items-center gap-3">
-                      <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-md bg-accent/10 text-sm font-bold text-accent">
+                    <div key={entry.id} className="flex items-center gap-2.5">
+                      <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md bg-accent/10 text-xs font-bold text-accent">
                         {index + 1}
                       </span>
-                      <div className="relative h-11 w-11 shrink-0 overflow-hidden rounded-md bg-muted">
+                      <div className="relative h-9 w-9 shrink-0 overflow-hidden rounded-md bg-muted">
                         {product.image ? (
-                          <Image src={product.image} alt={product.name} fill sizes="44px" className="object-cover" />
+                          <Image src={product.image} alt={product.name} fill sizes="36px" className="object-cover" />
                         ) : (
-                          <Coffee className="m-3 h-5 w-5 text-muted-foreground" />
+                          <Coffee className="m-2.5 h-4 w-4 text-muted-foreground" />
                         )}
                       </div>
                       <div className="min-w-0 flex-1">
-                        <div className="flex justify-between gap-3 text-sm">
+                        <div className="flex justify-between gap-3 text-xs">
                           <p className="truncate font-semibold">{product.name}</p>
                           <span className="text-muted-foreground">{entry.orders}</span>
                         </div>
-                        <div className="mt-2 h-2 overflow-hidden rounded-full bg-muted">
+                        <div className="mt-1.5 h-1.5 overflow-hidden rounded-full bg-muted">
                           <div className="h-full rounded-full bg-accent" style={{ width: `${progress}%` }} />
                         </div>
                       </div>
@@ -296,7 +296,7 @@ function SalesLineChart({ locale }: { locale: "en" | "ar" }) {
 
   return (
     <div>
-      <svg viewBox="0 0 100 110" className="h-64 w-full overflow-visible">
+      <svg viewBox="0 0 100 110" className="h-48 w-full overflow-visible">
         <defs>
           <linearGradient id="salesFill" x1="0" x2="0" y1="0" y2="1">
             <stop offset="0%" stopColor="hsl(var(--accent))" stopOpacity="0.28" />
@@ -310,7 +310,7 @@ function SalesLineChart({ locale }: { locale: "en" | "ar" }) {
           const y = 100 - (item.value / max) * 86;
           return (
             <g key={item.day}>
-              <circle cx={x} cy={y} r="2.4" fill="hsl(var(--background))" stroke="hsl(var(--accent))" strokeWidth="1.8" />
+              <circle cx={x} cy={y} r="2" fill="hsl(var(--background))" stroke="hsl(var(--accent))" strokeWidth="1.5" />
               <text x={x} y="109" textAnchor="middle" className="fill-muted-foreground text-[3px]">
                 {locale === "ar" ? item.arDay.slice(0, 3) : item.day}
               </text>
@@ -325,15 +325,15 @@ function SalesLineChart({ locale }: { locale: "en" | "ar" }) {
 function SalesDonut() {
   return (
     <div
-      className="mx-auto h-40 w-40 rounded-full"
+      className="mx-auto h-32 w-32 rounded-full"
       style={{
         background:
           "conic-gradient(#f59e0b 0 34%, #38bdf8 34% 62%, #34d399 62% 80%, #f472b6 80% 100%)",
       }}
     >
-      <div className="flex h-full w-full items-center justify-center rounded-full p-7">
+      <div className="flex h-full w-full items-center justify-center rounded-full p-5">
         <div className="flex h-full w-full flex-col items-center justify-center rounded-full bg-card text-center">
-          <span className="text-2xl font-black">100%</span>
+          <span className="text-xl font-black">100%</span>
           <span className="text-xs text-muted-foreground">Sales</span>
         </div>
       </div>
