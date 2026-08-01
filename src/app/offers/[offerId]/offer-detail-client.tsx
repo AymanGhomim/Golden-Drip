@@ -106,7 +106,12 @@ export function OfferDetailClient({ offer }: { offer: Offer }) {
               </Button>
             </div>
           </div>
-          <Button type="button" size="lg" className="w-full gap-2" onClick={addOfferToCart}>
+          <Button
+            type="button"
+            size="lg"
+            className="w-full gap-2 rounded-md bg-[#21100a] font-bold text-primary-foreground shadow-sm transition-all hover:-translate-y-0.5 hover:bg-[#21100a]/90 dark:bg-[hsl(30_33%_84%)] dark:text-[#21100a] dark:hover:bg-[hsl(30_33%_84%)]"
+            onClick={addOfferToCart}
+          >
             <ShoppingCart className="h-5 w-5" />
             {copy.addToCart}
           </Button>

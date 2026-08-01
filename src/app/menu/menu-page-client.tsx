@@ -340,7 +340,7 @@ export function MenuPageClient() {
                     ) : (
                       <Button
                         type="button"
-                        className="h-9 w-full gap-1.5 rounded-md border border-[#21100a]/10 bg-[#21100a] px-2 text-xs font-bold text-primary-foreground shadow-sm transition-all duration-300 hover:-translate-y-0.5 hover:bg-[#21100a]/90 hover:text-primary-foreground hover:shadow-[0_10px_22px_rgba(33,16,10,0.24)] active:translate-y-0 active:scale-[0.99] dark:border-[hsl(var(--background))]/35 dark:bg-[hsl(var(--background))] dark:text-[#21100a] dark:hover:bg-[hsl(var(--background))] dark:hover:text-[#21100a] dark:hover:shadow-[0_10px_22px_rgba(228,214,201,0.18)] sm:h-11 sm:gap-2 sm:text-sm"
+                        className="h-9 w-full gap-1.5 rounded-md border border-[#21100a]/10 bg-[#21100a] px-2 text-xs font-bold text-primary-foreground shadow-sm transition-all duration-300 hover:-translate-y-0.5 hover:bg-[#21100a]/90 hover:text-primary-foreground hover:shadow-[0_10px_22px_rgba(33,16,10,0.24)] active:translate-y-0 active:scale-[0.99] dark:border-[hsl(30_33%_84%)]/35 dark:bg-[hsl(30_33%_84%)] dark:text-[#21100a] dark:hover:bg-[hsl(30_33%_84%)] dark:hover:text-[#21100a] dark:hover:shadow-[0_10px_22px_rgba(228,214,201,0.18)] sm:h-11 sm:gap-2 sm:text-sm"
                         onClick={(event) => {
                           event.stopPropagation();
                           addItem({
@@ -383,7 +383,7 @@ function CategoryButton({
       className={cn(
         "h-9 shrink-0 rounded-full border border-border/70 bg-card/70 px-4 text-xs font-bold text-muted-foreground shadow-sm backdrop-blur-sm transition-all duration-200 hover:-translate-y-0.5 hover:border-accent/35 hover:bg-accent/10 hover:text-foreground",
         isSelected &&
-          "border-[#21100a] bg-[#21100a] text-primary-foreground shadow-[0_10px_22px_rgba(33,16,10,0.18)] hover:bg-[#21100a]/90 hover:text-primary-foreground dark:border-[hsl(var(--background))] dark:bg-[hsl(var(--background))] dark:text-[#21100a] dark:hover:bg-[hsl(var(--background))]"
+          "border-[#21100a] bg-[#21100a] text-primary-foreground shadow-[0_10px_22px_rgba(33,16,10,0.18)] hover:bg-[#21100a]/90 hover:text-primary-foreground dark:border-[hsl(30_33%_84%)] dark:bg-[hsl(30_33%_84%)] dark:text-[#21100a] dark:hover:bg-[hsl(30_33%_84%)]"
       )}
       onClick={onClick}
     >

@@ -132,7 +132,7 @@ export function ProductDetailClient({ product }: { product: Product }) {
           <Button
             type="button"
             size="lg"
-            className="w-full gap-2 rounded-md bg-[#21100a] font-bold text-primary-foreground shadow-sm transition-all hover:-translate-y-0.5 hover:bg-[#21100a]/90 dark:bg-[hsl(var(--background))] dark:text-[#21100a] dark:hover:bg-[hsl(var(--background))]"
+            className="w-full gap-2 rounded-md bg-[#21100a] font-bold text-primary-foreground shadow-sm transition-all hover:-translate-y-0.5 hover:bg-[#21100a]/90 dark:bg-[hsl(30_33%_84%)] dark:text-[#21100a] dark:hover:bg-[hsl(30_33%_84%)]"
             onClick={addToCart}
           >
             <ShoppingCart className="h-5 w-5" />
