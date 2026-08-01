@@ -162,7 +162,7 @@ export function MenuPageClient() {
                 <button
                   key={offer.id}
                   type="button"
-                  className="group relative block min-h-[17rem] w-full shrink-0 overflow-hidden rounded-md border bg-muted text-start shadow-sm transition-all duration-500 hover:-translate-y-1 hover:border-accent/60 hover:shadow-[0_22px_55px_hsl(var(--foreground)/0.22)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring sm:min-h-64"
+                  className="group relative block min-h-[17rem] w-full shrink-0 overflow-hidden rounded-md border bg-muted text-start shadow-[0_10px_28px_hsl(var(--foreground)/0.07)] transition-all duration-500 hover:-translate-y-1 hover:border-accent/60 hover:shadow-[0_16px_36px_hsl(var(--foreground)/0.1)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring sm:min-h-64"
                   onClick={() => {
                     if (didDrag.current) return;
                     router.push(`/offers/${offer.id}`);
@@ -269,7 +269,7 @@ export function MenuPageClient() {
             return (
               <Card
                 key={product.id}
-                className="menu-card group cursor-pointer overflow-hidden rounded-md border border-border/70 bg-card shadow-[0_10px_28px_hsl(var(--foreground)/0.07)] transition-[border-color,box-shadow,transform] duration-500 ease-out hover:-translate-y-1.5 hover:border-accent/45 hover:shadow-[0_20px_46px_hsl(var(--foreground)/0.13)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/40"
+                className="menu-card group cursor-pointer overflow-hidden rounded-md border border-border/70 bg-card shadow-[0_10px_28px_hsl(var(--foreground)/0.07)] transition-[border-color,box-shadow,transform] duration-500 ease-out hover:-translate-y-1 hover:border-accent/45 hover:shadow-[0_16px_36px_hsl(var(--foreground)/0.1)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/40"
                 role="button"
                 tabIndex={0}
                 onClick={() => router.push(`/menu/${product.id}`)}
@@ -366,7 +366,7 @@ export function MenuPageClient() {
                     ) : (
                       <Button
                         type="button"
-                        className="h-12 w-full gap-2 rounded-lg border border-[#21100a]/10 bg-[#21100a] px-4 text-sm font-bold text-primary-foreground shadow-[0_10px_22px_rgba(33,16,10,0.16)] transition-all duration-300 ease-out hover:-translate-y-0.5 hover:bg-[#21100a]/90 hover:text-primary-foreground hover:shadow-[0_16px_30px_rgba(33,16,10,0.24)] active:translate-y-0 active:scale-[0.985] focus-visible:ring-2 focus-visible:ring-accent/50 focus-visible:ring-offset-2 dark:border-[hsl(30_33%_84%)]/35 dark:bg-[hsl(30_33%_84%)] dark:text-[#21100a] dark:hover:bg-[hsl(30_33%_84%)] dark:hover:text-[#21100a] dark:hover:shadow-[0_14px_28px_rgba(228,214,201,0.2)]"
+                        className="h-12 w-full gap-2 rounded-lg border border-[#21100a]/10 bg-[#21100a] px-4 text-sm font-bold text-primary-foreground shadow-[0_8px_18px_rgba(33,16,10,0.12)] transition-all duration-300 ease-out hover:-translate-y-0.5 hover:bg-[#21100a]/90 hover:text-primary-foreground hover:shadow-[0_12px_24px_rgba(33,16,10,0.18)] active:translate-y-0 active:scale-[0.985] focus-visible:ring-2 focus-visible:ring-accent/50 focus-visible:ring-offset-2 dark:border-[hsl(30_33%_84%)]/35 dark:bg-[hsl(30_33%_84%)] dark:text-[#21100a] dark:hover:bg-[hsl(30_33%_84%)] dark:hover:text-[#21100a] dark:hover:shadow-[0_10px_22px_rgba(228,214,201,0.14)]"
                         onClick={(event) => {
                           event.stopPropagation();
                           addItem({
@@ -407,9 +407,9 @@ function CategoryButton({
       type="button"
       variant="ghost"
       className={cn(
-        "h-12 shrink-0 rounded-full border border-border/70 bg-card/70 px-6 text-sm font-bold text-muted-foreground shadow-[0_8px_18px_hsl(var(--foreground)/0.08)] backdrop-blur-sm transition-all duration-300 ease-out hover:-translate-y-0.5 hover:border-accent/35 hover:bg-accent/10 hover:text-foreground hover:shadow-[0_12px_24px_hsl(var(--foreground)/0.12)]",
+        "h-12 shrink-0 rounded-full border border-border/70 bg-card/70 px-6 text-sm font-bold text-muted-foreground shadow-[0_8px_18px_hsl(var(--foreground)/0.06)] backdrop-blur-sm transition-all duration-300 ease-out hover:-translate-y-0.5 hover:border-accent/35 hover:bg-accent/10 hover:text-foreground hover:shadow-[0_12px_24px_hsl(var(--foreground)/0.09)]",
         isSelected &&
-          "border-[#21100a] bg-[#21100a] text-primary-foreground shadow-[0_12px_26px_rgba(33,16,10,0.22)] hover:bg-[#21100a]/90 hover:text-primary-foreground dark:border-[hsl(30_33%_84%)] dark:bg-[hsl(30_33%_84%)] dark:text-[#21100a] dark:hover:bg-[hsl(30_33%_84%)]"
+          "border-[#21100a] bg-[#21100a] text-primary-foreground shadow-[0_10px_22px_rgba(33,16,10,0.16)] hover:bg-[#21100a]/90 hover:text-primary-foreground dark:border-[hsl(30_33%_84%)] dark:bg-[hsl(30_33%_84%)] dark:text-[#21100a] dark:hover:bg-[hsl(30_33%_84%)]"
       )}
       onClick={onClick}
     >

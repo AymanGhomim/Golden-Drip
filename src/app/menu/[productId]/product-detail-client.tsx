@@ -59,7 +59,7 @@ export function ProductDetailClient({ product }: { product: Product }) {
       <BackButtonRow locale={locale} />
 
       <section className="animate-content-enter mx-auto grid w-full max-w-6xl gap-6 px-4 py-8 lg:grid-cols-[1fr_22rem] sm:px-6">
-        <div className="animate-image-enter relative min-h-[26rem] overflow-hidden rounded-md border bg-muted shadow-sm">
+        <div className="animate-image-enter relative min-h-[26rem] overflow-hidden rounded-md border bg-muted shadow-[0_10px_28px_hsl(var(--foreground)/0.07)]">
           <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 bg-[#21100a] text-white">
             <Coffee className="h-12 w-12 text-white/80" />
             <span className="max-w-48 text-center text-sm font-bold leading-6 text-white/85">
@@ -94,7 +94,7 @@ export function ProductDetailClient({ product }: { product: Product }) {
                 <Price
                   value={product.price}
                   locale={locale}
-                  className="w-fit rounded-full border border-white/30 bg-white/18 px-3 py-1.5 text-2xl font-black text-white shadow-[0_10px_24px_rgba(0,0,0,0.2)] backdrop-blur-md"
+                  className="w-fit rounded-full border border-white/30 bg-white/18 px-3 py-1.5 text-2xl font-black text-white shadow-[0_8px_18px_rgba(0,0,0,0.12)] backdrop-blur-md"
                   currencyClassName="text-white/75"
                 />
               </div>
@@ -102,7 +102,7 @@ export function ProductDetailClient({ product }: { product: Product }) {
           </div>
         </div>
 
-        <div className="h-fit space-y-4 rounded-md border bg-card p-5 shadow-sm">
+        <div className="h-fit space-y-4 rounded-md border bg-card p-5 shadow-[0_10px_28px_hsl(var(--foreground)/0.07)]">
           <div className="flex items-center justify-between">
             <span className="font-semibold">{copy.quantity}</span>
             <div className="flex items-center gap-3">
