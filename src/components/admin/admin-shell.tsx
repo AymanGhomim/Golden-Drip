@@ -9,10 +9,12 @@ import {
   ClipboardList,
   LayoutDashboard,
   LogOut,
+  Menu,
   Package,
   Settings,
   TableProperties,
   Tags,
+  X,
 } from "lucide-react";
 
 import { AppLogo } from "@/components/shared/app-logo";
@@ -68,6 +70,7 @@ export function AdminShell({ children }: { children: React.ReactNode }) {
   const isAuthenticated = useAuthStore((state) => state.isAuthenticated);
   const logout = useAuthStore((state) => state.logout);
   const [ready, setReady] = useState(false);
+  const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false);
   const { locale } = useAdminLocale();
   const text = copy[locale];
 
@@ -79,28 +82,34 @@ export function AdminShell({ children }: { children: React.ReactNode }) {
     if (ready && !isAuthenticated) router.replace("/admin/login");
   }, [isAuthenticated, ready, router]);
 
+  useEffect(() => {
+    setIsMobileSidebarOpen(false);
+  }, [pathname]);
+
   if (!ready || !isAuthenticated) return <main className="min-h-screen bg-background" />;
 
-  const links = navigation.map((item) => {
-    const Icon = item.icon;
-    const active = pathname === item.href;
+  const renderLinks = (onNavigate?: () => void) =>
+    navigation.map((item) => {
+      const Icon = item.icon;
+      const active = pathname === item.href;
 
-    return (
-      <Link
-        key={item.href}
-        href={item.href}
-        className={cn(
-          "flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium transition-colors",
-          active
-            ? "bg-primary text-primary-foreground shadow-sm"
-            : "text-[#cdb5a5] hover:bg-white/10 hover:text-[#fff5ee]"
-        )}
-      >
-        <Icon className="h-4 w-4" />
-        {text[item.key]}
-      </Link>
-    );
-  });
+      return (
+        <Link
+          key={item.href}
+          href={item.href}
+          onClick={onNavigate}
+          className={cn(
+            "flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium transition-colors",
+            active
+              ? "bg-primary text-primary-foreground shadow-sm"
+              : "text-[#cdb5a5] hover:bg-white/10 hover:text-[#fff5ee]"
+          )}
+        >
+          <Icon className="h-4 w-4" />
+          {text[item.key]}
+        </Link>
+      );
+    });
 
   return (
     <div className="min-h-screen bg-background lg:flex" dir={locale === "ar" ? "rtl" : "ltr"}>
@@ -111,7 +120,7 @@ export function AdminShell({ children }: { children: React.ReactNode }) {
         <p className="mb-3 px-3 text-xs font-semibold uppercase tracking-[0.16em] text-[#a99080]">
           {text.management}
         </p>
-        <nav className="min-h-0 flex-1 space-y-1 overflow-y-auto pr-1">{links}</nav>
+        <nav className="min-h-0 flex-1 space-y-1 overflow-y-auto pr-1">{renderLinks()}</nav>
         <div className="shrink-0 border-t border-[#3d2014] pt-4">
           <p className="mb-3 truncate px-3 text-sm text-[#a99080]">{user?.email}</p>
           <Button
@@ -131,6 +140,16 @@ export function AdminShell({ children }: { children: React.ReactNode }) {
         <header className="sticky top-0 z-20 border-b bg-background/95 px-4 py-3 backdrop-blur lg:hidden">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
+              <Button
+                type="button"
+                variant="outline"
+                size="icon"
+                className="h-10 w-10 rounded-full"
+                onClick={() => setIsMobileSidebarOpen(true)}
+                aria-label="Open navigation"
+              >
+                <Menu className="h-4 w-4" />
+              </Button>
               <AppLogo showText={false} />
             </div>
             <Button
@@ -144,8 +163,59 @@ export function AdminShell({ children }: { children: React.ReactNode }) {
               <LogOut className="h-4 w-4" />
             </Button>
           </div>
-          <nav className="mt-3 flex gap-2 overflow-x-auto pb-1">{links}</nav>
         </header>
+        {isMobileSidebarOpen ? (
+          <div className="fixed inset-0 z-40 lg:hidden">
+            <button
+              type="button"
+              className="absolute inset-0 bg-black/55 backdrop-blur-sm"
+              onClick={() => setIsMobileSidebarOpen(false)}
+              aria-label="Close navigation"
+            />
+            <aside className="relative flex h-full w-72 max-w-[85vw] flex-col border-r border-[#3d2014] bg-[#21100a] p-4 shadow-2xl">
+              <div className="mb-8 flex items-center justify-between">
+                <Link
+                  href="/admin/dashboard"
+                  className="[&_span]:text-[#fff5ee]"
+                  onClick={() => setIsMobileSidebarOpen(false)}
+                >
+                  <AppLogo />
+                </Link>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="icon"
+                  className="h-10 w-10 text-[#cdb5a5] hover:bg-white/10 hover:text-[#fff5ee]"
+                  onClick={() => setIsMobileSidebarOpen(false)}
+                  aria-label="Close navigation"
+                >
+                  <X className="h-5 w-5" />
+                </Button>
+              </div>
+              <p className="mb-3 px-3 text-xs font-semibold uppercase tracking-[0.16em] text-[#a99080]">
+                {text.management}
+              </p>
+              <nav className="min-h-0 flex-1 space-y-1 overflow-y-auto pr-1">
+                {renderLinks(() => setIsMobileSidebarOpen(false))}
+              </nav>
+              <div className="shrink-0 border-t border-[#3d2014] pt-4">
+                <p className="mb-3 truncate px-3 text-sm text-[#a99080]">{user?.email}</p>
+                <Button
+                  variant="ghost"
+                  className="w-full justify-start gap-3 text-[#cdb5a5] hover:bg-white/10 hover:text-[#ffb4a5]"
+                  onClick={() => {
+                    setIsMobileSidebarOpen(false);
+                    logout();
+                    router.replace("/admin/login");
+                  }}
+                >
+                  <LogOut className="h-4 w-4" />
+                  {text.signOut}
+                </Button>
+              </div>
+            </aside>
+          </div>
+        ) : null}
         {children}
       </div>
     </div>
