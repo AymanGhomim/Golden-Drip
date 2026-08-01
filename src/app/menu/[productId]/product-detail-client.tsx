@@ -59,45 +59,45 @@ export function ProductDetailClient({ product }: { product: Product }) {
 
       <section className="animate-content-enter mx-auto w-full max-w-6xl px-4 pb-28 pt-3 sm:px-6 sm:py-8">
         <div className="space-y-4">
-          <div className="animate-image-enter relative h-[28rem] overflow-hidden rounded-md border bg-muted shadow-sm sm:h-[34rem] lg:h-[36rem]">
-            <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 bg-gradient-to-br from-[#32170d] via-[#6f513c] to-[#b49a80] text-white">
-              <Coffee className="h-12 w-12 text-white/80" />
-              <span className="max-w-48 text-center text-sm font-bold leading-6 text-white/85">
-                {text.name}
-              </span>
-            </div>
+          <div className="animate-image-enter overflow-hidden rounded-md border bg-card shadow-sm">
+            <div className="relative bg-muted">
             {product.image && !imageFailed ? (
               <Image
                 src={product.image}
                 alt={text.name}
-                fill
-                sizes="(min-width: 1024px) 50vw, 100vw"
-                className="relative z-0 object-cover"
+                width={1200}
+                height={900}
+                sizes="(min-width: 1024px) 1152px, 100vw"
+                className="h-80 w-full object-cover sm:h-[32rem]"
                 priority
                 onError={() => setImageFailed(true)}
               />
-            ) : null}
-            <div className="absolute inset-0 z-10 bg-gradient-to-t from-black/84 via-black/32 to-black/0" />
-            <div className="absolute bottom-4 left-4 right-4 z-20 text-white sm:bottom-6 sm:left-6 sm:right-6">
-              <p className="mb-2 w-fit rounded-full border border-white/25 bg-white/15 px-2.5 py-1 text-[0.68rem] font-bold backdrop-blur-md">
+            ) : (
+              <div className="flex h-80 flex-col items-center justify-center gap-3 bg-gradient-to-br from-[#32170d] via-[#6f513c] to-[#b49a80] text-white sm:h-[32rem]">
+                <Coffee className="h-12 w-12 text-white/80" />
+                <span className="max-w-48 text-center text-sm font-bold leading-6 text-white/85">
+                  {text.name}
+                </span>
+              </div>
+            )}
+            </div>
+            <div className="space-y-3 p-4 sm:p-5">
+              <p className="w-fit rounded-full border bg-muted px-2.5 py-1 text-[0.68rem] font-bold text-muted-foreground">
                 {categoryName}
               </p>
-              <div className="max-w-2xl space-y-3 rounded-md border border-white/18 bg-black/18 p-3.5 shadow-[0_14px_34px_rgba(0,0,0,0.22)] backdrop-blur-sm sm:p-5">
-                <div className="flex items-start justify-between gap-3">
-                  <h1 className="line-clamp-2 text-2xl font-black leading-tight drop-shadow-sm sm:text-4xl">
+              <div className="flex items-start justify-between gap-3">
+                  <h1 className="text-2xl font-black leading-tight sm:text-4xl">
                     {text.name}
                   </h1>
                   <Price
                     value={product.price}
                     locale={locale}
-                    className="shrink-0 rounded-full border border-white/35 bg-white/18 px-2.5 py-1 text-sm font-black text-white shadow-[0_10px_24px_rgba(0,0,0,0.2)] backdrop-blur-md"
-                    currencyClassName="text-white/75"
+                  className="shrink-0 rounded-full border bg-muted px-2.5 py-1 text-sm font-black text-foreground"
                   />
                 </div>
-                <p className="line-clamp-3 text-xs leading-6 text-white/88 sm:text-base sm:leading-7">
+              <p className="text-sm leading-7 text-muted-foreground sm:text-base sm:leading-8">
                   {text.description}
                 </p>
-              </div>
             </div>
           </div>
 
