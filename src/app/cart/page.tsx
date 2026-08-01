@@ -150,7 +150,7 @@ export default function CartPage() {
                   {text.emptyText}
                 </p>
               </div>
-              <Button asChild className="h-11 min-w-44 rounded-md bg-primary px-6 text-sm font-bold text-primary-foreground shadow-sm transition-all hover:-translate-y-0.5 hover:bg-primary/90 dark:bg-[#b9a58f] dark:text-[#1b0d08] dark:hover:bg-[#c7b39d]">
+              <Button asChild className="h-11 min-w-48 rounded-full bg-primary px-7 text-sm font-bold text-primary-foreground shadow-sm transition-all hover:-translate-y-0.5 hover:bg-primary/90 dark:bg-[#b9a58f] dark:text-[#1b0d08] dark:hover:bg-[#c7b39d]">
                 <Link href="/menu">{text.browse}</Link>
               </Button>
             </CardContent>
