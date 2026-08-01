@@ -1,19 +1,43 @@
 "use client";
 
 import Image from "next/image";
+import { Plus } from "lucide-react";
+import { useState } from "react";
 
 import { AdminDataPage } from "@/components/admin/admin-data-page";
 import { OfferPrice } from "@/components/shared/offer-price";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { Textarea } from "@/components/ui/textarea";
 import { mockOffers } from "@/mocks/offers.mock";
 import { useAdminLocale } from "@/providers/admin-locale-provider";
 import type { Offer } from "@/types/offer.types";
 
 export default function OffersPage() {
   const { locale } = useAdminLocale();
-  const activeOffers = mockOffers.filter((offer) => offer.isActive);
+  const [offers, setOffers] = useState<Offer[]>(mockOffers);
+  const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
+  const activeOffers = offers.filter((offer) => offer.isActive);
   const averagePrice = Math.round(
-    mockOffers.reduce((sum, offer) => sum + offer.price, 0) / mockOffers.length
+    offers.reduce((sum, offer) => sum + offer.price, 0) / Math.max(offers.length, 1)
   );
   const text =
     locale === "en"
@@ -55,8 +79,50 @@ export default function OffersPage() {
         };
 
   const bestDiscount = Math.max(
-    ...mockOffers.map((offer) => offer.originalPrice - offer.price)
+    0,
+    ...offers.map((offer) => offer.originalPrice - offer.price)
   );
+  const formText =
+    locale === "en"
+      ? {
+          title: "Add offer",
+          description: "Create a promotional banner that appears in the menu slider.",
+          name: "Offer title",
+          descriptionLabel: "Description",
+          image: "Image URL",
+          originalPrice: "Old price",
+          currentPrice: "New price",
+          cancel: "Cancel",
+          save: "Save offer",
+        }
+      : {
+          title: "إضافة عرض",
+          description: "أضف بانر عرض يظهر في سلايدر المنيو.",
+          name: "عنوان العرض",
+          descriptionLabel: "الوصف",
+          image: "رابط الصورة",
+          originalPrice: "السعر قبل العرض",
+          currentPrice: "السعر بعد العرض",
+          cancel: "إلغاء",
+          save: "حفظ العرض",
+        };
+  const selectItemClassName = locale === "ar" ? "justify-end pl-2 pr-8 text-right [&>span]:left-auto [&>span]:right-2" : undefined;
+
+  function saveOffer(formData: FormData) {
+    const nextOffer: Offer = {
+      id: `offer-${Date.now()}`,
+      title: String(formData.get("title") ?? ""),
+      description: String(formData.get("description") ?? ""),
+      image: String(formData.get("image") ?? ""),
+      originalPrice: Number(formData.get("originalPrice") ?? 0),
+      price: Number(formData.get("price") ?? 0),
+      sortOrder: Number(formData.get("sortOrder") ?? offers.length + 1),
+      isActive: String(formData.get("isActive") ?? "active") === "active",
+    };
+
+    setOffers((current) => [nextOffer, ...current]);
+    setIsAddDialogOpen(false);
+  }
   const controlsText =
     locale === "en"
       ? {
@@ -119,16 +185,86 @@ export default function OffersPage() {
       title={text.title}
       description={text.description}
       actionLabel={text.add}
+      actionContent={
+        <Dialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen}>
+          <DialogTrigger asChild>
+            <Button className="h-9 gap-2 rounded-md px-3 text-sm shadow-sm">
+              <Plus className="h-4 w-4" />
+              {text.add}
+            </Button>
+          </DialogTrigger>
+          <DialogContent className="max-h-[92vh] max-w-2xl overflow-hidden rounded-md p-0" dir={locale === "ar" ? "rtl" : "ltr"}>
+            <DialogHeader className="px-6 pt-6">
+              <DialogTitle>{formText.title}</DialogTitle>
+              <DialogDescription>{formText.description}</DialogDescription>
+            </DialogHeader>
+            <form
+              className="grid max-h-[calc(92vh-6rem)] gap-4 overflow-y-auto px-6 pb-6 pt-2"
+              onSubmit={(event) => {
+                event.preventDefault();
+                saveOffer(new FormData(event.currentTarget));
+              }}
+            >
+              <div className="grid gap-4 sm:grid-cols-2">
+                <div className="space-y-2">
+                  <Label htmlFor="offer-title">{formText.name}</Label>
+                  <Input id="offer-title" name="title" required />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="offer-image">{formText.image}</Label>
+                  <Input id="offer-image" name="image" type="url" required />
+                </div>
+              </div>
+              <div className="grid gap-4 sm:grid-cols-3">
+                <div className="space-y-2">
+                  <Label htmlFor="offer-original-price">{formText.originalPrice}</Label>
+                  <Input id="offer-original-price" name="originalPrice" type="number" min="0" required />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="offer-price">{formText.currentPrice}</Label>
+                  <Input id="offer-price" name="price" type="number" min="0" required />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="offer-order">{text.order}</Label>
+                  <Input id="offer-order" name="sortOrder" type="number" min="1" defaultValue={offers.length + 1} required />
+                </div>
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="offer-description">{formText.descriptionLabel}</Label>
+                <Textarea id="offer-description" name="description" required />
+              </div>
+              <div className="space-y-2">
+                <Label>{text.status}</Label>
+                <Select name="isActive" defaultValue="active">
+                  <SelectTrigger className={locale === "ar" ? "flex-row-reverse" : undefined}>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent dir={locale === "ar" ? "rtl" : "ltr"}>
+                    <SelectItem value="active" className={selectItemClassName}>{text.activeLabel}</SelectItem>
+                    <SelectItem value="hidden" className={selectItemClassName}>{text.hiddenLabel}</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <DialogFooter className="sticky bottom-0 -mx-6 gap-2 border-t bg-background px-6 py-4 sm:gap-2">
+                <Button type="button" variant="outline" onClick={() => setIsAddDialogOpen(false)}>
+                  {formText.cancel}
+                </Button>
+                <Button type="submit">{formText.save}</Button>
+              </DialogFooter>
+            </form>
+          </DialogContent>
+        </Dialog>
+      }
       stats={[
         { label: text.active, value: activeOffers.length },
-        { label: text.banners, value: mockOffers.length },
+        { label: text.banners, value: offers.length },
         { label: text.average, value: averagePrice },
         { label: text.discount, value: bestDiscount },
       ]}
       tableTitle={text.tableTitle}
       tableDescription={text.tableDescription}
       columns={columns}
-      data={mockOffers}
+      data={offers}
       keyExtractor={(offer) => offer.id}
       searchPlaceholder={controlsText.search}
       searchValue={(offer) => `${offer.title} ${offer.description}`}

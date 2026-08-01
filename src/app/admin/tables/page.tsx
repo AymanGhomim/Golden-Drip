@@ -2,12 +2,35 @@
 
 import { AdminDataPage } from "@/components/admin/admin-data-page";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { mockTables } from "@/mocks/tables.mock";
 import { useAdminLocale } from "@/providers/admin-locale-provider";
 import type { Table } from "@/types/table.types";
+import { Plus } from "lucide-react";
+import { useState } from "react";
 
 export default function TablesPage() {
   const { locale } = useAdminLocale();
+  const [tables, setTables] = useState<Table[]>(mockTables);
+  const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
   const text =
     locale === "en"
       ? {
@@ -45,6 +68,39 @@ export default function TablesPage() {
           range: "نطاق الترابيزات",
         };
 
+  const formText =
+    locale === "en"
+      ? {
+          title: "Add table",
+          description: "Create a table QR record for customer orders.",
+          number: "Table number",
+          qr: "QR code",
+          cancel: "Cancel",
+          save: "Save table",
+        }
+      : {
+          title: "إضافة ترابيزة",
+          description: "أضف ترابيزة وكود QR خاص بها للطلبات.",
+          number: "رقم الترابيزة",
+          qr: "كود QR",
+          cancel: "إلغاء",
+          save: "حفظ الترابيزة",
+        };
+  const selectItemClassName = locale === "ar" ? "justify-end pl-2 pr-8 text-right [&>span]:left-auto [&>span]:right-2" : undefined;
+
+  function saveTable(formData: FormData) {
+    const number = Number(formData.get("number") ?? tables.length + 1);
+    const nextTable: Table = {
+      id: `tbl-${Date.now()}`,
+      number,
+      qrCode: String(formData.get("qrCode") ?? `qr-table-${number}`),
+      isActive: String(formData.get("isActive") ?? "active") === "active",
+    };
+
+    setTables((current) => [nextTable, ...current]);
+    setIsAddDialogOpen(false);
+  }
+
   const columns = [
     { key: "table", header: text.table, cell: (table: Table) => <span className="font-semibold">#{table.number}</span> },
     { key: "qr", header: text.qr, cell: (table: Table) => <code className="rounded bg-muted px-2 py-1 text-xs">{table.qrCode}</code> },
@@ -81,16 +137,68 @@ export default function TablesPage() {
       title={text.title}
       description={text.description}
       actionLabel={text.add}
+      actionContent={
+        <Dialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen}>
+          <DialogTrigger asChild>
+            <Button className="h-9 gap-2 rounded-md px-3 text-sm shadow-sm">
+              <Plus className="h-4 w-4" />
+              {text.add}
+            </Button>
+          </DialogTrigger>
+          <DialogContent className="max-h-[92vh] max-w-2xl overflow-hidden rounded-md p-0" dir={locale === "ar" ? "rtl" : "ltr"}>
+            <DialogHeader className="px-6 pt-6">
+              <DialogTitle>{formText.title}</DialogTitle>
+              <DialogDescription>{formText.description}</DialogDescription>
+            </DialogHeader>
+            <form
+              className="grid max-h-[calc(92vh-6rem)] gap-4 overflow-y-auto px-6 pb-6 pt-2"
+              onSubmit={(event) => {
+                event.preventDefault();
+                saveTable(new FormData(event.currentTarget));
+              }}
+            >
+              <div className="grid gap-4 sm:grid-cols-2">
+                <div className="space-y-2">
+                  <Label htmlFor="table-number">{formText.number}</Label>
+                  <Input id="table-number" name="number" type="number" min="1" defaultValue={tables.length + 1} required />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="table-qr">{formText.qr}</Label>
+                  <Input id="table-qr" name="qrCode" defaultValue={`qr-table-${tables.length + 1}`} required />
+                </div>
+              </div>
+              <div className="space-y-2">
+                <Label>{text.status}</Label>
+                <Select name="isActive" defaultValue="active">
+                  <SelectTrigger className={locale === "ar" ? "flex-row-reverse" : undefined}>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent dir={locale === "ar" ? "rtl" : "ltr"}>
+                    <SelectItem value="active" className={selectItemClassName}>{text.active}</SelectItem>
+                    <SelectItem value="disabled" className={selectItemClassName}>{text.disabled}</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <DialogFooter className="sticky bottom-0 -mx-6 gap-2 border-t bg-background px-6 py-4 sm:gap-2">
+                <Button type="button" variant="outline" onClick={() => setIsAddDialogOpen(false)}>
+                  {formText.cancel}
+                </Button>
+                <Button type="submit">{formText.save}</Button>
+              </DialogFooter>
+            </form>
+          </DialogContent>
+        </Dialog>
+      }
       stats={[
-        { label: text.total, value: mockTables.length },
-        { label: text.linked, value: mockTables.filter((table) => table.qrCode).length },
-        { label: text.available, value: mockTables.filter((table) => table.isActive).length },
-        { label: text.range, value: `1-${mockTables.length}` },
+        { label: text.total, value: tables.length },
+        { label: text.linked, value: tables.filter((table) => table.qrCode).length },
+        { label: text.available, value: tables.filter((table) => table.isActive).length },
+        { label: text.range, value: `1-${Math.max(...tables.map((table) => table.number), 0)}` },
       ]}
       tableTitle={text.tableTitle}
       tableDescription={text.tableDescription}
       columns={columns}
-      data={mockTables}
+      data={tables}
       keyExtractor={(table) => table.id}
       searchPlaceholder={controlsText.search}
       searchValue={(table) => `${table.number} ${table.qrCode}`}

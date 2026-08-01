@@ -1,6 +1,7 @@
 "use client";
 
 import Image from "next/image";
+import Link from "next/link";
 import {
   Area,
   AreaChart,
@@ -204,7 +205,9 @@ export default function AdminDashboardPage() {
               <Bell className="h-3.5 w-3.5 text-emerald-500" />
               {text.alerts}
             </span>
-            <Button className="h-8 rounded-md px-3 text-xs">{text.live}</Button>
+            <Button asChild className="h-8 rounded-md px-3 text-xs">
+              <Link href="/admin/orders">{text.live}</Link>
+            </Button>
           </div>
         </div>
 
@@ -256,7 +259,9 @@ export default function AdminDashboardPage() {
                   <h2 className="text-sm font-semibold">{text.recent}</h2>
                   <p className="mt-1 text-xs text-muted-foreground">{text.latest}</p>
                 </div>
-                <Button variant="ghost" size="sm" className="h-8 px-2 text-xs">{text.viewAll}</Button>
+                <Button asChild variant="ghost" size="sm" className="h-8 px-2 text-xs">
+                  <Link href="/admin/orders">{text.viewAll}</Link>
+                </Button>
               </div>
               <DataTable
                 columns={recentOrderColumns}
