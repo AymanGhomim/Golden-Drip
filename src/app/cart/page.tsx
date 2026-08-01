@@ -89,18 +89,18 @@ export default function CartPage() {
                 >
                   <defs>
                     <linearGradient id="cartSteam" x1="0" x2="1" y1="0" y2="1">
-                      <stop offset="0%" stopColor="#f7d7a3" />
+                      <stop offset="0%" stopColor="hsl(var(--background))" />
                       <stop offset="100%" stopColor="#c78332" />
                     </linearGradient>
                     <linearGradient id="cartCup" x1="0" x2="0" y1="0" y2="1">
-                      <stop offset="0%" stopColor="#fff5ee" />
-                      <stop offset="100%" stopColor="#d6b79c" />
+                      <stop offset="0%" stopColor="hsl(var(--background))" />
+                      <stop offset="100%" stopColor="hsl(var(--background))" />
                     </linearGradient>
                     <filter id="cartShadow" x="-20%" y="-20%" width="140%" height="160%">
                       <feDropShadow dx="0" dy="18" stdDeviation="18" floodColor="#000000" floodOpacity="0.28" />
                     </filter>
                   </defs>
-                  <path d="M35 248 C90 220 115 258 168 235 C218 214 241 218 292 239 C335 257 361 238 391 218 L391 320 L35 320 Z" fill="#e0c9b7" />
+                  <path d="M35 248 C90 220 115 258 168 235 C218 214 241 218 292 239 C335 257 361 238 391 218 L391 320 L35 320 Z" fill="hsl(var(--background))" />
                   <circle cx="332" cy="72" r="38" fill="#21100a" opacity="0.08" />
                   <circle cx="84" cy="88" r="20" fill="#21100a" opacity="0.08" />
                   <path d="M132 122 C125 94 153 86 145 58" stroke="url(#cartSteam)" strokeWidth="10" strokeLinecap="round" fill="none" opacity="0.85" />
@@ -108,17 +108,17 @@ export default function CartPage() {
                   <path d="M238 122 C229 96 260 86 251 58" stroke="url(#cartSteam)" strokeWidth="10" strokeLinecap="round" fill="none" opacity="0.8" />
                   <g filter="url(#cartShadow)">
                     <path d="M112 137 H275 L254 251 H135 Z" fill="url(#cartCup)" />
-                    <path d="M277 160 H302 C326 160 333 196 309 209 L267 232" fill="none" stroke="#fff5ee" strokeWidth="18" strokeLinecap="round" />
+                    <path d="M277 160 H302 C326 160 333 196 309 209 L267 232" fill="none" stroke="hsl(var(--background))" strokeWidth="18" strokeLinecap="round" />
                     <path d="M126 157 H263 L257 189 H132 Z" fill="#21100a" opacity="0.9" />
                     <path d="M143 251 H246" stroke="#21100a" strokeWidth="14" strokeLinecap="round" opacity="0.55" />
                   </g>
                   <g transform="translate(74 244)">
-                    <circle cx="32" cy="32" r="22" fill="#f7d7a3" />
-                    <circle cx="242" cy="32" r="22" fill="#f7d7a3" />
-                    <path d="M20 0 H259" stroke="#f7d7a3" strokeWidth="14" strokeLinecap="round" />
-                    <path d="M0 -54 H46 L70 0" stroke="#f7d7a3" strokeWidth="14" strokeLinecap="round" strokeLinejoin="round" fill="none" />
+                    <circle cx="32" cy="32" r="22" fill="hsl(var(--background))" />
+                    <circle cx="242" cy="32" r="22" fill="hsl(var(--background))" />
+                    <path d="M20 0 H259" stroke="hsl(var(--background))" strokeWidth="14" strokeLinecap="round" />
+                    <path d="M0 -54 H46 L70 0" stroke="hsl(var(--background))" strokeWidth="14" strokeLinecap="round" strokeLinejoin="round" fill="none" />
                   </g>
-                  <path d="M316 143 L337 164 L379 119" stroke="#f7d7a3" strokeWidth="12" strokeLinecap="round" strokeLinejoin="round" fill="none" />
+                  <path d="M316 143 L337 164 L379 119" stroke="hsl(var(--background))" strokeWidth="12" strokeLinecap="round" strokeLinejoin="round" fill="none" />
                 </svg>
               </div>
               <div className="mb-6 space-y-3">
@@ -130,7 +130,7 @@ export default function CartPage() {
                   {text.emptyText}
                 </p>
               </div>
-              <Button asChild className="inline-flex h-11 w-auto rounded-full bg-primary p-0 text-sm font-bold text-primary-foreground shadow-sm transition-all hover:-translate-y-0.5 hover:bg-primary/90 dark:bg-[#b9a58f] dark:text-[#21100a] dark:hover:bg-[#c7b39d]">
+              <Button asChild className="inline-flex h-11 w-auto rounded-full bg-primary p-0 text-sm font-bold text-primary-foreground shadow-sm transition-all hover:-translate-y-0.5 hover:bg-primary/90 dark:bg-[hsl(var(--background))] dark:text-[#21100a] dark:hover:bg-[hsl(var(--background))]">
                 <Link href="/menu" className="inline-flex h-full items-center justify-center whitespace-nowrap px-6">
                   {text.browse}
                 </Link>
@@ -208,22 +208,22 @@ export default function CartPage() {
               </div>
             </div>
 
-            <Card className="h-fit overflow-hidden rounded-md shadow-sm dark:border-[#21100a] dark:bg-[#21100a] dark:text-[#fff5ee] dark:shadow-[0_22px_60px_rgba(33,16,10,0.2)] lg:sticky lg:top-24">
+            <Card className="h-fit overflow-hidden rounded-md shadow-sm dark:border-[#21100a] dark:bg-[#21100a] dark:text-[hsl(30_33%_84%)] dark:shadow-[0_22px_60px_rgba(33,16,10,0.2)] lg:sticky lg:top-24">
               <CardContent className="space-y-5 p-5">
                 <div>
                   <h2 className="text-lg font-black">{text.summary}</h2>
-                  <p className="mt-1 text-xs text-muted-foreground dark:text-[#cdb5a5]">
+                  <p className="mt-1 text-xs text-muted-foreground dark:text-[hsl(30_33%_84%)]">
                     {text.items}: {totalItems}
                   </p>
                 </div>
                 <div className="space-y-3 rounded-md border bg-background/60 p-4 dark:border-white/10 dark:bg-white/8">
                   <div className="flex items-center justify-between text-sm">
-                    <span className="text-muted-foreground dark:text-[#cdb5a5]">{text.subtotal}</span>
-                    <Price value={total} locale={locale} currencyClassName="dark:text-[#cdb5a5]" />
+                    <span className="text-muted-foreground dark:text-[hsl(30_33%_84%)]">{text.subtotal}</span>
+                    <Price value={total} locale={locale} currencyClassName="dark:text-[hsl(30_33%_84%)]" />
                   </div>
                   <div className="flex items-center justify-between border-t pt-3 text-lg font-black dark:border-white/10">
                     <span>{text.total}</span>
-                    <Price value={total} locale={locale} className="text-xl" currencyClassName="dark:text-[#cdb5a5]" />
+                    <Price value={total} locale={locale} className="text-xl" currencyClassName="dark:text-[hsl(30_33%_84%)]" />
                   </div>
                 </div>
                 <div className="space-y-3">

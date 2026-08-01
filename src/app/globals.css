@@ -7,18 +7,18 @@
     /* Golden Drip: espresso ink, warm cream paper, and roasted-gold accents. */
     --background: 30 33% 84%;
     --foreground: 15 62% 14%;
-    --card: 27 38% 86%;
+    --card: 30 33% 84%;
     --card-foreground: 15 62% 14%;
-    --popover: 27 38% 86%;
+    --popover: 30 33% 84%;
     --popover-foreground: 15 62% 14%;
     --primary: 16 53% 8%;
-    --primary-foreground: 27 38% 92%;
-    --secondary: 24 25% 84%;
+    --primary-foreground: 30 33% 84%;
+    --secondary: 30 33% 84%;
     --secondary-foreground: 15 62% 14%;
-    --muted: 24 22% 85%;
+    --muted: 30 33% 84%;
     --muted-foreground: 17 28% 35%;
     --accent: 31 72% 46%;
-    --accent-foreground: 27 38% 92%;
+    --accent-foreground: 30 33% 84%;
     --destructive: 0 84.2% 60.2%;
     --destructive-foreground: 0 0% 98%;
     --border: 23 22% 76%;
