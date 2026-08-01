@@ -191,7 +191,7 @@ export function AdminDataPage<T>({
                   <div
                     className={cn(
                       "mt-4 w-full max-w-2xl overflow-hidden rounded-md border bg-background shadow-[0_16px_40px_rgba(42,16,10,0.10)]",
-                      isArabicControls ? "ml-auto" : "mr-auto",
+                      isArabicControls ? "mr-auto" : "ml-auto",
                     )}
                   >
                     <div className={cn("flex items-center justify-between gap-3 border-b p-4", isArabicControls && "flex-row-reverse")}>
