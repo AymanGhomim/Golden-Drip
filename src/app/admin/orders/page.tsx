@@ -12,10 +12,17 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { mockOrders } from "@/mocks/orders.mock";
 import { useAdminLocale } from "@/providers/admin-locale-provider";
 import type { Order, OrderStatus, OrderType } from "@/types/order.types";
-import { Activity, CheckCircle2, Eye, ReceiptText, ShoppingBag, WalletCards, XCircle } from "lucide-react";
+import { Activity, Eye, ReceiptText, ShoppingBag, WalletCards, XCircle } from "lucide-react";
 import { useState } from "react";
 
 const statusStyle: Record<OrderStatus, string> = {
@@ -138,19 +145,9 @@ export default function OrdersPage() {
     0
   );
 
-  const nextStatusByStatus: Partial<Record<OrderStatus, OrderStatus>> = {
-    NEW: "PREPARING",
-    PREPARING: "READY",
-    READY: "COMPLETED",
-  };
-
-  function advanceOrder(orderId: string) {
+  function updateOrderStatus(orderId: string, status: OrderStatus) {
     setOrders((current) =>
-      current.map((order) => {
-        const nextStatus = nextStatusByStatus[order.status];
-
-        return order.id === orderId && nextStatus ? { ...order, status: nextStatus } : order;
-      })
+      current.map((order) => (order.id === orderId ? { ...order, status } : order))
     );
   }
 
@@ -213,10 +210,11 @@ export default function OrdersPage() {
     {
       key: "actions",
       header: actionText.actions,
-      headerClassName: "w-[136px] text-center",
-      cellClassName: "w-[136px]",
+      headerClassName: "w-[220px] text-center",
+      cellClassName: "w-[220px]",
       cell: (order: Order) => {
         const isFinished = order.status === "COMPLETED" || order.status === "CANCELLED";
+        const selectItemClassName = locale === "ar" ? "justify-end pl-2 pr-8 text-right [&>span]:left-auto [&>span]:right-2" : undefined;
 
         return (
           <div className="flex justify-center gap-2">
@@ -307,18 +305,24 @@ export default function OrdersPage() {
                 </div>
               </DialogContent>
             </Dialog>
-            <Button
-              type="button"
-              variant="outline"
-              size="icon"
-              className="h-8 w-8 border-emerald-300/60 text-emerald-700 hover:bg-emerald-50 hover:text-emerald-800 disabled:opacity-40"
-              onClick={() => advanceOrder(order.id)}
-              disabled={isFinished}
-              aria-label={actionText.advance}
-              title={actionText.advance}
+            <Select
+              value={order.status}
+              onValueChange={(value) => updateOrderStatus(order.id, value as OrderStatus)}
             >
-              <CheckCircle2 className="h-3.5 w-3.5" />
-            </Button>
+              <SelectTrigger
+                className="h-8 w-32 rounded-md border-emerald-300/60 bg-background px-2 text-xs font-bold text-emerald-800 shadow-sm"
+                aria-label={actionText.advance}
+              >
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent dir={locale === "ar" ? "rtl" : "ltr"}>
+                {Object.entries(orderStatusFilterLabels).map(([value, label]) => (
+                  <SelectItem key={value} value={value} className={selectItemClassName}>
+                    {label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
             <Button
               type="button"
               variant="outline"
