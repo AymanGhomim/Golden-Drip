@@ -7,6 +7,7 @@ import { useTheme } from "next-themes";
 import { Moon, ShoppingCart, Sun } from "lucide-react";
 
 import { AppLogo } from "@/components/shared/app-logo";
+import { ContactTicker } from "@/components/shared/contact-ticker";
 import { SocialLinks } from "@/components/shared/social-links";
 import { Button } from "@/components/ui/button";
 import { ROUTES } from "@/constants/routes";
@@ -103,6 +104,7 @@ export function SiteHeader({ locale, onLocaleChange }: SiteHeaderProps) {
           </Button>
         </div>
       </div>
+      <ContactTicker locale={locale} />
     </header>
   );
 }
