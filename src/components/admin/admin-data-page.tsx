@@ -232,7 +232,7 @@ export function AdminDataPage<T>({
                             <SelectContent dir={isArabicControls ? "rtl" : "ltr"}>
                               <SelectItem
                                 value="all"
-                                className={isArabicControls ? "justify-end pl-8 pr-2 text-right" : undefined}
+                                className={isArabicControls ? "justify-end pl-2 pr-8 text-right [&>span]:left-auto [&>span]:right-2" : undefined}
                               >
                                 {group.allLabel}
                               </SelectItem>
@@ -240,7 +240,7 @@ export function AdminDataPage<T>({
                                 <SelectItem
                                   key={filter.value}
                                   value={filter.value}
-                                  className={isArabicControls ? "justify-end pl-8 pr-2 text-right" : undefined}
+                                  className={isArabicControls ? "justify-end pl-2 pr-8 text-right [&>span]:left-auto [&>span]:right-2" : undefined}
                                 >
                                   {filter.label}
                                 </SelectItem>
