@@ -1,6 +1,6 @@
 "use client";
 
-import { Check, Search, SlidersHorizontal, Plus } from "lucide-react";
+import { Check, RotateCcw, Search, SlidersHorizontal, Plus, X } from "lucide-react";
 import { useMemo, useState } from "react";
 
 import { AdminShell } from "@/components/admin/admin-shell";
@@ -8,17 +8,14 @@ import { AdminStatCard, type AdminStatCardProps } from "@/components/admin/admin
 import { DataTable, type DataTableColumn } from "@/components/shared/data-table";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuGroup,
-  DropdownMenuItem,
-  DropdownMenuLabel,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
 import { Input } from "@/components/ui/input";
-import { cn } from "@/lib/utils";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 
 export type AdminStat = AdminStatCardProps;
 
@@ -79,6 +76,8 @@ export function AdminDataPage<T>({
 }: AdminDataPageProps<T>) {
   const [searchQuery, setSearchQuery] = useState("");
   const [activeFilters, setActiveFilters] = useState<Record<string, string>>({});
+  const [draftFilters, setDraftFilters] = useState<Record<string, string>>({});
+  const [isFilterPanelOpen, setIsFilterPanelOpen] = useState(false);
   const normalizedSearchQuery = searchQuery.trim().toLowerCase();
   const resolvedFilterGroups = useMemo(
     () =>
@@ -96,6 +95,11 @@ export function AdminDataPage<T>({
   );
   const hasControls = Boolean(searchValue) || resolvedFilterGroups.length > 0;
   const activeFilterCount = Object.values(activeFilters).filter((value) => value !== "all").length;
+  const filterTitle = filterLabel === "Filter" ? "Filter results" : "تصفية النتائج";
+  const filterDescription =
+    filterLabel === "Filter" ? "Choose what you need to reach results faster." : "اختر ما يناسبك للوصول للنتائج بسرعة.";
+  const applyFilterLabel = filterLabel === "Filter" ? "Apply filters" : "تطبيق التصفية";
+  const clearFilterLabel = filterLabel === "Filter" ? "Clear filters" : "مسح الفلاتر";
   const filteredData = useMemo(() => {
     return data.filter((item) => {
       const matchesSearch =
@@ -149,6 +153,7 @@ export function AdminDataPage<T>({
               <h2 className="text-sm font-semibold">{tableTitle}</h2>
               <p className="mt-1 text-xs text-muted-foreground">{tableDescription}</p>
               {hasControls ? (
+                <>
                 <div className="mt-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                   {searchValue ? (
                     <div className="relative w-full sm:max-w-sm">
@@ -162,67 +167,101 @@ export function AdminDataPage<T>({
                     </div>
                   ) : null}
                   {resolvedFilterGroups.length > 0 ? (
-                    <DropdownMenu>
-                      <DropdownMenuTrigger asChild>
-                        <Button
-                          type="button"
-                          variant="outline"
-                          className="h-10 w-full justify-center gap-2 rounded-md px-4 text-sm shadow-sm transition-all hover:-translate-y-0.5 hover:shadow-md sm:w-auto"
-                        >
-                          <SlidersHorizontal className="h-4 w-4" />
-                          {filterLabel}
-                          {activeFilterCount > 0 ? (
-                            <span className="flex h-5 min-w-5 items-center justify-center rounded-full bg-primary px-1.5 text-[0.68rem] font-bold text-primary-foreground">
-                              {activeFilterCount}
-                            </span>
-                          ) : null}
-                        </Button>
-                      </DropdownMenuTrigger>
-                      <DropdownMenuContent align="end" className="w-64 rounded-md p-2 shadow-lg">
-                        {resolvedFilterGroups.map((group, groupIndex) => {
-                          const activeValue = activeFilters[group.label] ?? "all";
-                          const options = [
-                            {
-                              label: group.allLabel,
-                              value: "all",
-                              predicate: undefined,
-                            },
-                            ...group.options,
-                          ];
-
-                          return (
-                            <DropdownMenuGroup key={group.label}>
-                              {groupIndex > 0 ? <DropdownMenuSeparator className="my-2" /> : null}
-                              <DropdownMenuLabel className="px-2 pb-1 pt-1 text-xs text-muted-foreground">
-                                {group.label}
-                              </DropdownMenuLabel>
-                              {options.map((filter) => (
-                                <DropdownMenuItem
-                                  key={filter.value}
-                                  className="flex cursor-pointer items-center justify-between gap-3 rounded-md px-2 py-2 text-sm"
-                                  onSelect={() =>
-                                    setActiveFilters((current) => ({
-                                      ...current,
-                                      [group.label]: filter.value,
-                                    }))
-                                  }
-                                >
-                                  <span>{filter.label}</span>
-                                  <Check
-                                    className={cn(
-                                      "h-4 w-4 text-primary transition-opacity",
-                                      activeValue === filter.value ? "opacity-100" : "opacity-0"
-                                    )}
-                                  />
-                                </DropdownMenuItem>
-                              ))}
-                            </DropdownMenuGroup>
-                          );
-                        })}
-                      </DropdownMenuContent>
-                    </DropdownMenu>
+                    <Button
+                      type="button"
+                      className="h-12 w-full justify-center gap-2 rounded-md bg-primary px-5 text-sm text-primary-foreground shadow-[0_8px_20px_rgba(42,16,10,0.18)] transition-all hover:-translate-y-0.5 hover:bg-primary/95 hover:shadow-[0_10px_24px_rgba(42,16,10,0.22)] sm:w-auto"
+                      onClick={() => {
+                        setDraftFilters(activeFilters);
+                        setIsFilterPanelOpen((open) => !open);
+                      }}
+                    >
+                      {filterLabel}
+                      <SlidersHorizontal className="h-4 w-4" />
+                      {activeFilterCount > 0 ? (
+                        <span className="flex h-5 min-w-5 items-center justify-center rounded-full bg-primary-foreground px-1.5 text-[0.68rem] font-bold text-primary">
+                          {activeFilterCount}
+                        </span>
+                      ) : null}
+                    </Button>
                   ) : null}
                 </div>
+                {isFilterPanelOpen && resolvedFilterGroups.length > 0 ? (
+                  <div className="mt-4 overflow-hidden rounded-md border bg-background shadow-[0_16px_40px_rgba(42,16,10,0.10)]">
+                    <div className="flex items-center justify-between gap-3 border-b p-4">
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="icon"
+                        className="h-8 w-8 text-muted-foreground"
+                        onClick={() => setIsFilterPanelOpen(false)}
+                        aria-label={filterLabel === "Filter" ? "Close filters" : "إغلاق الفلاتر"}
+                      >
+                        <X className="h-4 w-4" />
+                      </Button>
+                      <div className="text-right">
+                        <h3 className="text-sm font-semibold">{filterTitle}</h3>
+                        <p className="mt-1 text-xs text-muted-foreground">{filterDescription}</p>
+                      </div>
+                      <div className="flex h-10 w-10 items-center justify-center rounded-md bg-primary/10 text-primary">
+                        <SlidersHorizontal className="h-4 w-4" />
+                      </div>
+                    </div>
+                    <div className="grid gap-4 p-4 sm:grid-cols-2">
+                      {resolvedFilterGroups.map((group) => (
+                        <div key={group.label} className="space-y-2">
+                          <p className="text-xs font-medium text-foreground">{group.label}</p>
+                          <Select
+                            value={draftFilters[group.label] ?? "all"}
+                            onValueChange={(value) =>
+                              setDraftFilters((current) => ({
+                                ...current,
+                                [group.label]: value,
+                              }))
+                            }
+                          >
+                            <SelectTrigger className="h-12 rounded-md bg-card text-sm shadow-sm">
+                              <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="all">{group.allLabel}</SelectItem>
+                              {group.options.map((filter) => (
+                                <SelectItem key={filter.value} value={filter.value}>
+                                  {filter.label}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        </div>
+                      ))}
+                    </div>
+                    <div className="grid gap-3 border-t p-4 sm:grid-cols-[1fr_2.5fr]">
+                      <Button
+                        type="button"
+                        variant="outline"
+                        className="h-11 gap-2 rounded-md"
+                        onClick={() => {
+                          setDraftFilters({});
+                          setActiveFilters({});
+                        }}
+                      >
+                        <RotateCcw className="h-4 w-4" />
+                        {clearFilterLabel}
+                      </Button>
+                      <Button
+                        type="button"
+                        className="h-11 gap-2 rounded-md"
+                        onClick={() => {
+                          setActiveFilters(draftFilters);
+                          setIsFilterPanelOpen(false);
+                        }}
+                      >
+                        <Check className="h-4 w-4" />
+                        {applyFilterLabel}
+                      </Button>
+                    </div>
+                  </div>
+                ) : null}
+                </>
               ) : null}
             </div>
             <DataTable
