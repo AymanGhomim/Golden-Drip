@@ -2,6 +2,18 @@
 
 import Image from "next/image";
 import {
+  Area,
+  AreaChart,
+  Cell,
+  Pie,
+  PieChart,
+  ResponsiveContainer,
+  Tooltip,
+  XAxis,
+  YAxis,
+} from "recharts";
+
+import {
   ArrowDownRight,
   ArrowUpRight,
   Bell,
@@ -285,58 +297,82 @@ export default function AdminDashboardPage() {
 }
 
 function SalesLineChart({ locale }: { locale: "en" | "ar" }) {
-  const max = Math.max(...salesData.map((item) => item.value));
-  const points = salesData
-    .map((item, index) => {
-      const x = (index / (salesData.length - 1)) * 100;
-      const y = 100 - (item.value / max) * 86;
-      return `${x},${y}`;
-    })
-    .join(" ");
-
   return (
-    <div>
-      <svg viewBox="0 0 100 110" className="h-48 w-full overflow-visible">
-        <defs>
-          <linearGradient id="salesFill" x1="0" x2="0" y1="0" y2="1">
-            <stop offset="0%" stopColor="hsl(var(--accent))" stopOpacity="0.28" />
-            <stop offset="100%" stopColor="hsl(var(--accent))" stopOpacity="0" />
-          </linearGradient>
-        </defs>
-        <polyline points={`0,100 ${points} 100,100`} fill="url(#salesFill)" stroke="none" />
-        <polyline points={points} fill="none" stroke="hsl(var(--accent))" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" />
-        {salesData.map((item, index) => {
-          const x = (index / (salesData.length - 1)) * 100;
-          const y = 100 - (item.value / max) * 86;
-          return (
-            <g key={item.day}>
-              <circle cx={x} cy={y} r="2" fill="hsl(var(--background))" stroke="hsl(var(--accent))" strokeWidth="1.5" />
-              <text x={x} y="109" textAnchor="middle" className="fill-muted-foreground text-[3px]">
-                {locale === "ar" ? item.arDay.slice(0, 3) : item.day}
-              </text>
-            </g>
-          );
-        })}
-      </svg>
+    <div className="h-48 w-full">
+      <ResponsiveContainer width="100%" height="100%">
+        <AreaChart data={salesData} margin={{ left: -18, right: 8, top: 8, bottom: 0 }}>
+          <defs>
+            <linearGradient id="salesGradient" x1="0" x2="0" y1="0" y2="1">
+              <stop offset="0%" stopColor="hsl(var(--accent))" stopOpacity={0.35} />
+              <stop offset="100%" stopColor="hsl(var(--accent))" stopOpacity={0} />
+            </linearGradient>
+          </defs>
+          <XAxis
+            dataKey={locale === "ar" ? "arDay" : "day"}
+            axisLine={false}
+            tickLine={false}
+            tick={{ fontSize: 11, fill: "hsl(var(--muted-foreground))" }}
+          />
+          <YAxis
+            axisLine={false}
+            tickLine={false}
+            tick={{ fontSize: 11, fill: "hsl(var(--muted-foreground))" }}
+          />
+          <Tooltip
+            cursor={{ stroke: "hsl(var(--border))" }}
+            contentStyle={{
+              background: "hsl(var(--card))",
+              border: "1px solid hsl(var(--border))",
+              borderRadius: 8,
+              fontSize: 12,
+            }}
+            formatter={(value) => [`${Number(value).toLocaleString(locale === "ar" ? "ar-EG" : "en-US")} EGP`, "Sales"]}
+            labelFormatter={(_, payload) => payload?.[0]?.payload?.date ?? ""}
+          />
+          <Area
+            type="monotone"
+            dataKey="value"
+            stroke="hsl(var(--accent))"
+            strokeWidth={2.4}
+            fill="url(#salesGradient)"
+            activeDot={{ r: 4 }}
+          />
+        </AreaChart>
+      </ResponsiveContainer>
     </div>
   );
 }
 
 function SalesDonut() {
   return (
-    <div
-      className="mx-auto h-32 w-32 rounded-full"
-      style={{
-        background:
-          "conic-gradient(#f59e0b 0 34%, #38bdf8 34% 62%, #34d399 62% 80%, #f472b6 80% 100%)",
-      }}
-    >
-      <div className="flex h-full w-full items-center justify-center rounded-full p-5">
-        <div className="flex h-full w-full flex-col items-center justify-center rounded-full bg-card text-center">
-          <span className="text-xl font-black">100%</span>
-          <span className="text-xs text-muted-foreground">Sales</span>
-        </div>
-      </div>
+    <div className="mx-auto h-32 w-32">
+      <ResponsiveContainer width="100%" height="100%">
+        <PieChart>
+          <Pie
+            data={categorySales}
+            dataKey="value"
+            nameKey="label"
+            innerRadius={38}
+            outerRadius={62}
+            paddingAngle={3}
+            stroke="hsl(var(--card))"
+            strokeWidth={3}
+          >
+            {categorySales.map((entry) => (
+              <Cell key={entry.label} fill={entry.color} />
+            ))}
+          </Pie>
+          <Tooltip
+            contentStyle={{
+              background: "hsl(var(--card))",
+              border: "1px solid hsl(var(--border))",
+              borderRadius: 8,
+              fontSize: 12,
+            }}
+            formatter={(value) => [`${value}%`, "Share"]}
+          />
+        </PieChart>
+      </ResponsiveContainer>
     </div>
   );
 }
