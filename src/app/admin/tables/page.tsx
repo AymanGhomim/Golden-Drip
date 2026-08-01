@@ -63,14 +63,14 @@ export default function TablesPage() {
       ? {
           search: "Search tables",
           all: "All tables",
-          filter: "Filter tables",
+          filter: "Filter",
           noResults: "No tables found",
           noResultsDescription: "Try another search or filter.",
         }
       : {
           search: "ابحث في الترابيزات",
           all: "كل الترابيزات",
-          filter: "تصفية الترابيزات",
+          filter: "تصفية",
           noResults: "لا توجد ترابيزات",
           noResultsDescription: "جرب بحث أو تصفية مختلفة.",
         };

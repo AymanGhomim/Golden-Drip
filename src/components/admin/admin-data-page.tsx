@@ -1,6 +1,6 @@
 "use client";
 
-import { Search, SlidersHorizontal, Plus } from "lucide-react";
+import { Check, Search, SlidersHorizontal, Plus } from "lucide-react";
 import { useMemo, useState } from "react";
 
 import { AdminShell } from "@/components/admin/admin-shell";
@@ -8,14 +8,17 @@ import { AdminStatCard, type AdminStatCardProps } from "@/components/admin/admin
 import { DataTable, type DataTableColumn } from "@/components/shared/data-table";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
 import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuGroup,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import { Input } from "@/components/ui/input";
+import { cn } from "@/lib/utils";
 
 export type AdminStat = AdminStatCardProps;
 
@@ -92,6 +95,7 @@ export function AdminDataPage<T>({
     [allFilterLabel, filterGroups, filterLabel, filterOptions]
   );
   const hasControls = Boolean(searchValue) || resolvedFilterGroups.length > 0;
+  const activeFilterCount = Object.values(activeFilters).filter((value) => value !== "all").length;
   const filteredData = useMemo(() => {
     return data.filter((item) => {
       const matchesSearch =
@@ -158,33 +162,65 @@ export function AdminDataPage<T>({
                     </div>
                   ) : null}
                   {resolvedFilterGroups.length > 0 ? (
-                    <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-end">
-                      <SlidersHorizontal className="h-4 w-4 text-muted-foreground" />
-                      {resolvedFilterGroups.map((group) => (
-                        <Select
-                          key={group.label}
-                          value={activeFilters[group.label] ?? "all"}
-                          onValueChange={(value) =>
-                            setActiveFilters((current) => ({
-                              ...current,
-                              [group.label]: value,
-                            }))
-                          }
+                    <DropdownMenu>
+                      <DropdownMenuTrigger asChild>
+                        <Button
+                          type="button"
+                          variant="outline"
+                          className="h-10 w-full justify-center gap-2 rounded-md px-4 text-sm shadow-sm transition-all hover:-translate-y-0.5 hover:shadow-md sm:w-auto"
                         >
-                          <SelectTrigger className="h-10 rounded-md text-sm shadow-sm sm:min-w-44">
-                            <SelectValue aria-label={group.label} />
-                          </SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="all">{group.allLabel}</SelectItem>
-                            {group.options.map((filter) => (
-                              <SelectItem key={filter.value} value={filter.value}>
-                                {filter.label}
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                      ))}
-                    </div>
+                          <SlidersHorizontal className="h-4 w-4" />
+                          {filterLabel}
+                          {activeFilterCount > 0 ? (
+                            <span className="flex h-5 min-w-5 items-center justify-center rounded-full bg-primary px-1.5 text-[0.68rem] font-bold text-primary-foreground">
+                              {activeFilterCount}
+                            </span>
+                          ) : null}
+                        </Button>
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent align="end" className="w-64 rounded-md p-2 shadow-lg">
+                        {resolvedFilterGroups.map((group, groupIndex) => {
+                          const activeValue = activeFilters[group.label] ?? "all";
+                          const options = [
+                            {
+                              label: group.allLabel,
+                              value: "all",
+                              predicate: undefined,
+                            },
+                            ...group.options,
+                          ];
+
+                          return (
+                            <DropdownMenuGroup key={group.label}>
+                              {groupIndex > 0 ? <DropdownMenuSeparator className="my-2" /> : null}
+                              <DropdownMenuLabel className="px-2 pb-1 pt-1 text-xs text-muted-foreground">
+                                {group.label}
+                              </DropdownMenuLabel>
+                              {options.map((filter) => (
+                                <DropdownMenuItem
+                                  key={filter.value}
+                                  className="flex cursor-pointer items-center justify-between gap-3 rounded-md px-2 py-2 text-sm"
+                                  onSelect={() =>
+                                    setActiveFilters((current) => ({
+                                      ...current,
+                                      [group.label]: filter.value,
+                                    }))
+                                  }
+                                >
+                                  <span>{filter.label}</span>
+                                  <Check
+                                    className={cn(
+                                      "h-4 w-4 text-primary transition-opacity",
+                                      activeValue === filter.value ? "opacity-100" : "opacity-0"
+                                    )}
+                                  />
+                                </DropdownMenuItem>
+                              ))}
+                            </DropdownMenuGroup>
+                          );
+                        })}
+                      </DropdownMenuContent>
+                    </DropdownMenu>
                   ) : null}
                 </div>
               ) : null}

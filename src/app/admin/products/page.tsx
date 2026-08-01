@@ -71,7 +71,7 @@ export default function ProductsPage() {
           avg: "Average price",
           search: "Search products",
           all: "All products",
-          filter: "Filter products",
+          filter: "Filter",
           noResults: "No products found",
           noResultsDescription: "Try another search or filter.",
         }
@@ -94,7 +94,7 @@ export default function ProductsPage() {
           avg: "متوسط السعر",
           search: "ابحث في المنتجات",
           all: "كل المنتجات",
-          filter: "تصفية المنتجات",
+          filter: "تصفية",
           noResults: "لا توجد منتجات",
           noResultsDescription: "جرب بحث أو تصفية مختلفة.",
         };

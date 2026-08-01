@@ -71,14 +71,14 @@ export default function CategoriesPage() {
       ? {
           search: "Search categories",
           all: "All categories",
-          filter: "Filter categories",
+          filter: "Filter",
           noResults: "No categories found",
           noResultsDescription: "Try another search or filter.",
         }
       : {
           search: "ابحث في الأقسام",
           all: "كل الأقسام",
-          filter: "تصفية الأقسام",
+          filter: "تصفية",
           noResults: "لا توجد أقسام",
           noResultsDescription: "جرب بحث أو تصفية مختلفة.",
         };

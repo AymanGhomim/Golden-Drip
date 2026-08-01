@@ -62,14 +62,14 @@ export default function OffersPage() {
       ? {
           search: "Search offers",
           all: "All offers",
-          filter: "Filter offers",
+          filter: "Filter",
           noResults: "No offers found",
           noResultsDescription: "Try another search or filter.",
         }
       : {
           search: "ابحث في العروض",
           all: "كل العروض",
-          filter: "تصفية العروض",
+          filter: "تصفية",
           noResults: "لا توجد عروض",
           noResultsDescription: "جرب بحث أو تصفية مختلفة.",
         };

@@ -102,14 +102,14 @@ export default function OrdersPage() {
       ? {
           search: "Search orders",
           all: "All orders",
-          filter: "Filter orders",
+          filter: "Filter",
           noResults: "No orders found",
           noResultsDescription: "Try another search or filter.",
         }
       : {
           search: "ابحث في الطلبات",
           all: "كل الطلبات",
-          filter: "تصفية الطلبات",
+          filter: "تصفية",
           noResults: "لا توجد طلبات",
           noResultsDescription: "جرب بحث أو تصفية مختلفة.",
         };
