@@ -14,17 +14,18 @@ export function ContactTicker({ locale }: { locale: Locale }) {
     { key: "address", icon: MapPin, text: addressLabel },
     ...phoneNumbers.map((phone) => ({ key: phone, icon: Phone, text: phone })),
   ];
+  const tickerItems = [...items, ...items, ...items];
 
   return (
     <div className="overflow-hidden border-t bg-accent/10 text-foreground">
       <div
         className={cn(
-          "flex w-max items-center gap-8 py-2",
+          "flex w-max min-w-full items-center gap-8 py-2",
           locale === "ar" ? "contact-ticker-rtl" : "contact-ticker-ltr",
         )}
       >
-        {items.map(({ key, icon: Icon, text }) => (
-          <div key={key} className="flex shrink-0 items-center gap-2 px-2 text-xs font-bold sm:text-sm">
+        {tickerItems.map(({ key, icon: Icon, text }, index) => (
+          <div key={`${key}-${index}`} className="flex shrink-0 items-center gap-2 px-2 text-xs font-bold sm:text-sm">
             <span className="flex h-7 w-7 items-center justify-center rounded-full bg-card text-accent shadow-sm">
               <Icon className="h-3.5 w-3.5" />
             </span>
