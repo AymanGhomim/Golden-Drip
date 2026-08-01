@@ -91,10 +91,8 @@ export default function CartPage() {
           orderType: "Order type",
           delivery: "Delivery",
           takeaway: "Take away",
-          tableOrder: "Table order",
           tablePrefix: "Table",
           tableFallback: "Scanned table",
-          chooseExternal: "Choose only if the order is not from the table.",
           customerInfo: "Customer details",
           name: "Name",
           phone: "Phone number",
@@ -124,16 +122,12 @@ export default function CartPage() {
   const tableText =
     locale === "en"
       ? {
-          tableOrder: "Table order",
           tablePrefix: "Table",
           tableFallback: "Scanned table",
-          chooseExternal: "Choose only if the order is not from the table.",
         }
       : {
-          tableOrder: "طلب من الترابيزة",
           tablePrefix: "ترابيزة",
           tableFallback: "الترابيزة الممسوحة",
-          chooseExternal: "اختار فقط لو الطلب مش من الترابيزة.",
         };
   const total = items.reduce((sum, item) => sum + item.price * item.quantity, 0);
   const totalItems = items.reduce((sum, item) => sum + item.quantity, 0);
@@ -300,18 +294,12 @@ export default function CartPage() {
                     <p className="text-sm font-bold">{orderText.orderType}</p>
                   </div>
                   {orderType === null ? (
-                    <div className="rounded-md border border-accent/25 bg-accent/8 p-3 text-sm">
-                      <div className="flex items-center justify-between gap-3">
-                        <span className="font-bold">{tableText.tableOrder}</span>
-                        <span className="rounded-full bg-background px-3 py-1 text-xs font-black shadow-sm">
-                          {scannedTableNumber
-                            ? `${tableText.tablePrefix} #${scannedTableNumber}`
-                            : tableText.tableFallback}
-                        </span>
-                      </div>
-                      <p className="mt-2 text-xs leading-5 text-muted-foreground">
-                        {tableText.chooseExternal}
-                      </p>
+                    <div className="flex items-center justify-center rounded-md border border-accent/25 bg-accent/8 p-3 text-sm">
+                      <span className="rounded-full bg-background px-4 py-1.5 text-xs font-black shadow-sm">
+                        {scannedTableNumber
+                          ? `${tableText.tablePrefix} #${scannedTableNumber}`
+                          : tableText.tableFallback}
+                      </span>
                     </div>
                   ) : null}
                   <div className="grid grid-cols-2 gap-2">
