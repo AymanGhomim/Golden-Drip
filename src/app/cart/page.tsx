@@ -3,7 +3,7 @@
 import Image from "next/image";
 import Link from "next/link";
 import { useEffect, useState } from "react";
-import { Banknote, CreditCard, Minus, Plus, ReceiptText, ShoppingBag, Trash2 } from "lucide-react";
+import { Banknote, CreditCard, Minus, Plus, ShoppingBag, Trash2 } from "lucide-react";
 
 import { BackButtonRow } from "@/components/shared/back-button-row";
 import { Price } from "@/components/shared/price";
@@ -77,26 +77,6 @@ export default function CartPage() {
       <BackButtonRow locale={locale} />
 
       <section className="animate-content-enter mx-auto w-full max-w-6xl px-4 pb-28 pt-3 sm:px-6 sm:py-8">
-        <div className="mb-5 overflow-hidden rounded-md border bg-card text-foreground shadow-sm dark:border-[#3d2014] dark:bg-[#21100a] dark:text-[#fff5ee] dark:shadow-[0_22px_60px_rgba(33,16,10,0.22)]">
-          <div className="relative p-5 sm:p-7">
-            <div className="absolute inset-x-0 top-0 h-1 bg-gradient-to-r from-accent via-[#d6a15c] to-accent" />
-            <div className="flex items-center justify-between gap-4">
-              <div>
-                <p className="mb-2 w-fit rounded-full border bg-muted px-2.5 py-1 text-[0.68rem] font-bold text-muted-foreground backdrop-blur dark:border-white/15 dark:bg-white/10 dark:text-[#f5ddc9]">
-                {text.items}: {totalItems}
-              </p>
-                <h1 className="text-3xl font-black tracking-tight sm:text-5xl">{text.title}</h1>
-                <p className="mt-2 max-w-2xl text-sm leading-6 text-muted-foreground sm:text-base dark:text-[#d8c0ad]">
-                {text.subtitle}
-              </p>
-              </div>
-              <div className="hidden h-16 w-16 shrink-0 items-center justify-center rounded-md border bg-accent/10 text-accent sm:flex dark:border-white/10 dark:bg-white/10">
-                <ReceiptText className="h-8 w-8" />
-              </div>
-            </div>
-          </div>
-        </div>
-
         {items.length === 0 ? (
           <Card className="overflow-hidden rounded-md border-[#3d2014]/20 bg-card shadow-sm">
             <CardContent className="flex flex-col items-center px-5 py-12 text-center sm:px-8 sm:py-14">
