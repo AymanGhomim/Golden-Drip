@@ -153,7 +153,7 @@ export default function ProductsPage() {
               {text.add}
             </Button>
           </DialogTrigger>
-          <DialogContent className="max-w-2xl rounded-md">
+          <DialogContent className="max-w-2xl rounded-md" dir={locale === "ar" ? "rtl" : "ltr"}>
             <DialogHeader>
               <DialogTitle>{formText.title}</DialogTitle>
               <DialogDescription>{formText.description}</DialogDescription>
