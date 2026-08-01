@@ -179,7 +179,7 @@ export default function ProductsPage() {
                 <div className="space-y-2">
                   <Label>{text.category}</Label>
                   <Select name="categoryId" required>
-                    <SelectTrigger>
+                    <SelectTrigger className={locale === "ar" ? "flex-row-reverse" : undefined}>
                       <SelectValue placeholder={formText.categoryPlaceholder} />
                     </SelectTrigger>
                     <SelectContent>
@@ -203,7 +203,7 @@ export default function ProductsPage() {
               <div className="space-y-2">
                 <Label>{formText.availability}</Label>
                 <Select name="isAvailable" defaultValue="available">
-                  <SelectTrigger>
+                  <SelectTrigger className={locale === "ar" ? "flex-row-reverse" : undefined}>
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
