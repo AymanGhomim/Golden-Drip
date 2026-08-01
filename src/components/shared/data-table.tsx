@@ -47,12 +47,15 @@ export function DataTable<T>({
   }
 
   return (
-    <div className={cn("rounded-md border", className)}>
+    <div className={cn("overflow-hidden rounded-md border bg-card", className)}>
       <Table className="text-xs">
-        <TableHeader>
+        <TableHeader className="bg-muted/45">
           <TableRow>
             {columns.map((col) => (
-              <TableHead key={col.key} className={cn("h-10 px-3", col.className)}>
+              <TableHead
+                key={col.key}
+                className={cn("h-9 px-3 text-[0.68rem] font-bold uppercase tracking-[0.08em]", col.className)}
+              >
                 {col.header}
               </TableHead>
             ))}
@@ -62,7 +65,7 @@ export function DataTable<T>({
           {data.map((item) => (
             <TableRow key={keyExtractor(item)}>
               {columns.map((col) => (
-                <TableCell key={col.key} className={cn("px-3 py-3", col.className)}>
+                <TableCell key={col.key} className={cn("px-3 py-2.5 align-middle", col.className)}>
                   {col.cell(item)}
                 </TableCell>
               ))}

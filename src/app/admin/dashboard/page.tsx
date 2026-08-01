@@ -25,6 +25,7 @@ import {
 } from "lucide-react";
 
 import { AdminShell } from "@/components/admin/admin-shell";
+import { DataTable, type DataTableColumn } from "@/components/shared/data-table";
 import { Price } from "@/components/shared/price";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -90,6 +91,9 @@ export default function AdminDashboardPage() {
         topProducts: "أكثر المنتجات مبيعًا",
         ordered: "مرة طلب",
         table: "ترابيزة",
+        order: "الطلب",
+        total: "الإجمالي",
+        status: "الحالة",
       }
     : {
         headerTitle: "Good day, Golden Drip",
@@ -112,12 +116,41 @@ export default function AdminDashboardPage() {
         topProducts: "Top selling products",
         ordered: "orders",
         table: "Table",
+        order: "Order",
+        total: "Total",
+        status: "Status",
       };
 
   const availableProducts = mockProducts.filter((product) => product.isAvailable).length;
   const unavailableProducts = mockProducts.length - availableProducts;
   const salesToday = salesData[salesData.length - 1].value;
   const netProfit = 1480;
+  const recentOrderColumns: DataTableColumn<(typeof mockRecentOrders)[number]>[] = [
+    {
+      key: "order",
+      header: text.order,
+      cell: (order) => <span className="font-semibold">{order.orderNumber}</span>,
+    },
+    {
+      key: "table",
+      header: text.table,
+      cell: (order) => (
+        <span className="text-muted-foreground">
+          {text.table} {order.tableNumber}
+        </span>
+      ),
+    },
+    {
+      key: "total",
+      header: text.total,
+      cell: (order) => <Price value={order.total} locale={locale} />,
+    },
+    {
+      key: "status",
+      header: text.status,
+      cell: (order) => <Badge className={statusStyle[order.status]}>{order.status}</Badge>,
+    },
+  ];
 
   const stats = [
     {
@@ -243,16 +276,12 @@ export default function AdminDashboardPage() {
                 </div>
                 <Button variant="ghost" size="sm" className="h-8 px-2 text-xs">{text.viewAll}</Button>
               </div>
-              <div className="divide-y">
-                {mockRecentOrders.map((order) => (
-                  <div key={order.id} className="grid gap-2 p-4 text-xs sm:grid-cols-[1fr_auto_auto_auto] sm:items-center">
-                    <p className="font-medium">{order.orderNumber}</p>
-                    <p className="text-xs text-muted-foreground">{text.table} {order.tableNumber}</p>
-                    <Price value={order.total} locale={locale} />
-                    <Badge className={statusStyle[order.status]}>{order.status}</Badge>
-                  </div>
-                ))}
-              </div>
+              <DataTable
+                columns={recentOrderColumns}
+                data={mockRecentOrders}
+                keyExtractor={(order) => order.id}
+                className="rounded-none border-0"
+              />
             </CardContent>
           </Card>
 
