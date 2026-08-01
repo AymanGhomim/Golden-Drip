@@ -314,16 +314,7 @@ export default function CartPage() {
                       </p>
                     </div>
                   ) : null}
-                  <div className="grid gap-2 sm:grid-cols-3">
-                    <Button
-                      type="button"
-                      variant={orderType === null ? "default" : "outline"}
-                      className="h-11 gap-2 rounded-md text-xs font-bold"
-                      onClick={() => setOrderType(null)}
-                    >
-                      <PackageCheck className="h-4 w-4" />
-                      {tableText.tableOrder}
-                    </Button>
+                  <div className="grid grid-cols-2 gap-2">
                     <Button
                       type="button"
                       variant={orderType === "delivery" ? "default" : "outline"}
