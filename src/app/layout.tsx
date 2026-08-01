@@ -13,6 +13,11 @@ const cairo = Cairo({
 export const metadata: Metadata = {
   title: "Golden Drip Café - نظام الطلبات الذكي",
   description: "منيو وطلبات Golden Drip Café عبر QR Code",
+  icons: {
+    icon: "/logo-transparent.png",
+    shortcut: "/logo-transparent.png",
+    apple: "/logo-transparent.png",
+  },
 };
 
 export default function RootLayout({
