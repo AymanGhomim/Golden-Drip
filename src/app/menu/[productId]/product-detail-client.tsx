@@ -7,6 +7,7 @@ import { Coffee, Minus, Plus, ShoppingCart } from "lucide-react";
 import { BackButtonRow } from "@/components/shared/back-button-row";
 import { Price } from "@/components/shared/price";
 import { SiteHeader } from "@/components/shared/site-header";
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
   menuCopy,
@@ -57,101 +58,86 @@ export function ProductDetailClient({ product }: { product: Product }) {
       <SiteHeader locale={locale} onLocaleChange={setLocale} />
       <BackButtonRow locale={locale} />
 
-      <section className="animate-content-enter mx-auto w-full max-w-6xl px-4 pb-28 pt-3 sm:px-6 sm:py-8">
-        <div className="overflow-hidden rounded-md border bg-card shadow-sm lg:grid lg:grid-cols-[1.05fr_0.95fr]">
-          <div className="animate-image-enter relative bg-muted">
+      <section className="animate-content-enter mx-auto grid w-full max-w-6xl gap-6 px-4 py-8 lg:grid-cols-[1fr_22rem] sm:px-6">
+        <div className="animate-image-enter relative min-h-[26rem] overflow-hidden rounded-md border bg-muted shadow-sm">
+          <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 bg-gradient-to-br from-[#32170d] via-[#6f513c] to-[#b49a80] text-white">
+            <Coffee className="h-12 w-12 text-white/80" />
+            <span className="max-w-48 text-center text-sm font-bold leading-6 text-white/85">
+              {text.name}
+            </span>
+          </div>
             {product.image && !imageFailed ? (
               <Image
                 src={product.image}
                 alt={text.name}
-                width={1200}
-                height={900}
-                sizes="(min-width: 1024px) 54vw, 100vw"
-                className="h-80 w-full object-cover sm:h-[32rem] lg:h-full lg:min-h-[34rem]"
+                fill
+                sizes="(min-width: 1024px) 1152px, 100vw"
+                className="object-cover"
                 priority
                 onError={() => setImageFailed(true)}
               />
-            ) : (
-              <div className="flex h-80 flex-col items-center justify-center gap-3 bg-gradient-to-br from-[#32170d] via-[#6f513c] to-[#b49a80] text-white sm:h-[32rem] lg:h-full lg:min-h-[34rem]">
-                <Coffee className="h-12 w-12 text-white/80" />
-                <span className="max-w-48 text-center text-sm font-bold leading-6 text-white/85">
-                  {text.name}
-                </span>
-              </div>
-            )}
-            <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-black/28 via-transparent to-black/8" />
-            <Price
-              value={product.price}
-              locale={locale}
-              className="absolute right-3 top-3 rounded-full border border-white/35 bg-white/18 px-3 py-1.5 text-sm font-black text-white shadow-[0_10px_24px_rgba(0,0,0,0.18)] backdrop-blur-md"
-              currencyClassName="text-white/75"
-            />
-          </div>
-
-          <div className="p-4 sm:p-6 lg:p-8">
-            <div className="flex h-full flex-col justify-center space-y-6">
-              <div className="space-y-3">
-                <p className="w-fit rounded-full border bg-muted px-2.5 py-1 text-[0.68rem] font-bold text-muted-foreground">
+            ) : null}
+          <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/40 to-black/10" />
+          <div className="absolute inset-x-0 bottom-0 p-6 text-white sm:p-8">
+            <div className="max-w-2xl space-y-4">
+              <Badge className="gap-2 border-white/30 bg-white/20 text-white backdrop-blur-sm hover:bg-white/20">
+                <Coffee className="h-4 w-4" />
                   {categoryName}
-                </p>
-                <div className="flex items-start justify-between gap-3">
-                  <h1 className="text-2xl font-black leading-tight sm:text-4xl">
+              </Badge>
+              <div className="space-y-3">
+                <h1 className="text-3xl font-bold tracking-tight drop-shadow-sm sm:text-5xl">
                     {text.name}
-                  </h1>
-                  <Price
-                    value={product.price}
-                    locale={locale}
-                    className="shrink-0 rounded-full border bg-muted px-2.5 py-1 text-sm font-black text-foreground"
-                  />
-                </div>
-                <p className="text-sm leading-7 text-muted-foreground sm:text-base sm:leading-8">
+                </h1>
+                <p className="max-w-xl text-base leading-8 text-white/90 drop-shadow-sm sm:text-lg">
                   {text.description}
                 </p>
+                <Price
+                  value={product.price}
+                  locale={locale}
+                  className="w-fit rounded-full border border-white/30 bg-white/18 px-3 py-1.5 text-2xl font-black text-white shadow-[0_10px_24px_rgba(0,0,0,0.2)] backdrop-blur-md"
+                  currencyClassName="text-white/75"
+                />
               </div>
+            </div>
+          </div>
+        </div>
 
-              <div className="rounded-md border bg-background/60 p-3.5 sm:p-4">
-                <div className="mb-3 flex items-center justify-between">
-                  <span className="text-sm font-bold">{copy.quantity}</span>
-                  <span className="rounded-full bg-muted px-2 py-0.5 text-xs font-semibold text-muted-foreground">
-                    x{quantity}
-                  </span>
-                </div>
-                <div className="flex h-11 items-center justify-between overflow-hidden rounded-md border border-accent/30 bg-accent/8">
-                  <Button
-                    type="button"
-                    size="icon"
-                    variant="ghost"
-                    className="h-11 w-12 rounded-none transition-colors hover:bg-accent hover:text-accent-foreground"
-                    onClick={() => setQuantity((value) => Math.max(1, value - 1))}
-                    aria-label="Decrease quantity"
-                  >
-                    <Minus className="h-4 w-4" />
-                  </Button>
-                  <span className="min-w-12 text-center text-lg font-black">{quantity}</span>
-                  <Button
-                    type="button"
-                    size="icon"
-                    variant="ghost"
-                    className="h-11 w-12 rounded-none transition-colors hover:bg-accent hover:text-accent-foreground"
-                    onClick={() => setQuantity((value) => value + 1)}
-                    aria-label="Increase quantity"
-                  >
-                    <Plus className="h-4 w-4" />
-                  </Button>
-                </div>
-              </div>
-
+        <div className="h-fit space-y-4 rounded-md border bg-card p-5 shadow-sm">
+          <div className="flex items-center justify-between">
+            <span className="font-semibold">{copy.quantity}</span>
+            <div className="flex items-center gap-3">
               <Button
                 type="button"
-                size="lg"
-                className="h-12 w-full gap-2 rounded-md bg-[#21100a] font-bold text-[#fff5ee] shadow-sm transition-all hover:-translate-y-0.5 hover:bg-[#2f170e] dark:bg-[#b9a58f] dark:text-[#1b0d08] dark:hover:bg-[#c7b39d]"
-                onClick={addToCart}
+                size="icon"
+                variant="outline"
+                className="transition-colors hover:bg-accent hover:text-accent-foreground"
+                onClick={() => setQuantity((value) => Math.max(1, value - 1))}
+                aria-label="Decrease quantity"
               >
-                <ShoppingCart className="h-5 w-5" />
-                {copy.addToCart}
+                <Minus className="h-4 w-4" />
+              </Button>
+              <span className="min-w-6 text-center text-lg font-bold">{quantity}</span>
+              <Button
+                type="button"
+                size="icon"
+                variant="outline"
+                className="transition-colors hover:bg-accent hover:text-accent-foreground"
+                onClick={() => setQuantity((value) => value + 1)}
+                aria-label="Increase quantity"
+              >
+                <Plus className="h-4 w-4" />
               </Button>
             </div>
           </div>
+          <Button
+            type="button"
+            size="lg"
+            className="w-full gap-2 rounded-md bg-[#21100a] font-bold text-[#fff5ee] shadow-sm transition-all hover:-translate-y-0.5 hover:bg-[#2f170e] dark:bg-[#b9a58f] dark:text-[#1b0d08] dark:hover:bg-[#c7b39d]"
+            onClick={addToCart}
+          >
+            <ShoppingCart className="h-5 w-5" />
+            {copy.addToCart}
+          </Button>
         </div>
       </section>
     </main>
