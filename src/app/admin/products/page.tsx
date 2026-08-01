@@ -69,6 +69,11 @@ export default function ProductsPage() {
           available: "Available",
           categories: "Categories used",
           avg: "Average price",
+          search: "Search products",
+          all: "All products",
+          filter: "Filter products",
+          noResults: "No products found",
+          noResultsDescription: "Try another search or filter.",
         }
       : {
           eyebrow: "إدارة جولدن دريب",
@@ -87,6 +92,11 @@ export default function ProductsPage() {
           available: "متاح",
           categories: "أقسام مستخدمة",
           avg: "متوسط السعر",
+          search: "ابحث في المنتجات",
+          all: "كل المنتجات",
+          filter: "تصفية المنتجات",
+          noResults: "لا توجد منتجات",
+          noResultsDescription: "جرب بحث أو تصفية مختلفة.",
         };
   const formText =
     locale === "en"
@@ -446,6 +456,34 @@ export default function ProductsPage() {
       columns={columns}
       data={products}
       keyExtractor={(product) => product.id}
+      searchPlaceholder={text.search}
+      searchValue={(product) => {
+        const categoryName =
+          mockCategories.find((category) => category.id === product.categoryId)?.name ?? "";
+
+        return `${product.name} ${product.description} ${categoryName}`;
+      }}
+      filterLabel={text.filter}
+      allFilterLabel={text.all}
+      filterOptions={[
+        {
+          label: text.active,
+          value: "available",
+          predicate: (product) => product.isAvailable,
+        },
+        {
+          label: text.hidden,
+          value: "hidden",
+          predicate: (product) => !product.isAvailable,
+        },
+        ...mockCategories.map((category) => ({
+          label: category.name,
+          value: category.id,
+          predicate: (product: Product) => product.categoryId === category.id,
+        })),
+      ]}
+      emptyMessage={text.noResults}
+      emptyDescription={text.noResultsDescription}
     />
   );
 }

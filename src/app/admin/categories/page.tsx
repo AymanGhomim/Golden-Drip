@@ -66,6 +66,22 @@ export default function CategoriesPage() {
       ),
     },
   ];
+  const controlsText =
+    locale === "en"
+      ? {
+          search: "Search categories",
+          all: "All categories",
+          filter: "Filter categories",
+          noResults: "No categories found",
+          noResultsDescription: "Try another search or filter.",
+        }
+      : {
+          search: "ابحث في الأقسام",
+          all: "كل الأقسام",
+          filter: "تصفية الأقسام",
+          noResults: "لا توجد أقسام",
+          noResultsDescription: "جرب بحث أو تصفية مختلفة.",
+        };
 
   return (
     <AdminDataPage
@@ -84,6 +100,24 @@ export default function CategoriesPage() {
       columns={columns}
       data={mockCategories}
       keyExtractor={(category) => category.id}
+      searchPlaceholder={controlsText.search}
+      searchValue={(category) => category.name}
+      filterLabel={controlsText.filter}
+      allFilterLabel={controlsText.all}
+      filterOptions={[
+        {
+          label: text.active,
+          value: "active",
+          predicate: (category) => category.isActive,
+        },
+        {
+          label: text.hidden,
+          value: "hidden",
+          predicate: (category) => !category.isActive,
+        },
+      ]}
+      emptyMessage={controlsText.noResults}
+      emptyDescription={controlsText.noResultsDescription}
     />
   );
 }

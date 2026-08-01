@@ -57,6 +57,22 @@ export default function OffersPage() {
   const bestDiscount = Math.max(
     ...mockOffers.map((offer) => offer.originalPrice - offer.price)
   );
+  const controlsText =
+    locale === "en"
+      ? {
+          search: "Search offers",
+          all: "All offers",
+          filter: "Filter offers",
+          noResults: "No offers found",
+          noResultsDescription: "Try another search or filter.",
+        }
+      : {
+          search: "ابحث في العروض",
+          all: "كل العروض",
+          filter: "تصفية العروض",
+          noResults: "لا توجد عروض",
+          noResultsDescription: "جرب بحث أو تصفية مختلفة.",
+        };
 
   const columns = [
     {
@@ -114,6 +130,24 @@ export default function OffersPage() {
       columns={columns}
       data={mockOffers}
       keyExtractor={(offer) => offer.id}
+      searchPlaceholder={controlsText.search}
+      searchValue={(offer) => `${offer.title} ${offer.description}`}
+      filterLabel={controlsText.filter}
+      allFilterLabel={controlsText.all}
+      filterOptions={[
+        {
+          label: text.activeLabel,
+          value: "active",
+          predicate: (offer) => offer.isActive,
+        },
+        {
+          label: text.hiddenLabel,
+          value: "hidden",
+          predicate: (offer) => !offer.isActive,
+        },
+      ]}
+      emptyMessage={controlsText.noResults}
+      emptyDescription={controlsText.noResultsDescription}
     />
   );
 }

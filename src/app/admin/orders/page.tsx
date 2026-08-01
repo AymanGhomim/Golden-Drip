@@ -97,6 +97,22 @@ export default function OrdersPage() {
       cell: (order: Order) => <Price value={order.total} locale={locale} />,
     },
   ];
+  const controlsText =
+    locale === "en"
+      ? {
+          search: "Search orders",
+          all: "All orders",
+          filter: "Filter orders",
+          noResults: "No orders found",
+          noResultsDescription: "Try another search or filter.",
+        }
+      : {
+          search: "ابحث في الطلبات",
+          all: "كل الطلبات",
+          filter: "تصفية الطلبات",
+          noResults: "لا توجد طلبات",
+          noResultsDescription: "جرب بحث أو تصفية مختلفة.",
+        };
 
   return (
     <AdminDataPage
@@ -114,6 +130,43 @@ export default function OrdersPage() {
       columns={columns}
       data={mockOrders}
       keyExtractor={(order) => order.id}
+      searchPlaceholder={controlsText.search}
+      searchValue={(order) =>
+        `${order.orderNumber} ${order.tableNumber} ${order.status} ${order.items
+          .map((item) => `${item.productName} ${item.notes ?? ""}`)
+          .join(" ")}`
+      }
+      filterLabel={controlsText.filter}
+      allFilterLabel={controlsText.all}
+      filterOptions={[
+        {
+          label: "NEW",
+          value: "NEW",
+          predicate: (order) => order.status === "NEW",
+        },
+        {
+          label: "PREPARING",
+          value: "PREPARING",
+          predicate: (order) => order.status === "PREPARING",
+        },
+        {
+          label: "READY",
+          value: "READY",
+          predicate: (order) => order.status === "READY",
+        },
+        {
+          label: "COMPLETED",
+          value: "COMPLETED",
+          predicate: (order) => order.status === "COMPLETED",
+        },
+        {
+          label: "CANCELLED",
+          value: "CANCELLED",
+          predicate: (order) => order.status === "CANCELLED",
+        },
+      ]}
+      emptyMessage={controlsText.noResults}
+      emptyDescription={controlsText.noResultsDescription}
     />
   );
 }

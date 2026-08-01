@@ -58,6 +58,22 @@ export default function TablesPage() {
       ),
     },
   ];
+  const controlsText =
+    locale === "en"
+      ? {
+          search: "Search tables",
+          all: "All tables",
+          filter: "Filter tables",
+          noResults: "No tables found",
+          noResultsDescription: "Try another search or filter.",
+        }
+      : {
+          search: "ابحث في الترابيزات",
+          all: "كل الترابيزات",
+          filter: "تصفية الترابيزات",
+          noResults: "لا توجد ترابيزات",
+          noResultsDescription: "جرب بحث أو تصفية مختلفة.",
+        };
 
   return (
     <AdminDataPage
@@ -76,6 +92,24 @@ export default function TablesPage() {
       columns={columns}
       data={mockTables}
       keyExtractor={(table) => table.id}
+      searchPlaceholder={controlsText.search}
+      searchValue={(table) => `${table.number} ${table.qrCode}`}
+      filterLabel={controlsText.filter}
+      allFilterLabel={controlsText.all}
+      filterOptions={[
+        {
+          label: text.active,
+          value: "active",
+          predicate: (table) => table.isActive,
+        },
+        {
+          label: text.disabled,
+          value: "disabled",
+          predicate: (table) => !table.isActive,
+        },
+      ]}
+      emptyMessage={controlsText.noResults}
+      emptyDescription={controlsText.noResultsDescription}
     />
   );
 }
