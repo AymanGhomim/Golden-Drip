@@ -168,7 +168,11 @@ export default function OrdersPage() {
     {
       key: "table",
       header: text.table,
-      cell: (order: Order) => <span className="font-semibold">#{order.tableNumber}</span>,
+      cell: (order: Order) => (
+        <span className="font-semibold">
+          {order.orderType === "TABLE" ? `#${order.tableNumber}` : "-"}
+        </span>
+      ),
     },
     {
       key: "type",
@@ -240,7 +244,9 @@ export default function OrdersPage() {
                   <div className="grid gap-3 rounded-md border bg-muted/30 p-4 sm:grid-cols-2">
                     <div>
                       <p className="text-xs font-semibold text-muted-foreground">{text.table}</p>
-                      <p className="mt-1 text-sm font-bold">#{order.tableNumber}</p>
+                      <p className="mt-1 text-sm font-bold">
+                        {order.orderType === "TABLE" ? `#${order.tableNumber}` : "-"}
+                      </p>
                     </div>
                     <div>
                       <p className="text-xs font-semibold text-muted-foreground">{typeText.header}</p>
@@ -391,11 +397,14 @@ export default function OrdersPage() {
       data={orders}
       keyExtractor={(order) => order.id}
       searchPlaceholder={controlsText.search}
-      searchValue={(order) =>
-        `${order.orderNumber} ${order.tableNumber} ${order.status} ${orderTypeLabels[order.orderType]} ${order.customerName ?? ""} ${order.customerPhone ?? ""} ${order.customerAddress ?? ""} ${order.customerNotes ?? ""} ${order.items
+      searchValue={(order) => {
+        const tableSearchValue =
+          order.orderType === "TABLE" ? String(order.tableNumber) : "";
+
+        return `${order.orderNumber} ${tableSearchValue} ${order.status} ${orderTypeLabels[order.orderType]} ${order.customerName ?? ""} ${order.customerPhone ?? ""} ${order.customerAddress ?? ""} ${order.customerNotes ?? ""} ${order.items
           .map((item) => `${item.productName} ${item.notes ?? ""}`)
-          .join(" ")}`
-      }
+          .join(" ")}`;
+      }}
       filterLabel={controlsText.filter}
       allFilterLabel={controlsText.all}
       filterGroups={[
