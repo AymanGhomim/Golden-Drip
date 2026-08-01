@@ -280,9 +280,6 @@ export function MenuPageClient() {
           {products.map((product) => {
             const quantity = quantitiesByProduct.get(product.id) ?? 0;
             const translatedProductText = translatedProduct(product.id, locale);
-            const originalPrice = "originalPrice" in product && typeof product.originalPrice === "number"
-              ? product.originalPrice
-              : undefined;
 
             return (
               <Card
@@ -320,10 +317,16 @@ export function MenuPageClient() {
                       <ShoppingBag className="h-10 w-10" />
                     </div>
                   )}
-                  <div className="absolute inset-0 bg-gradient-to-t from-black/64 via-black/12 to-black/5 transition-colors duration-200 group-hover:from-black/58 group-hover:via-black/8" />
+                  <div className="absolute inset-0 bg-gradient-to-t from-black/72 via-black/22 via-55% to-black/8 transition-colors duration-200 group-hover:from-black/68 group-hover:via-black/18" />
                   <div className="absolute inset-0 opacity-0 transition-opacity duration-200 group-hover:opacity-100">
                     <div className="absolute inset-0 bg-accent/8" />
                   </div>
+                  <Price
+                    value={product.price}
+                    locale={locale}
+                    className="absolute right-4 top-4 rounded-full border border-white/35 bg-white/18 px-3 py-2 text-sm font-black text-white shadow-[0_8px_18px_rgba(0,0,0,0.16)] backdrop-blur-md sm:text-lg"
+                    currencyClassName="text-white/75"
+                  />
                   {quantity > 0 ? (
                     <Badge className="absolute left-4 top-4 gap-2 rounded-full border border-white/25 bg-accent px-2 py-2 text-[0.68rem] font-bold text-accent-foreground shadow-sm">
                       <ShoppingCart className="h-3 w-3 sm:h-3.5 sm:w-3.5" />
@@ -334,30 +337,12 @@ export function MenuPageClient() {
                     <p className="mb-1 hidden w-fit rounded-full border border-white/20 bg-white/15 px-2 py-0.5 text-[0.65rem] font-semibold text-white/90 backdrop-blur-sm sm:block">
                       {translatedCategoryName(product.categoryId, locale)}
                     </p>
+                    <h2 className="line-clamp-2 text-lg font-black leading-snug text-white drop-shadow-[0_2px_10px_rgba(0,0,0,0.55)] sm:text-2xl">
+                      {translatedProductText.name}
+                    </h2>
                   </div>
                 </div>
                 <CardContent className="flex flex-1 flex-col gap-4 border-t bg-gradient-to-b from-card to-muted/25 p-4 transition-colors duration-200 group-hover:from-card group-hover:to-accent/8 sm:p-6">
-                  <div className="space-y-2">
-                    <h2 className="line-clamp-2 text-sm font-black leading-snug text-foreground transition-colors duration-200 group-hover:text-foreground sm:text-xl">
-                      {translatedProductText.name}
-                    </h2>
-                    <div className="flex flex-wrap items-baseline gap-2">
-                      <Price
-                        value={product.price}
-                        locale={locale}
-                        className="text-base font-black text-foreground sm:text-lg"
-                        currencyClassName="text-xs font-bold text-muted-foreground sm:text-sm"
-                      />
-                      {originalPrice && originalPrice > product.price ? (
-                        <Price
-                          value={originalPrice}
-                          locale={locale}
-                          className="text-xs font-semibold text-muted-foreground/65 line-through sm:text-sm"
-                          currencyClassName="text-[0.68rem] text-muted-foreground/55 sm:text-xs"
-                        />
-                      ) : null}
-                    </div>
-                  </div>
                   <p className="min-h-10 line-clamp-2 text-xs leading-5 text-muted-foreground sm:min-h-12 sm:text-sm sm:leading-6">
                     {translatedProductText.description}
                   </p>
