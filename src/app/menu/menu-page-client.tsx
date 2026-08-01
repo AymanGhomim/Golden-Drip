@@ -179,9 +179,6 @@ export function MenuPageClient() {
                         <Badge className="w-fit border-white/30 bg-white/20 text-white backdrop-blur-sm hover:bg-white/20">
                           {locale === "ar" ? "عرض خاص" : "Special offer"}
                         </Badge>
-                        <span className="rounded-full border border-white/25 bg-white/15 px-2.5 py-1 text-[0.68rem] font-bold text-white backdrop-blur-sm">
-                          {locale === "ar" ? "عرض التفاصيل" : "View details"}
-                        </span>
                       </div>
                       <div className="space-y-1.5 sm:space-y-2">
                         <h2 className="line-clamp-2 text-xl font-bold leading-tight tracking-tight drop-shadow-sm sm:text-4xl">
