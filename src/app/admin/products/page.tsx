@@ -1,11 +1,22 @@
 "use client";
 
 import Image from "next/image";
-import { Edit3, LinkIcon, Plus, Power, Trash2, Upload } from "lucide-react";
+import { Edit3, Eye, EyeOff, LinkIcon, Plus, Trash2, Upload } from "lucide-react";
 import { useState } from "react";
 
 import { AdminDataPage } from "@/components/admin/admin-data-page";
 import { Price } from "@/components/shared/price";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
@@ -129,6 +140,21 @@ export default function ProductsPage() {
           editDescription: "حدث بيانات هذا الصنف.",
         };
 
+  const deleteDialogText =
+    locale === "en"
+      ? {
+          title: "Delete menu item?",
+          description: "This item will be removed from the products table.",
+          confirm: "Delete item",
+          cancel: "Cancel",
+        }
+      : {
+          title: "تأكيد حذف الصنف",
+          description: "سيتم حذف هذا الصنف من جدول المنتجات.",
+          confirm: "حذف الصنف",
+          cancel: "إلغاء",
+        };
+
   function closeProductDialog() {
     setIsAddDialogOpen(false);
     setEditingProduct(null);
@@ -211,7 +237,13 @@ export default function ProductsPage() {
       key: "actions",
       header: actionText.actions,
       className: "text-right",
-      cell: (product: Product) => (
+      cell: (product: Product) => {
+        const AvailabilityIcon = product.isAvailable ? EyeOff : Eye;
+        const availabilityClassName = product.isAvailable
+          ? "h-8 w-8 border-amber-300/60 text-amber-700 hover:bg-amber-50 hover:text-amber-800 dark:border-amber-200/40 dark:text-amber-100 dark:hover:bg-amber-200/15"
+          : "h-8 w-8 border-emerald-300/60 text-emerald-700 hover:bg-emerald-50 hover:text-emerald-800 dark:border-emerald-200/40 dark:text-emerald-100 dark:hover:bg-emerald-200/15";
+
+        return (
         <div className="flex justify-end gap-2">
           <Button
             type="button"
@@ -232,26 +264,45 @@ export default function ProductsPage() {
             type="button"
             variant="outline"
             size="icon"
-            className="h-8 w-8"
+            className={availabilityClassName}
             onClick={() => toggleProductAvailability(product.id)}
             aria-label={product.isAvailable ? actionText.deactivate : actionText.activate}
             title={product.isAvailable ? actionText.deactivate : actionText.activate}
           >
-            <Power className="h-3.5 w-3.5" />
+            <AvailabilityIcon className="h-3.5 w-3.5" />
           </Button>
-          <Button
-            type="button"
-            variant="outline"
-            size="icon"
-            className="h-8 w-8 border-destructive/30 text-destructive hover:bg-destructive/10 hover:text-destructive"
-            onClick={() => deleteProduct(product.id)}
-            aria-label={actionText.delete}
-            title={actionText.delete}
-          >
-            <Trash2 className="h-3.5 w-3.5" />
-          </Button>
+          <AlertDialog>
+            <AlertDialogTrigger asChild>
+              <Button
+                type="button"
+                variant="outline"
+                size="icon"
+                className="h-8 w-8 border-destructive/30 text-destructive hover:bg-destructive/10 hover:text-destructive"
+                aria-label={actionText.delete}
+                title={actionText.delete}
+              >
+                <Trash2 className="h-3.5 w-3.5" />
+              </Button>
+            </AlertDialogTrigger>
+            <AlertDialogContent className={locale === "ar" ? "text-right" : undefined}>
+              <AlertDialogHeader>
+                <AlertDialogTitle>{deleteDialogText.title}</AlertDialogTitle>
+                <AlertDialogDescription>{deleteDialogText.description}</AlertDialogDescription>
+              </AlertDialogHeader>
+              <AlertDialogFooter className={locale === "ar" ? "sm:flex-row-reverse sm:space-x-reverse" : undefined}>
+                <AlertDialogCancel>{deleteDialogText.cancel}</AlertDialogCancel>
+                <AlertDialogAction
+                  className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                  onClick={() => deleteProduct(product.id)}
+                >
+                  {deleteDialogText.confirm}
+                </AlertDialogAction>
+              </AlertDialogFooter>
+            </AlertDialogContent>
+          </AlertDialog>
         </div>
-      ),
+        );
+      },
     },
   ];
 
