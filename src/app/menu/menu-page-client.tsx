@@ -262,6 +262,9 @@ export function MenuPageClient() {
           {products.map((product) => {
             const quantity = quantitiesByProduct.get(product.id) ?? 0;
             const translatedProductText = translatedProduct(product.id, locale);
+            const originalPrice = "originalPrice" in product && typeof product.originalPrice === "number"
+              ? product.originalPrice
+              : undefined;
 
             return (
               <Card
@@ -294,12 +297,6 @@ export function MenuPageClient() {
                   <div className="absolute inset-0 opacity-0 transition-opacity duration-300 group-hover:opacity-100">
                     <div className="absolute inset-0 bg-accent/8" />
                   </div>
-                  <Price
-                    value={product.price}
-                    locale={locale}
-                    className="absolute right-2 top-2 rounded-full border border-white/35 bg-white/18 px-2 py-1 text-xs font-black text-white shadow-[0_8px_20px_rgba(0,0,0,0.18)] backdrop-blur-md transition-all duration-300 group-hover:border-white/55 group-hover:bg-white/24 sm:right-3 sm:top-3 sm:px-3 sm:py-1.5 sm:text-sm"
-                    currencyClassName="text-white/75"
-                  />
                   {quantity > 0 ? (
                     <Badge className="absolute left-2 top-2 gap-1 rounded-full border border-white/25 bg-accent px-2 py-1 text-[0.68rem] font-bold text-accent-foreground shadow-sm sm:left-3 sm:top-3 sm:px-3 sm:py-1.5">
                       <ShoppingCart className="h-3 w-3 sm:h-3.5 sm:w-3.5" />
@@ -310,12 +307,30 @@ export function MenuPageClient() {
                     <p className="mb-1 hidden w-fit rounded-full border border-white/20 bg-white/15 px-2 py-0.5 text-[0.65rem] font-semibold text-white/90 backdrop-blur-sm sm:block">
                       {translatedCategoryName(product.categoryId, locale)}
                     </p>
-                    <h2 className="line-clamp-2 text-sm font-black leading-snug text-white drop-shadow-sm transition-transform duration-300 ease-out group-hover:-translate-y-0.5 sm:text-xl">
-                      {translatedProductText.name}
-                    </h2>
                   </div>
                 </div>
                 <CardContent className="flex flex-1 flex-col gap-3 border-t bg-gradient-to-b from-card to-muted/25 p-3.5 transition-colors duration-500 group-hover:from-card group-hover:to-accent/8 sm:gap-4 sm:p-5">
+                  <div className="space-y-1.5">
+                    <h2 className="line-clamp-2 text-sm font-black leading-snug text-foreground transition-colors duration-300 group-hover:text-foreground sm:text-xl">
+                      {translatedProductText.name}
+                    </h2>
+                    <div className="flex flex-wrap items-baseline gap-2">
+                      <Price
+                        value={product.price}
+                        locale={locale}
+                        className="text-base font-black text-foreground sm:text-lg"
+                        currencyClassName="text-xs font-bold text-muted-foreground sm:text-sm"
+                      />
+                      {originalPrice && originalPrice > product.price ? (
+                        <Price
+                          value={originalPrice}
+                          locale={locale}
+                          className="text-xs font-semibold text-muted-foreground/65 line-through sm:text-sm"
+                          currencyClassName="text-[0.68rem] text-muted-foreground/55 sm:text-xs"
+                        />
+                      ) : null}
+                    </div>
+                  </div>
                   <p className="min-h-10 line-clamp-2 text-xs leading-5 text-muted-foreground sm:min-h-12 sm:text-sm sm:leading-6">
                     {translatedProductText.description}
                   </p>
