@@ -6,6 +6,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import {
   Minus,
   Plus,
+  Search,
   ShoppingBag,
   ShoppingCart,
 } from "lucide-react";
@@ -13,6 +14,7 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Price } from "@/components/shared/price";
 import { SiteHeader } from "@/components/shared/site-header";
@@ -32,6 +34,7 @@ const allCategoryId = "all";
 
 export function MenuPageClient() {
   const [selectedCategory, setSelectedCategory] = useState(allCategoryId);
+  const [searchQuery, setSearchQuery] = useState("");
   const [locale, setLocale] = useState<Locale>("en");
   const [isHydrated, setIsHydrated] = useState(false);
   const [activeOfferIndex, setActiveOfferIndex] = useState(0);
@@ -94,13 +97,20 @@ export function MenuPageClient() {
   }, [activeOffers.length, locale]);
 
   const products = useMemo(() => {
+    const normalizedSearchQuery = searchQuery.trim().toLowerCase();
+
     return mockProducts.filter((product) => {
+      const productText = translatedProduct(product.id, locale);
+      const categoryName = translatedCategoryName(product.categoryId, locale);
+      const searchableText = `${productText.name} ${productText.description} ${categoryName}`.toLowerCase();
+
       return (
         product.isAvailable &&
-        (selectedCategory === allCategoryId || product.categoryId === selectedCategory)
+        (selectedCategory === allCategoryId || product.categoryId === selectedCategory) &&
+        (!normalizedSearchQuery || searchableText.includes(normalizedSearchQuery))
       );
     });
-  }, [selectedCategory]);
+  }, [locale, searchQuery, selectedCategory]);
 
   const quantitiesByProduct = useMemo(() => {
     if (!isHydrated) return new Map<string, number>();
@@ -254,6 +264,24 @@ export function MenuPageClient() {
             ) : null}
           </div>
         ) : null}
+
+        <div className="relative mb-4">
+          <Search
+            className={cn(
+              "pointer-events-none absolute top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground",
+              locale === "ar" ? "right-4" : "left-4"
+            )}
+          />
+          <Input
+            value={searchQuery}
+            onChange={(event) => setSearchQuery(event.target.value)}
+            placeholder={locale === "ar" ? "ابحث عن منتج" : "Search products"}
+            className={cn(
+              "h-12 rounded-full border-border/70 bg-card/80 text-sm font-semibold shadow-[0_8px_18px_hsl(var(--foreground)/0.06)] backdrop-blur-sm transition-all focus-visible:ring-accent/40",
+              locale === "ar" ? "pr-11 text-right" : "pl-11"
+            )}
+          />
+        </div>
 
         <div className="relative mb-6">
           <div className="scrollbar-hidden flex gap-4 overflow-x-auto pb-2 pr-10">
