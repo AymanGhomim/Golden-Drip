@@ -50,6 +50,7 @@ export default function ProductsPage() {
   const [editingProduct, setEditingProduct] = useState<Product | null>(null);
   const [imageInputMode, setImageInputMode] = useState<"url" | "upload">("url");
   const available = products.filter((product) => product.isAvailable).length;
+  const hidden = products.length - available;
   const text =
     locale === "en"
       ? {
@@ -68,7 +69,7 @@ export default function ProductsPage() {
           total: "Total items",
           available: "Available",
           categories: "Categories used",
-          avg: "Average price",
+          hiddenItems: "Hidden items",
           search: "Search products",
           all: "All products",
           filter: "Filter",
@@ -91,7 +92,7 @@ export default function ProductsPage() {
           total: "إجمالي العناصر",
           available: "متاح",
           categories: "أقسام مستخدمة",
-          avg: "متوسط السعر",
+          hiddenItems: "العناصر المخفية",
           search: "ابحث في المنتجات",
           all: "كل المنتجات",
           filter: "تصفية",
@@ -456,12 +457,7 @@ export default function ProductsPage() {
         { label: text.total, value: products.length },
         { label: text.available, value: available },
         { label: text.categories, value: mockCategories.length },
-        {
-          label: text.avg,
-          value: products.length
-            ? Math.round(products.reduce((sum, product) => sum + product.price, 0) / products.length)
-            : 0,
-        },
+        { label: text.hiddenItems, value: hidden },
       ]}
       tableTitle={text.tableTitle}
       tableDescription={text.tableDescription}
