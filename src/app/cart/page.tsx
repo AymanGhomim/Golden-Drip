@@ -149,7 +149,7 @@ export default function CartPage() {
                 <div key={item.productId} className="group grid grid-cols-[5.75rem_1fr] gap-3 p-3 transition-colors hover:bg-muted/25 dark:hover:bg-white/5 sm:grid-cols-[8rem_1fr] sm:gap-4 sm:p-4">
                     <div className="relative h-24 overflow-hidden rounded-md bg-muted shadow-sm dark:bg-white/5 sm:h-32">
                       {item.image ? (
-                        <Image src={item.image} alt={item.name} fill sizes="128px" className="object-cover transition-transform duration-500 group-hover:scale-[1.04]" />
+                        <Image src={item.image} alt={item.name} fill sizes="128px" className="object-cover transition-transform duration-200 group-hover:scale-[1.02]" />
                       ) : (
                         <div className="flex h-full items-center justify-center text-muted-foreground">
                           <ShoppingBag className="h-7 w-7" />
