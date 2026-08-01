@@ -4,10 +4,18 @@ import { Price } from "@/components/shared/price";
 import { AdminDataPage } from "@/components/admin/admin-data-page";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
 import { mockOrders } from "@/mocks/orders.mock";
 import { useAdminLocale } from "@/providers/admin-locale-provider";
 import type { Order, OrderStatus } from "@/types/order.types";
-import { Activity, CheckCircle2, ReceiptText, ShoppingBag, WalletCards, XCircle } from "lucide-react";
+import { Activity, CheckCircle2, Eye, ReceiptText, ShoppingBag, WalletCards, XCircle } from "lucide-react";
 import { useState } from "react";
 
 const statusStyle: Record<OrderStatus, string> = {
@@ -67,6 +75,23 @@ export default function OrdersPage() {
           actions: "الإجراءات",
           advance: "نقل للحالة التالية",
           cancel: "إلغاء الطلب",
+        };
+
+  const detailText =
+    locale === "en"
+      ? {
+          view: "View order",
+          title: "Order details",
+          description: "Review table, contents, status, and totals.",
+          subtotal: "Subtotal",
+          createdAt: "Created at",
+        }
+      : {
+          view: "عرض الطلب",
+          title: "تفاصيل الطلب",
+          description: "راجع الترابيزة، محتوى الطلب، الحالة، والإجمالي.",
+          subtotal: "الإجمالي قبل الخدمة",
+          createdAt: "وقت الطلب",
         };
 
   const activeOrders = orders.filter(
@@ -142,13 +167,70 @@ export default function OrdersPage() {
     {
       key: "actions",
       header: actionText.actions,
-      headerClassName: "w-[96px] text-center",
-      cellClassName: "w-[96px]",
+      headerClassName: "w-[136px] text-center",
+      cellClassName: "w-[136px]",
       cell: (order: Order) => {
         const isFinished = order.status === "COMPLETED" || order.status === "CANCELLED";
 
         return (
           <div className="flex justify-center gap-2">
+            <Dialog>
+              <DialogTrigger asChild>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="icon"
+                  className="h-8 w-8 border-sky-300/60 text-sky-700 hover:bg-sky-50 hover:text-sky-800"
+                  aria-label={detailText.view}
+                  title={detailText.view}
+                >
+                  <Eye className="h-3.5 w-3.5" />
+                </Button>
+              </DialogTrigger>
+              <DialogContent className="max-w-xl rounded-md" dir={locale === "ar" ? "rtl" : "ltr"}>
+                <DialogHeader>
+                  <DialogTitle>{detailText.title} {order.orderNumber}</DialogTitle>
+                  <DialogDescription>{detailText.description}</DialogDescription>
+                </DialogHeader>
+                <div className="grid gap-4">
+                  <div className="grid gap-3 rounded-md border bg-muted/30 p-4 sm:grid-cols-2">
+                    <div>
+                      <p className="text-xs font-semibold text-muted-foreground">{text.table}</p>
+                      <p className="mt-1 text-sm font-bold">#{order.tableNumber}</p>
+                    </div>
+                    <div>
+                      <p className="text-xs font-semibold text-muted-foreground">{text.status}</p>
+                      <Badge variant="outline" className={statusStyle[order.status]}>{order.status}</Badge>
+                    </div>
+                    <div>
+                      <p className="text-xs font-semibold text-muted-foreground">{detailText.createdAt}</p>
+                      <p className="mt-1 text-sm font-bold">{order.createdAt}</p>
+                    </div>
+                    <div>
+                      <p className="text-xs font-semibold text-muted-foreground">{text.total}</p>
+                      <div className="mt-1 text-sm font-bold"><Price value={order.total} locale={locale} /></div>
+                    </div>
+                  </div>
+                  <div className="overflow-hidden rounded-md border">
+                    {order.items.map((item) => (
+                      <div key={item.id} className="flex items-start justify-between gap-4 border-b p-3 last:border-b-0">
+                        <div>
+                          <p className="text-sm font-semibold">{item.quantity}x {item.productName}</p>
+                          {item.notes ? <p className="mt-1 text-xs text-muted-foreground">{item.notes}</p> : null}
+                        </div>
+                        <div className="shrink-0 text-sm font-bold">
+                          <Price value={item.totalPrice} locale={locale} />
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                  <div className="flex items-center justify-between rounded-md border bg-card p-3 text-sm">
+                    <span className="font-semibold text-muted-foreground">{detailText.subtotal}</span>
+                    <span className="font-bold"><Price value={order.subtotal} locale={locale} /></span>
+                  </div>
+                </div>
+              </DialogContent>
+            </Dialog>
             <Button
               type="button"
               variant="outline"
