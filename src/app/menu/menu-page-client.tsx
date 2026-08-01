@@ -80,11 +80,17 @@ export function MenuPageClient() {
     if (activeOffers.length <= 1) return;
 
     const intervalId = window.setInterval(() => {
-      setActiveOfferIndex((index) => (index + 1) % activeOffers.length);
+      setActiveOfferIndex((index) => {
+        if (locale === "ar") {
+          return index === 0 ? activeOffers.length - 1 : index - 1;
+        }
+
+        return (index + 1) % activeOffers.length;
+      });
     }, 4000);
 
     return () => window.clearInterval(intervalId);
-  }, [activeOffers.length]);
+  }, [activeOffers.length, locale]);
 
   const products = useMemo(() => {
     return mockProducts.filter((product) => {
@@ -107,9 +113,11 @@ export function MenuPageClient() {
     if (!isDragging) return;
 
     const threshold = 60;
-    if (dragOffset > threshold) {
+    const directionalOffset = locale === "ar" ? -dragOffset : dragOffset;
+
+    if (directionalOffset > threshold) {
       setActiveOfferIndex((index) => (index === 0 ? activeOffers.length - 1 : index - 1));
-    } else if (dragOffset < -threshold) {
+    } else if (directionalOffset < -threshold) {
       setActiveOfferIndex((index) => (index + 1) % activeOffers.length);
     }
 
