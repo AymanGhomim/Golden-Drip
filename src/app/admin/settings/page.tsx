@@ -1,40 +1,74 @@
 "use client";
 
-import { Languages, ShieldCheck } from "lucide-react";
+import { useEffect, useState } from "react";
+import { Languages, Percent, ShieldCheck } from "lucide-react";
 
 import { AdminShell } from "@/components/admin/admin-shell";
 import { Card, CardContent } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { cn } from "@/lib/utils";
 import { useAdminLocale } from "@/providers/admin-locale-provider";
+import { useSettingsStore } from "@/store/settings.store";
 
 const copy = {
   en: {
     eyebrow: "Golden Drip management",
     title: "Settings",
     description: "Control dashboard preferences and workspace behavior.",
+    serviceTax: "Service tax",
+    serviceTaxText: "Set the service percentage added to customer cart totals.",
+    serviceTaxLabel: "Service percentage",
+    serviceTaxHint: "Applied automatically in cart totals.",
     language: "Language",
     languageText: "Choose the display language for the admin dashboard.",
     english: "English",
     arabic: "Arabic",
     workspace: "Workspace",
     workspaceText: "Admin access and demo data are ready.",
+    active: "Active",
   },
   ar: {
     eyebrow: "إدارة جولدن دريب",
     title: "الإعدادات",
     description: "تحكم في تفضيلات لوحة الإدارة وطريقة عملها.",
+    serviceTax: "ضريبة الخدمة",
+    serviceTaxText: "حدد نسبة الخدمة المضافة على إجمالي سلة العميل.",
+    serviceTaxLabel: "نسبة الخدمة",
+    serviceTaxHint: "تطبق تلقائيا داخل إجمالي الكارت.",
     language: "اللغة",
     languageText: "اختر لغة عرض لوحة الإدارة.",
     english: "English",
     arabic: "العربية",
     workspace: "مساحة العمل",
     workspaceText: "صلاحيات الأدمن وبيانات التجربة جاهزة.",
+    active: "نشط",
   },
 } as const;
 
 export default function SettingsPage() {
   const { locale, setLocale } = useAdminLocale();
+  const serviceTaxPercent = useSettingsStore((state) => state.serviceTaxPercent);
+  const setServiceTaxPercent = useSettingsStore((state) => state.setServiceTaxPercent);
+  const [taxInput, setTaxInput] = useState("0");
   const text = copy[locale];
+
+  useEffect(() => {
+    void useSettingsStore.persist.rehydrate();
+  }, []);
+
+  useEffect(() => {
+    setTaxInput(String(serviceTaxPercent));
+  }, [serviceTaxPercent]);
+
+  function handleTaxChange(value: string) {
+    setTaxInput(value);
+    const nextValue = Number(value);
+
+    if (!Number.isNaN(nextValue)) {
+      setServiceTaxPercent(nextValue);
+    }
+  }
 
   return (
     <AdminShell>
@@ -51,6 +85,34 @@ export default function SettingsPage() {
         </div>
 
         <div className="mt-6 grid gap-5">
+          <SettingsCard
+            icon={Percent}
+            title={text.serviceTax}
+            description={text.serviceTaxText}
+            action={
+              <div className="w-full space-y-2 sm:w-72">
+                <Label htmlFor="service-tax" className="text-xs font-bold text-muted-foreground">
+                  {text.serviceTaxLabel}
+                </Label>
+                <div className="relative">
+                  <Input
+                    id="service-tax"
+                    type="number"
+                    min={0}
+                    max={100}
+                    step={0.5}
+                    value={taxInput}
+                    onChange={(event) => handleTaxChange(event.target.value)}
+                    className="h-11 rounded-md pe-12 text-base font-black"
+                  />
+                  <span className="pointer-events-none absolute inset-y-0 end-4 flex items-center text-sm font-black text-muted-foreground">
+                    %
+                  </span>
+                </div>
+                <p className="text-xs text-muted-foreground">{text.serviceTaxHint}</p>
+              </div>
+            }
+          />
           <SettingsCard
             icon={Languages}
             title={text.language}
@@ -88,7 +150,11 @@ export default function SettingsPage() {
             icon={ShieldCheck}
             title={text.workspace}
             description={text.workspaceText}
-            action={<span className="rounded-full bg-emerald-500/15 px-3 py-1 text-sm font-semibold text-emerald-400">Active</span>}
+            action={
+              <span className="rounded-full bg-emerald-500/15 px-3 py-1 text-sm font-semibold text-emerald-700">
+                {text.active}
+              </span>
+            }
           />
         </div>
       </section>

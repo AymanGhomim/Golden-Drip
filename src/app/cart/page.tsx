@@ -16,6 +16,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import type { Locale } from "@/lib/menu-translations";
 import { useCartStore } from "@/store/cart.store";
+import { useSettingsStore } from "@/store/settings.store";
 
 const copy = {
   en: {
@@ -27,6 +28,7 @@ const copy = {
     payment: "Payment method",
     total: "Total",
     subtotal: "Subtotal",
+    serviceTax: "Service",
     items: "Items",
     checkout: "Place order",
     remove: "Remove",
@@ -62,6 +64,9 @@ export default function CartPage() {
   const increaseQuantity = useCartStore((state) => state.increaseQuantity);
   const decreaseQuantity = useCartStore((state) => state.decreaseQuantity);
   const removeItem = useCartStore((state) => state.removeItem);
+  const serviceTaxPercent = useSettingsStore((state) => state.serviceTaxPercent);
+  const getServiceTaxAmount = useSettingsStore((state) => state.getServiceTaxAmount);
+  const getTotalWithServiceTax = useSettingsStore((state) => state.getTotalWithServiceTax);
 
   useEffect(() => {
     if (window.localStorage.getItem("golden-drip-locale") === "ar") setLocale("ar");
@@ -76,6 +81,7 @@ export default function CartPage() {
     }
 
     void useCartStore.persist.rehydrate();
+    void useSettingsStore.persist.rehydrate();
   }, [searchParams]);
 
   useEffect(() => {
@@ -129,8 +135,11 @@ export default function CartPage() {
           tablePrefix: "ترابيزة",
           tableFallback: "الترابيزة الممسوحة",
         };
-  const total = items.reduce((sum, item) => sum + item.price * item.quantity, 0);
+  const subtotal = items.reduce((sum, item) => sum + item.price * item.quantity, 0);
+  const serviceTax = getServiceTaxAmount(subtotal);
+  const total = getTotalWithServiceTax(subtotal);
   const totalItems = items.reduce((sum, item) => sum + item.quantity, 0);
+  const serviceTaxLabel = locale === "en" ? "Service" : "الخدمة";
 
   return (
     <main className="min-h-screen bg-background" dir={locale === "ar" ? "rtl" : "ltr"}>
@@ -281,8 +290,16 @@ export default function CartPage() {
                 <div className="space-y-3 rounded-md border bg-background/60 p-4 dark:border-white/10 dark:bg-white/5">
                   <div className="flex items-center justify-between text-sm">
                     <span className="text-muted-foreground">{text.subtotal}</span>
-                    <Price value={total} locale={locale} />
+                    <Price value={subtotal} locale={locale} />
                   </div>
+                  {serviceTaxPercent > 0 ? (
+                    <div className="flex items-center justify-between text-sm">
+                      <span className="text-muted-foreground">
+                        {serviceTaxLabel} ({serviceTaxPercent}%)
+                      </span>
+                      <Price value={serviceTax} locale={locale} />
+                    </div>
+                  ) : null}
                   <div className="flex items-center justify-between border-t pt-3 text-lg font-black dark:border-white/10">
                     <span>{text.total}</span>
                     <Price value={total} locale={locale} className="text-xl" />
