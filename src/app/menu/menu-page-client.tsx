@@ -366,7 +366,7 @@ export function MenuPageClient() {
                     ) : (
                       <Button
                         type="button"
-                        className="h-9 w-full gap-1.5 rounded-md border border-[#21100a]/10 bg-[#21100a] px-2 text-xs font-bold text-primary-foreground shadow-sm transition-all duration-300 hover:-translate-y-0.5 hover:bg-[#21100a]/90 hover:text-primary-foreground hover:shadow-[0_10px_22px_rgba(33,16,10,0.24)] active:translate-y-0 active:scale-[0.99] dark:border-[hsl(30_33%_84%)]/35 dark:bg-[hsl(30_33%_84%)] dark:text-[#21100a] dark:hover:bg-[hsl(30_33%_84%)] dark:hover:text-[#21100a] dark:hover:shadow-[0_10px_22px_rgba(228,214,201,0.18)] sm:h-11 sm:gap-2 sm:text-sm"
+                        className="h-12 w-full gap-2 rounded-lg border border-[#21100a]/10 bg-[#21100a] px-3 text-sm font-bold text-primary-foreground shadow-[0_10px_22px_rgba(33,16,10,0.16)] transition-all duration-300 ease-out hover:-translate-y-0.5 hover:bg-[#21100a]/90 hover:text-primary-foreground hover:shadow-[0_16px_30px_rgba(33,16,10,0.24)] active:translate-y-0 active:scale-[0.985] focus-visible:ring-2 focus-visible:ring-accent/50 focus-visible:ring-offset-2 dark:border-[hsl(30_33%_84%)]/35 dark:bg-[hsl(30_33%_84%)] dark:text-[#21100a] dark:hover:bg-[hsl(30_33%_84%)] dark:hover:text-[#21100a] dark:hover:shadow-[0_14px_28px_rgba(228,214,201,0.2)]"
                         onClick={(event) => {
                           event.stopPropagation();
                           addItem({
