@@ -4,7 +4,6 @@ import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import {
-  ArrowLeft,
   BadgePercent,
   ChefHat,
   ClipboardList,
@@ -132,16 +131,6 @@ export function AdminShell({ children }: { children: React.ReactNode }) {
         <header className="sticky top-0 z-20 border-b bg-background/95 px-4 py-3 backdrop-blur lg:hidden">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
-              <Button
-                type="button"
-                variant="outline"
-                size="icon"
-                className="h-10 w-10 rounded-full"
-                onClick={() => router.back()}
-                aria-label="Back"
-              >
-                <ArrowLeft className={cn("h-4 w-4", locale === "ar" && "rotate-180")} />
-              </Button>
               <AppLogo showText={false} />
             </div>
             <Button
@@ -157,17 +146,6 @@ export function AdminShell({ children }: { children: React.ReactNode }) {
           </div>
           <nav className="mt-3 flex gap-2 overflow-x-auto pb-1">{links}</nav>
         </header>
-        <div className="hidden px-4 pt-5 sm:px-6 lg:block">
-          <Button
-            type="button"
-            variant="outline"
-            className="gap-2 rounded-full"
-            onClick={() => router.back()}
-          >
-            <ArrowLeft className={cn("h-4 w-4", locale === "ar" && "rotate-180")} />
-            {text.back}
-          </Button>
-        </div>
         {children}
       </div>
     </div>
