@@ -114,6 +114,23 @@ export default function OrdersPage() {
           noResultsDescription: "جرب بحث أو تصفية مختلفة.",
         };
 
+  const orderStatusFilterLabels: Record<OrderStatus, string> =
+    locale === "en"
+      ? {
+          NEW: "New",
+          PREPARING: "Preparing",
+          READY: "Ready",
+          COMPLETED: "Completed",
+          CANCELLED: "Cancelled",
+        }
+      : {
+          NEW: "جديد",
+          PREPARING: "قيد التحضير",
+          READY: "جاهز",
+          COMPLETED: "مكتمل",
+          CANCELLED: "ملغي",
+        };
+
   return (
     <AdminDataPage
       eyebrow={text.eyebrow}
@@ -140,27 +157,27 @@ export default function OrdersPage() {
       allFilterLabel={controlsText.all}
       filterOptions={[
         {
-          label: "NEW",
+          label: orderStatusFilterLabels.NEW,
           value: "NEW",
           predicate: (order) => order.status === "NEW",
         },
         {
-          label: "PREPARING",
+          label: orderStatusFilterLabels.PREPARING,
           value: "PREPARING",
           predicate: (order) => order.status === "PREPARING",
         },
         {
-          label: "READY",
+          label: orderStatusFilterLabels.READY,
           value: "READY",
           predicate: (order) => order.status === "READY",
         },
         {
-          label: "COMPLETED",
+          label: orderStatusFilterLabels.COMPLETED,
           value: "COMPLETED",
           predicate: (order) => order.status === "COMPLETED",
         },
         {
-          label: "CANCELLED",
+          label: orderStatusFilterLabels.CANCELLED,
           value: "CANCELLED",
           predicate: (order) => order.status === "CANCELLED",
         },

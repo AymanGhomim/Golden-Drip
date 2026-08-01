@@ -205,6 +205,18 @@ export default function ProductsPage() {
     closeProductDialog();
   }
 
+  const categoryFilterLabels: Record<string, string> =
+    locale === "en"
+      ? {}
+      : {
+          "cat-1": "قهوة ساخنة",
+          "cat-2": "قهوة مثلجة",
+          "cat-3": "شاي وماتشا",
+          "cat-4": "مشروبات منعشة",
+          "cat-5": "فرابيه وسموذي",
+          "cat-6": "اختيارات جولدن",
+        };
+
   const columns = [
     {
       key: "item",
@@ -484,7 +496,7 @@ export default function ProductsPage() {
           label: text.category,
           allLabel: locale === "en" ? "All categories" : "كل الأقسام",
           options: mockCategories.map((category) => ({
-            label: category.name,
+            label: categoryFilterLabels[category.id] ?? category.name,
             value: category.id,
             predicate: (product: Product) => product.categoryId === category.id,
           })),
