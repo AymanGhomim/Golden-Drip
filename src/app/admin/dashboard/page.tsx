@@ -14,7 +14,6 @@ import {
 } from "recharts";
 
 import {
-  ArrowDownRight,
   ArrowUpRight,
   Bell,
   CalendarDays,
@@ -25,6 +24,7 @@ import {
 } from "lucide-react";
 
 import { AdminShell } from "@/components/admin/admin-shell";
+import { AdminStatCard, type AdminStatCardProps } from "@/components/admin/admin-stat-card";
 import { DataTable, type DataTableColumn } from "@/components/shared/data-table";
 import { Price } from "@/components/shared/price";
 import { Badge } from "@/components/ui/badge";
@@ -152,13 +152,14 @@ export default function AdminDashboardPage() {
     },
   ];
 
-  const stats = [
+  const stats: AdminStatCardProps[] = [
     {
       label: text.salesToday,
-      value: <Price value={salesToday} locale={locale} currencyClassName="text-white/60" />,
+      value: <Price value={salesToday} locale={locale} />,
       icon: ReceiptText,
       change: "+14%",
       positive: true,
+      detail: text.vsYesterday,
     },
     {
       label: text.activeOrders,
@@ -166,13 +167,15 @@ export default function AdminDashboardPage() {
       icon: ShoppingBag,
       change: "Live",
       positive: true,
+      detail: text.vsYesterday,
     },
     {
       label: text.netProfit,
-      value: <Price value={netProfit} locale={locale} currencyClassName="text-white/60" />,
+      value: <Price value={netProfit} locale={locale} />,
       icon: ArrowUpRight,
       change: "+9%",
       positive: true,
+      detail: text.vsYesterday,
     },
     {
       label: text.availableProducts,
@@ -180,6 +183,7 @@ export default function AdminDashboardPage() {
       icon: PackageCheck,
       change: unavailableProducts > 0 ? `${unavailableProducts} ${text.unavailable}` : "Ready",
       positive: unavailableProducts === 0,
+      detail: text.vsYesterday,
     },
   ];
 
@@ -205,31 +209,9 @@ export default function AdminDashboardPage() {
         </div>
 
         <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-          {stats.map((stat) => {
-            const Icon = stat.icon;
-            return (
-              <Card key={stat.label} className="overflow-hidden rounded-md border-[#3d2014] bg-[#21100a] text-[#fff5ee] shadow-sm">
-                <CardContent className="p-4">
-                  <div className="mb-4 flex items-center justify-between">
-                    <span className="flex h-9 w-9 items-center justify-center rounded-md bg-accent/20 text-accent">
-                      <Icon className="h-4 w-4" />
-                    </span>
-                    <span
-                      className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[0.68rem] font-bold ${
-                        stat.positive ? "bg-emerald-500/15 text-emerald-300" : "bg-amber-500/15 text-amber-300"
-                      }`}
-                    >
-                      {stat.positive ? <ArrowUpRight className="h-3 w-3" /> : <ArrowDownRight className="h-3 w-3" />}
-                      {stat.change}
-                    </span>
-                  </div>
-                  <div className="text-2xl font-black">{stat.value}</div>
-                  <p className="mt-1.5 text-xs text-[#cdb5a5]">{stat.label}</p>
-                  <p className="mt-0.5 text-[0.68rem] text-[#a99080]">{text.vsYesterday}</p>
-                </CardContent>
-              </Card>
-            );
-          })}
+          {stats.map((stat) => (
+            <AdminStatCard key={stat.label} {...stat} />
+          ))}
         </div>
 
         <div className="mt-4 grid gap-4 xl:grid-cols-[1.35fr_0.65fr]">

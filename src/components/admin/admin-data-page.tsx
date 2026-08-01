@@ -3,15 +3,12 @@
 import { Plus } from "lucide-react";
 
 import { AdminShell } from "@/components/admin/admin-shell";
+import { AdminStatCard, type AdminStatCardProps } from "@/components/admin/admin-stat-card";
 import { DataTable, type DataTableColumn } from "@/components/shared/data-table";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 
-export type AdminStat = {
-  label: string;
-  value: React.ReactNode;
-  detail?: string;
-};
+export type AdminStat = AdminStatCardProps;
 
 interface AdminDataPageProps<T> {
   eyebrow: string;
@@ -64,15 +61,7 @@ export function AdminDataPage<T>({
 
         <div className="mt-4 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
           {stats.map((stat) => (
-            <Card key={stat.label} className="rounded-md">
-              <CardContent className="p-4">
-                <p className="text-xs text-muted-foreground">{stat.label}</p>
-                <div className="mt-1.5 text-2xl font-bold">{stat.value}</div>
-                {stat.detail ? (
-                  <p className="mt-1.5 text-[0.7rem] font-medium text-muted-foreground">{stat.detail}</p>
-                ) : null}
-              </CardContent>
-            </Card>
+            <AdminStatCard key={stat.label} {...stat} />
           ))}
         </div>
 
