@@ -11,11 +11,11 @@ import { CheckCircle2, XCircle } from "lucide-react";
 import { useState } from "react";
 
 const statusStyle: Record<OrderStatus, string> = {
-  NEW: "bg-sky-500/15 text-sky-300",
-  PREPARING: "bg-amber-500/15 text-amber-300",
-  READY: "bg-emerald-500/15 text-emerald-300",
-  COMPLETED: "bg-muted text-muted-foreground",
-  CANCELLED: "bg-destructive/15 text-destructive",
+  NEW: "border border-sky-200 bg-sky-100 text-sky-800 dark:border-sky-300/30 dark:bg-sky-300/15 dark:text-sky-100",
+  PREPARING: "border border-amber-200 bg-amber-100 text-amber-900 dark:border-amber-300/30 dark:bg-amber-300/15 dark:text-amber-100",
+  READY: "border border-emerald-200 bg-emerald-100 text-emerald-800 dark:border-emerald-300/30 dark:bg-emerald-300/15 dark:text-emerald-100",
+  COMPLETED: "border border-stone-300 bg-stone-100 text-stone-800 dark:border-stone-300/25 dark:bg-stone-200/10 dark:text-stone-100",
+  CANCELLED: "border border-red-200 bg-red-100 text-red-800 dark:border-red-300/30 dark:bg-red-300/15 dark:text-red-100",
 };
 
 export default function OrdersPage() {
