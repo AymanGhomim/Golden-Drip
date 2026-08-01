@@ -35,22 +35,20 @@ const links = [
 
 export function SocialLinks({ locale: _locale, className }: { locale: Locale; className?: string }) {
   return (
-    <div className={cn("border-b bg-background/95 backdrop-blur", className)}>
-      <div className="mx-auto flex w-full max-w-6xl items-center justify-center gap-2 px-3 py-2 sm:px-6">
-        {links.map(({ key, label, href, icon: Icon }) => (
-          <Button
-            key={key}
-            asChild
-            variant="outline"
-            size="icon"
-            className="h-9 w-9 rounded-full border-primary/15 bg-card text-primary shadow-sm transition-all duration-200 hover:-translate-y-0.5 hover:border-accent hover:bg-accent hover:text-accent-foreground hover:shadow-md"
-          >
-            <a href={href} target="_blank" rel="noreferrer" aria-label={label} title={label}>
-              <Icon className="h-4 w-4" />
-            </a>
-          </Button>
-        ))}
-      </div>
+    <div className={cn("flex items-center gap-1.5", className)}>
+      {links.map(({ key, label, href, icon: Icon }) => (
+        <Button
+          key={key}
+          asChild
+          variant="outline"
+          size="icon"
+          className="h-8 w-8 rounded-full border-primary/15 bg-card text-primary shadow-sm transition-all duration-200 hover:-translate-y-0.5 hover:border-accent hover:bg-accent hover:text-accent-foreground hover:shadow-md sm:h-9 sm:w-9"
+        >
+          <a href={href} target="_blank" rel="noreferrer" aria-label={label} title={label}>
+            <Icon className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
+          </a>
+        </Button>
+      ))}
     </div>
   );
 }
