@@ -51,7 +51,7 @@ export function ContactTicker({ locale }: { locale: Locale }) {
       <div
         className={cn(
           "flex w-max min-w-[200%] items-center py-2 will-change-transform",
-          locale === "ar" ? "contact-ticker-rtl" : "contact-ticker-ltr",
+          locale === "ar" ? "contact-ticker-ltr" : "contact-ticker-rtl",
         )}
       >
         {[0, 1].map((groupIndex) => (
