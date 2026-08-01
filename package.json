@@ -6,6 +6,7 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
+    "prepare": "husky",
     "lint": "next lint",
     "type-check": "tsc --noEmit"
   },
@@ -49,6 +50,7 @@
     "autoprefixer": "^10.5.4",
     "eslint": "^8.57.0",
     "eslint-config-next": "14.2.5",
+    "husky": "^9.1.7",
     "postcss": "^8.4.39",
     "tailwindcss": "^3.4.6",
     "tailwindcss-animate": "^1.0.7",
