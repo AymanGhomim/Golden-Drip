@@ -266,7 +266,7 @@ export function MenuPageClient() {
             return (
               <Card
                 key={product.id}
-                className="menu-card group cursor-pointer overflow-hidden rounded-md border border-border/70 bg-card shadow-sm transition-[border-color,box-shadow,transform] duration-300 ease-out hover:-translate-y-1 hover:border-accent/45 hover:shadow-[0_14px_34px_hsl(var(--accent)/0.16)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/40"
+                className="menu-card group cursor-pointer overflow-hidden rounded-md border border-border/70 bg-card shadow-[0_10px_28px_hsl(var(--foreground)/0.07)] transition-[border-color,box-shadow,transform] duration-500 ease-out hover:-translate-y-1.5 hover:border-accent/45 hover:shadow-[0_20px_46px_hsl(var(--foreground)/0.13)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/40"
                 role="button"
                 tabIndex={0}
                 onClick={() => router.push(`/menu/${product.id}`)}
@@ -276,21 +276,21 @@ export function MenuPageClient() {
                   }
                 }}
               >
-                <div className="relative aspect-[4/3] overflow-hidden bg-muted sm:aspect-[5/4]">
+                <div className="relative aspect-[1.35/1] overflow-hidden bg-muted sm:aspect-[1.55/1]">
                   {product.image ? (
                     <Image
                       src={product.image}
                       alt={translatedProductText.name}
                       fill
                       sizes="(min-width: 1024px) 33vw, 50vw"
-                      className="object-cover transition-transform duration-500 ease-out group-hover:scale-[1.035]"
+                      className="object-cover transition-transform duration-700 ease-out group-hover:scale-[1.045]"
                     />
                   ) : (
                     <div className="flex h-full items-center justify-center text-muted-foreground">
                       <ShoppingBag className="h-10 w-10" />
                     </div>
                   )}
-                  <div className="absolute inset-0 bg-gradient-to-t from-black/68 via-black/12 to-black/5 transition-colors duration-300 group-hover:from-black/62 group-hover:via-black/8" />
+                  <div className="absolute inset-0 bg-gradient-to-t from-black/64 via-black/12 to-black/5 transition-colors duration-500 group-hover:from-black/58 group-hover:via-black/8" />
                   <div className="absolute inset-0 opacity-0 transition-opacity duration-300 group-hover:opacity-100">
                     <div className="absolute inset-0 bg-accent/8" />
                   </div>
@@ -306,7 +306,7 @@ export function MenuPageClient() {
                       {quantity}
                     </Badge>
                   ) : null}
-                  <div className="absolute bottom-0 left-0 right-0 p-2.5 sm:p-3.5">
+                  <div className="absolute bottom-0 left-0 right-0 p-3 sm:p-4">
                     <p className="mb-1 hidden w-fit rounded-full border border-white/20 bg-white/15 px-2 py-0.5 text-[0.65rem] font-semibold text-white/90 backdrop-blur-sm sm:block">
                       {translatedCategoryName(product.categoryId, locale)}
                     </p>
@@ -315,12 +315,12 @@ export function MenuPageClient() {
                     </h2>
                   </div>
                 </div>
-                <CardContent className="flex flex-1 flex-col gap-2 border-t bg-gradient-to-b from-card to-muted/25 p-2.5 transition-colors duration-300 group-hover:from-card group-hover:to-accent/8 sm:gap-3 sm:p-4">
-                  <p className="min-h-10 line-clamp-2 text-xs leading-5 text-muted-foreground sm:min-h-[4.5rem] sm:line-clamp-3 sm:text-sm sm:leading-6">
+                <CardContent className="flex flex-1 flex-col gap-3 border-t bg-gradient-to-b from-card to-muted/25 p-3.5 transition-colors duration-500 group-hover:from-card group-hover:to-accent/8 sm:gap-4 sm:p-5">
+                  <p className="min-h-10 line-clamp-2 text-xs leading-5 text-muted-foreground sm:min-h-12 sm:text-sm sm:leading-6">
                     {translatedProductText.description}
                   </p>
 
-                  <div className="mt-auto">
+                  <div className="mt-auto pt-1">
                     {quantity > 0 ? (
                       <div
                         className="flex h-9 items-center justify-between overflow-hidden rounded-md border border-accent/30 bg-accent/8 shadow-inner transition-colors duration-300 group-hover:border-accent/45 group-hover:bg-accent/12 sm:h-11"
