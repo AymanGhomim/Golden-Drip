@@ -105,7 +105,7 @@ export function AdminShell({ children }: { children: React.ReactNode }) {
           title={collapsed ? text[item.key] : undefined}
           className={cn(
             "group relative flex items-center rounded-lg py-2.5 text-xs font-semibold transition-all duration-200 ease-out",
-            collapsed ? "justify-center px-2.5" : "gap-3 px-3",
+            collapsed ? "mx-auto h-11 w-11 justify-center px-0 py-0" : "gap-3 px-3",
             active
               ? "bg-[hsl(30_33%_84%)] text-[#21100a] shadow-[0_10px_22px_rgba(0,0,0,0.16)]"
               : "text-[#cdb5a5] hover:bg-white/10 hover:text-[#fff5ee]"
@@ -114,13 +114,14 @@ export function AdminShell({ children }: { children: React.ReactNode }) {
           <span
             className={cn(
               "absolute inset-y-2 w-1 rounded-full bg-accent opacity-0 transition-opacity duration-200",
-              locale === "ar" ? "right-0" : "left-0",
+              locale === "ar" ? (collapsed ? "-right-2" : "right-0") : collapsed ? "-left-2" : "left-0",
               active && "opacity-100"
             )}
           />
           <span
             className={cn(
-              "flex h-7 w-7 shrink-0 items-center justify-center rounded-md transition-colors duration-200",
+              "flex shrink-0 items-center justify-center rounded-md transition-colors duration-200",
+              collapsed ? "h-8 w-8" : "h-7 w-7",
               active ? "bg-[#21100a]/10" : "bg-white/5 group-hover:bg-white/10"
             )}
           >
@@ -135,14 +136,14 @@ export function AdminShell({ children }: { children: React.ReactNode }) {
     <div className="min-h-screen bg-background lg:flex" dir={locale === "ar" ? "rtl" : "ltr"}>
       <aside
         className={cn(
-          "sticky top-0 hidden h-screen shrink-0 flex-col border-r border-[#3d2014] bg-[#21100a] p-4 shadow-[8px_0_28px_rgba(0,0,0,0.16)] transition-[width] duration-200 ease-out lg:flex",
-          isDesktopSidebarOpen ? "w-64" : "w-20"
+          "sticky top-0 hidden h-screen shrink-0 flex-col border-r border-[#3d2014] bg-[#21100a] shadow-[8px_0_28px_rgba(0,0,0,0.16)] transition-[width,padding] duration-200 ease-out lg:flex",
+          isDesktopSidebarOpen ? "w-64 p-4" : "w-[5.5rem] px-3 py-4"
         )}
       >
         <div
           className={cn(
-            "mb-6 flex rounded-lg border border-white/10 bg-white/5 p-3",
-            isDesktopSidebarOpen ? "items-center justify-between gap-2" : "flex-col items-center gap-2"
+            "mb-6 flex rounded-lg border border-white/10 bg-white/5",
+            isDesktopSidebarOpen ? "items-center justify-between gap-2 p-3" : "flex-col items-center gap-3 px-2 py-3"
           )}
         >
           {isDesktopSidebarOpen ? (
@@ -150,7 +151,7 @@ export function AdminShell({ children }: { children: React.ReactNode }) {
               <AppLogo />
             </Link>
           ) : (
-            <Link href="/admin/dashboard" className="mx-auto" aria-label="Admin dashboard">
+            <Link href="/admin/dashboard" className="mx-auto rounded-full bg-white/8 p-1" aria-label="Admin dashboard">
               <AppLogo showText={false} size="sm" />
             </Link>
           )}
@@ -171,8 +172,8 @@ export function AdminShell({ children }: { children: React.ReactNode }) {
             {text.management}
           </p>
         ) : null}
-        <nav className="min-h-0 flex-1 space-y-1 overflow-y-auto pr-1">{renderLinks(undefined, !isDesktopSidebarOpen)}</nav>
-        <div className="mt-4 shrink-0 rounded-lg border border-white/10 bg-white/5 p-3">
+        <nav className={cn("min-h-0 flex-1 overflow-y-auto", isDesktopSidebarOpen ? "space-y-1 pr-1" : "space-y-2")}>{renderLinks(undefined, !isDesktopSidebarOpen)}</nav>
+        <div className={cn("mt-4 shrink-0 rounded-lg border border-white/10 bg-white/5", isDesktopSidebarOpen ? "p-3" : "p-2")}>
           {isDesktopSidebarOpen ? (
             <p className="mb-3 truncate text-xs font-medium text-[#cdb5a5]">{user?.email}</p>
           ) : null}
@@ -181,7 +182,7 @@ export function AdminShell({ children }: { children: React.ReactNode }) {
             size={isDesktopSidebarOpen ? "default" : "icon"}
             className={cn(
               "h-10 rounded-lg border-white/70 bg-white text-xs font-bold text-[#21100a] shadow-sm hover:border-accent/50 hover:bg-[#fff5ee] hover:text-[#21100a]",
-              isDesktopSidebarOpen ? "w-full justify-start gap-2.5 px-3" : "w-full"
+              isDesktopSidebarOpen ? "w-full justify-start gap-2.5 px-3" : "w-full justify-center px-0"
             )}
             onClick={() => {
               logout();
