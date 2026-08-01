@@ -229,10 +229,19 @@ export function AdminDataPage<T>({
                             <SelectTrigger className={cn("h-12 rounded-md bg-card text-sm shadow-sm", isArabicControls && "flex-row-reverse")}>
                               <SelectValue />
                             </SelectTrigger>
-                            <SelectContent>
-                              <SelectItem value="all">{group.allLabel}</SelectItem>
+                            <SelectContent dir={isArabicControls ? "rtl" : "ltr"}>
+                              <SelectItem
+                                value="all"
+                                className={isArabicControls ? "justify-end pl-2 pr-8 text-right [&>span]:left-auto [&>span]:right-2" : undefined}
+                              >
+                                {group.allLabel}
+                              </SelectItem>
                               {group.options.map((filter) => (
-                                <SelectItem key={filter.value} value={filter.value}>
+                                <SelectItem
+                                  key={filter.value}
+                                  value={filter.value}
+                                  className={isArabicControls ? "justify-end pl-2 pr-8 text-right [&>span]:left-auto [&>span]:right-2" : undefined}
+                                >
                                   {filter.label}
                                 </SelectItem>
                               ))}
