@@ -25,6 +25,12 @@ export interface AdminFilterOption<T> {
   predicate: (item: T) => boolean;
 }
 
+export interface AdminFilterGroup<T> {
+  label: string;
+  allLabel: string;
+  options: AdminFilterOption<T>[];
+}
+
 interface AdminDataPageProps<T> {
   eyebrow: string;
   title: string;
@@ -42,6 +48,7 @@ interface AdminDataPageProps<T> {
   filterLabel?: string;
   allFilterLabel?: string;
   filterOptions?: AdminFilterOption<T>[];
+  filterGroups?: AdminFilterGroup<T>[];
   emptyMessage?: string;
   emptyDescription?: string;
 }
@@ -63,26 +70,44 @@ export function AdminDataPage<T>({
   filterLabel = "Filter",
   allFilterLabel = "All",
   filterOptions = [],
+  filterGroups,
   emptyMessage,
   emptyDescription,
 }: AdminDataPageProps<T>) {
   const [searchQuery, setSearchQuery] = useState("");
-  const [activeFilter, setActiveFilter] = useState("all");
+  const [activeFilters, setActiveFilters] = useState<Record<string, string>>({});
   const normalizedSearchQuery = searchQuery.trim().toLowerCase();
-  const hasControls = Boolean(searchValue) || filterOptions.length > 0;
+  const resolvedFilterGroups = useMemo(
+    () =>
+      filterGroups ??
+      (filterOptions.length > 0
+        ? [
+            {
+              label: filterLabel,
+              allLabel: allFilterLabel,
+              options: filterOptions,
+            },
+          ]
+        : []),
+    [allFilterLabel, filterGroups, filterLabel, filterOptions]
+  );
+  const hasControls = Boolean(searchValue) || resolvedFilterGroups.length > 0;
   const filteredData = useMemo(() => {
-    const selectedFilter = filterOptions.find((filter) => filter.value === activeFilter);
-
     return data.filter((item) => {
       const matchesSearch =
         !searchValue ||
         !normalizedSearchQuery ||
         searchValue(item).toLowerCase().includes(normalizedSearchQuery);
-      const matchesFilter = !selectedFilter || selectedFilter.predicate(item);
+      const matchesFilters = resolvedFilterGroups.every((group) => {
+        const activeValue = activeFilters[group.label] ?? "all";
+        const selectedFilter = group.options.find((filter) => filter.value === activeValue);
 
-      return matchesSearch && matchesFilter;
+        return !selectedFilter || selectedFilter.predicate(item);
+      });
+
+      return matchesSearch && matchesFilters;
     });
-  }, [activeFilter, data, filterOptions, normalizedSearchQuery, searchValue]);
+  }, [activeFilters, data, normalizedSearchQuery, resolvedFilterGroups, searchValue]);
 
   return (
     <AdminShell>
@@ -132,22 +157,33 @@ export function AdminDataPage<T>({
                       />
                     </div>
                   ) : null}
-                  {filterOptions.length > 0 ? (
-                    <div className="flex items-center gap-2 sm:min-w-56">
+                  {resolvedFilterGroups.length > 0 ? (
+                    <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-end">
                       <SlidersHorizontal className="h-4 w-4 text-muted-foreground" />
-                      <Select value={activeFilter} onValueChange={setActiveFilter}>
-                        <SelectTrigger className="h-10 rounded-md text-sm shadow-sm">
-                          <SelectValue aria-label={filterLabel} />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="all">{allFilterLabel}</SelectItem>
-                          {filterOptions.map((filter) => (
-                            <SelectItem key={filter.value} value={filter.value}>
-                              {filter.label}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
+                      {resolvedFilterGroups.map((group) => (
+                        <Select
+                          key={group.label}
+                          value={activeFilters[group.label] ?? "all"}
+                          onValueChange={(value) =>
+                            setActiveFilters((current) => ({
+                              ...current,
+                              [group.label]: value,
+                            }))
+                          }
+                        >
+                          <SelectTrigger className="h-10 rounded-md text-sm shadow-sm sm:min-w-44">
+                            <SelectValue aria-label={group.label} />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="all">{group.allLabel}</SelectItem>
+                            {group.options.map((filter) => (
+                              <SelectItem key={filter.value} value={filter.value}>
+                                {filter.label}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      ))}
                     </div>
                   ) : null}
                 </div>

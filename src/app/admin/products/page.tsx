@@ -463,24 +463,32 @@ export default function ProductsPage() {
 
         return `${product.name} ${product.description} ${categoryName}`;
       }}
-      filterLabel={text.filter}
-      allFilterLabel={text.all}
-      filterOptions={[
+      filterGroups={[
         {
-          label: text.active,
-          value: "available",
-          predicate: (product) => product.isAvailable,
+          label: text.status,
+          allLabel: text.all,
+          options: [
+            {
+              label: text.active,
+              value: "available",
+              predicate: (product) => product.isAvailable,
+            },
+            {
+              label: text.hidden,
+              value: "hidden",
+              predicate: (product) => !product.isAvailable,
+            },
+          ],
         },
         {
-          label: text.hidden,
-          value: "hidden",
-          predicate: (product) => !product.isAvailable,
+          label: text.category,
+          allLabel: locale === "en" ? "All categories" : "كل الأقسام",
+          options: mockCategories.map((category) => ({
+            label: category.name,
+            value: category.id,
+            predicate: (product: Product) => product.categoryId === category.id,
+          })),
         },
-        ...mockCategories.map((category) => ({
-          label: category.name,
-          value: category.id,
-          predicate: (product: Product) => product.categoryId === category.id,
-        })),
       ]}
       emptyMessage={text.noResults}
       emptyDescription={text.noResultsDescription}
