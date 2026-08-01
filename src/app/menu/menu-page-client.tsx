@@ -136,7 +136,7 @@ export function MenuPageClient() {
             onPointerMove={(event) => {
               if (!isDragging) return;
               const nextOffset = event.clientX - dragStartX.current;
-              if (Math.abs(nextOffset) > 18) didDrag.current = true;
+              if (Math.abs(nextOffset) > 24) didDrag.current = true;
               setDragOffset(Math.max(-120, Math.min(120, nextOffset)));
             }}
             onPointerUp={finishOfferDrag}
@@ -161,11 +161,6 @@ export function MenuPageClient() {
                     router.push(`/offers/${offer.id}`);
                   }}
                 >
-                  {(() => {
-                    const offerQuantity = quantitiesByProduct.get(offer.id) ?? 0;
-
-                    return (
-                      <>
                   <Image
                     src={offer.image}
                     alt={offer.title}
@@ -202,56 +197,9 @@ export function MenuPageClient() {
                           variant="light"
                           className="pt-1"
                         />
-                        <div className="pt-1" onClick={(event) => event.stopPropagation()}>
-                          {offerQuantity > 0 ? (
-                            <div className="flex h-10 w-full max-w-52 items-center justify-between overflow-hidden rounded-md border border-white/35 bg-white/15 text-white shadow-sm backdrop-blur-md">
-                              <Button
-                                type="button"
-                                variant="ghost"
-                                size="icon"
-                                className="h-10 w-11 rounded-none text-white hover:bg-white/20 hover:text-white"
-                                onClick={() => decreaseQuantity(offer.id)}
-                                aria-label="Decrease offer quantity"
-                              >
-                                <Minus className="h-4 w-4" />
-                              </Button>
-                              <span className="min-w-10 text-center text-sm font-black">{offerQuantity}</span>
-                              <Button
-                                type="button"
-                                variant="ghost"
-                                size="icon"
-                                className="h-10 w-11 rounded-none text-white hover:bg-white/20 hover:text-white"
-                                onClick={() => increaseQuantity(offer.id)}
-                                aria-label="Increase offer quantity"
-                              >
-                                <Plus className="h-4 w-4" />
-                              </Button>
-                            </div>
-                          ) : (
-                            <Button
-                              type="button"
-                              className="h-10 rounded-md border border-white/25 bg-white px-3 text-xs font-black text-[#21100a] shadow-sm hover:bg-[#fff5ee] hover:text-[#21100a]"
-                              onClick={() =>
-                                addItem({
-                                  productId: offer.id,
-                                  name: offer.title,
-                                  price: offer.price,
-                                  image: offer.image,
-                                  quantity: 1,
-                                })
-                              }
-                            >
-                              <Plus className="h-4 w-4" />
-                              {copy.add}
-                            </Button>
-                          )}
-                        </div>
                       </div>
                     </div>
                   </div>
-                      </>
-                    );
-                  })()}
                 </button>
               ))}
             </div>
