@@ -121,7 +121,7 @@ export function ProductDetailClient({ product }: { product: Product }) {
                     type="button"
                     size="icon"
                     variant="ghost"
-                    className="h-11 w-12 rounded-none hover:bg-accent/15"
+                    className="h-11 w-12 rounded-none transition-colors hover:bg-accent hover:text-accent-foreground"
                     onClick={() => setQuantity((value) => Math.max(1, value - 1))}
                     aria-label="Decrease quantity"
                   >
@@ -132,7 +132,7 @@ export function ProductDetailClient({ product }: { product: Product }) {
                     type="button"
                     size="icon"
                     variant="ghost"
-                    className="h-11 w-12 rounded-none hover:bg-accent/15"
+                    className="h-11 w-12 rounded-none transition-colors hover:bg-accent hover:text-accent-foreground"
                     onClick={() => setQuantity((value) => value + 1)}
                     aria-label="Increase quantity"
                   >
