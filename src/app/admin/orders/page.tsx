@@ -394,31 +394,58 @@ export default function OrdersPage() {
       }
       filterLabel={controlsText.filter}
       allFilterLabel={controlsText.all}
-      filterOptions={[
+      filterGroups={[
         {
-          label: orderStatusFilterLabels.NEW,
-          value: "NEW",
-          predicate: (order) => order.status === "NEW",
+          label: text.status,
+          allLabel: controlsText.all,
+          options: [
+            {
+              label: orderStatusFilterLabels.NEW,
+              value: "NEW",
+              predicate: (order) => order.status === "NEW",
+            },
+            {
+              label: orderStatusFilterLabels.PREPARING,
+              value: "PREPARING",
+              predicate: (order) => order.status === "PREPARING",
+            },
+            {
+              label: orderStatusFilterLabels.READY,
+              value: "READY",
+              predicate: (order) => order.status === "READY",
+            },
+            {
+              label: orderStatusFilterLabels.COMPLETED,
+              value: "COMPLETED",
+              predicate: (order) => order.status === "COMPLETED",
+            },
+            {
+              label: orderStatusFilterLabels.CANCELLED,
+              value: "CANCELLED",
+              predicate: (order) => order.status === "CANCELLED",
+            },
+          ],
         },
         {
-          label: orderStatusFilterLabels.PREPARING,
-          value: "PREPARING",
-          predicate: (order) => order.status === "PREPARING",
-        },
-        {
-          label: orderStatusFilterLabels.READY,
-          value: "READY",
-          predicate: (order) => order.status === "READY",
-        },
-        {
-          label: orderStatusFilterLabels.COMPLETED,
-          value: "COMPLETED",
-          predicate: (order) => order.status === "COMPLETED",
-        },
-        {
-          label: orderStatusFilterLabels.CANCELLED,
-          value: "CANCELLED",
-          predicate: (order) => order.status === "CANCELLED",
+          label: typeText.header,
+          allLabel: controlsText.all,
+          options: [
+            {
+              label: orderTypeLabels.TABLE,
+              value: "TABLE",
+              predicate: (order) => order.orderType === "TABLE",
+            },
+            {
+              label: orderTypeLabels.TAKEAWAY,
+              value: "TAKEAWAY",
+              predicate: (order) => order.orderType === "TAKEAWAY",
+            },
+            {
+              label: orderTypeLabels.DELIVERY,
+              value: "DELIVERY",
+              predicate: (order) => order.orderType === "DELIVERY",
+            },
+          ],
         },
       ]}
       emptyMessage={controlsText.noResults}
