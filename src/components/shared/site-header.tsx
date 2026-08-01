@@ -35,13 +35,13 @@ export function SiteHeader({ locale, onLocaleChange }: SiteHeaderProps) {
 
   return (
     <header className="sticky top-0 z-20 border-b bg-background/95 backdrop-blur animate-header-enter">
-      <div className="mx-auto flex w-full max-w-6xl items-center justify-between gap-2 px-3 py-2.5 sm:gap-4 sm:px-6 sm:py-4">
-        <div className="flex min-w-0 items-center gap-2">
+      <div className="mx-auto flex min-h-[4.75rem] w-full max-w-6xl items-center justify-between gap-4 px-3 py-3.5 sm:min-h-[6rem] sm:gap-6 sm:px-6 sm:py-5">
+        <div className="flex min-w-0 items-center gap-3">
           <Link href={ROUTES.menu} className="shrink-0" aria-label="Golden Drip Cafe menu">
-            <AppLogo showText={false} size="sm" className="mb-0.5 sm:[&_div]:h-14 sm:[&_div]:w-14" />
+            <AppLogo showText={false} size="sm" className="mb-0.5 [&_div]:h-12 [&_div]:w-12 sm:[&_div]:h-16 sm:[&_div]:w-16" />
           </Link>
         </div>
-        <div dir="ltr" className="flex min-w-0 items-center justify-end gap-1.5 sm:gap-2">
+        <div dir="ltr" className="flex min-w-0 items-center justify-end gap-2 sm:gap-3">
           <Button
             asChild
             className={cn(
