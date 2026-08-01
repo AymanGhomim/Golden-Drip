@@ -8,18 +8,19 @@ import {
   BadgePercent,
   ChefHat,
   ClipboardList,
-  Languages,
   LayoutDashboard,
   LogOut,
   Package,
+  Settings,
   TableProperties,
   Tags,
 } from "lucide-react";
+
 import { AppLogo } from "@/components/shared/app-logo";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
-import { useAuthStore } from "@/store/auth.store";
 import { useAdminLocale } from "@/providers/admin-locale-provider";
+import { useAuthStore } from "@/store/auth.store";
 
 const navigation = [
   { key: "dashboard", href: "/admin/dashboard", icon: LayoutDashboard },
@@ -28,6 +29,7 @@ const navigation = [
   { key: "offers", href: "/admin/offers", icon: BadgePercent },
   { key: "orders", href: "/admin/orders", icon: ClipboardList },
   { key: "tables", href: "/admin/tables", icon: TableProperties },
+  { key: "settings", href: "/admin/settings", icon: Settings },
   { key: "kitchen", href: "/kitchen/orders", icon: ChefHat },
 ] as const;
 
@@ -41,8 +43,9 @@ const copy = {
     offers: "Offers",
     orders: "Orders",
     tables: "Tables",
+    settings: "Settings",
     kitchen: "Kitchen",
-    language: "Language",
+    back: "Back",
   },
   ar: {
     management: "الإدارة",
@@ -53,8 +56,9 @@ const copy = {
     offers: "العروض",
     orders: "الطلبات",
     tables: "الطاولات",
+    settings: "الإعدادات",
     kitchen: "المطبخ",
-    language: "اللغة",
+    back: "رجوع",
   },
 } as const;
 
@@ -65,7 +69,7 @@ export function AdminShell({ children }: { children: React.ReactNode }) {
   const isAuthenticated = useAuthStore((state) => state.isAuthenticated);
   const logout = useAuthStore((state) => state.logout);
   const [ready, setReady] = useState(false);
-  const { locale, setLocale } = useAdminLocale();
+  const { locale } = useAdminLocale();
   const text = copy[locale];
 
   useEffect(() => {
@@ -101,46 +105,16 @@ export function AdminShell({ children }: { children: React.ReactNode }) {
 
   return (
     <div className="min-h-screen bg-background lg:flex" dir={locale === "ar" ? "rtl" : "ltr"}>
-      <aside className="hidden w-64 shrink-0 flex-col border-r border-[#3d2014] bg-[#21100a] p-4 lg:flex">
+      <aside className="sticky top-0 hidden h-screen w-64 shrink-0 flex-col border-r border-[#3d2014] bg-[#21100a] p-4 lg:flex">
         <Link href="/admin/dashboard" className="mb-8 [&_span]:text-[#fff5ee]">
           <AppLogo />
         </Link>
         <p className="mb-3 px-3 text-xs font-semibold uppercase tracking-[0.16em] text-[#a99080]">
           {text.management}
         </p>
-        <nav className="space-y-1">{links}</nav>
-        <div className="mt-auto border-t border-[#3d2014] pt-4">
+        <nav className="min-h-0 flex-1 space-y-1 overflow-y-auto pr-1">{links}</nav>
+        <div className="shrink-0 border-t border-[#3d2014] pt-4">
           <p className="mb-3 truncate px-3 text-sm text-[#a99080]">{user?.email}</p>
-          <div className="mb-4 rounded-xl border border-white/10 bg-white/5 p-2">
-            <p className="mb-2 flex items-center gap-2 px-1 text-xs font-semibold text-[#f3dfd2]">
-              <Languages className="h-3.5 w-3.5" />
-              {text.language}
-            </p>
-            <div className="grid grid-cols-2 gap-1.5" dir="ltr">
-              <button
-                className={cn(
-                  "rounded-lg px-2 py-2 text-xs font-bold transition-colors",
-                  locale === "en"
-                    ? "bg-primary text-primary-foreground shadow-sm"
-                    : "bg-white/5 text-[#cdb5a5] hover:bg-white/10"
-                )}
-                onClick={() => setLocale("en")}
-              >
-                English
-              </button>
-              <button
-                className={cn(
-                  "rounded-lg px-2 py-2 text-xs font-bold transition-colors",
-                  locale === "ar"
-                    ? "bg-primary text-primary-foreground shadow-sm"
-                    : "bg-white/5 text-[#cdb5a5] hover:bg-white/10"
-                )}
-                onClick={() => setLocale("ar")}
-              >
-                العربية
-              </button>
-            </div>
-          </div>
           <Button
             variant="ghost"
             className="w-full justify-start gap-3 text-[#cdb5a5] hover:bg-white/10 hover:text-[#ffb4a5]"
@@ -191,7 +165,7 @@ export function AdminShell({ children }: { children: React.ReactNode }) {
             onClick={() => router.back()}
           >
             <ArrowLeft className={cn("h-4 w-4", locale === "ar" && "rotate-180")} />
-            {locale === "ar" ? "رجوع" : "Back"}
+            {text.back}
           </Button>
         </div>
         {children}

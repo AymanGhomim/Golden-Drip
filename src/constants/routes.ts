@@ -12,6 +12,7 @@ export const ROUTES = {
     offers: "/admin/offers",
     orders: "/admin/orders",
     tables: "/admin/tables",
+    settings: "/admin/settings",
   },
   kitchen: {
     orders: "/kitchen/orders",
