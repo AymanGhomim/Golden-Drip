@@ -229,7 +229,7 @@ export function MenuPageClient() {
           </div>
         ) : null}
 
-        <div className="scrollbar-hidden mb-6 flex gap-2 overflow-x-auto rounded-md border bg-card/70 p-1.5 shadow-sm backdrop-blur-sm">
+        <div className="scrollbar-hidden mb-6 flex gap-2 overflow-x-auto pb-1">
           <CategoryButton
             isSelected={selectedCategory === allCategoryId}
             onClick={() => setSelectedCategory(allCategoryId)}
@@ -381,9 +381,9 @@ function CategoryButton({
       type="button"
       variant="ghost"
       className={cn(
-        "h-9 shrink-0 rounded-md border border-transparent px-4 text-xs font-bold text-muted-foreground transition-all duration-200 hover:border-accent/25 hover:bg-accent/10 hover:text-foreground",
+        "h-9 shrink-0 rounded-full border border-border/70 bg-card/70 px-4 text-xs font-bold text-muted-foreground shadow-sm backdrop-blur-sm transition-all duration-200 hover:-translate-y-0.5 hover:border-accent/35 hover:bg-accent/10 hover:text-foreground",
         isSelected &&
-          "border-accent/35 bg-[#21100a] text-[#fff5ee] shadow-sm hover:bg-[#2f170e] hover:text-white dark:bg-[#b9a58f] dark:text-[#1b0d08] dark:hover:bg-[#c7b39d]"
+          "border-[#21100a] bg-[#21100a] text-[#fff5ee] shadow-[0_10px_22px_rgba(33,16,10,0.18)] hover:bg-[#2f170e] hover:text-white dark:border-[#b9a58f] dark:bg-[#b9a58f] dark:text-[#1b0d08] dark:hover:bg-[#c7b39d]"
       )}
       onClick={onClick}
     >
