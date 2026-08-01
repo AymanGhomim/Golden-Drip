@@ -98,34 +98,49 @@ export function AdminShell({ children }: { children: React.ReactNode }) {
           key={item.href}
           href={item.href}
           onClick={onNavigate}
+          aria-current={active ? "page" : undefined}
           className={cn(
-            "flex items-center gap-2.5 rounded-lg px-2.5 py-2 text-xs font-medium transition-colors",
+            "group relative flex items-center gap-3 rounded-lg px-3 py-2.5 text-xs font-semibold transition-all duration-200 ease-out",
             active
-              ? "bg-primary text-primary-foreground shadow-sm"
+              ? "bg-[hsl(30_33%_84%)] text-[#21100a] shadow-[0_10px_22px_rgba(0,0,0,0.16)]"
               : "text-[#cdb5a5] hover:bg-white/10 hover:text-[#fff5ee]"
           )}
         >
-          <Icon className="h-3.5 w-3.5" />
-          {text[item.key]}
+          <span
+            className={cn(
+              "absolute inset-y-2 w-1 rounded-full bg-accent opacity-0 transition-opacity duration-200",
+              locale === "ar" ? "right-0" : "left-0",
+              active && "opacity-100"
+            )}
+          />
+          <span
+            className={cn(
+              "flex h-7 w-7 shrink-0 items-center justify-center rounded-md transition-colors duration-200",
+              active ? "bg-[#21100a]/10" : "bg-white/5 group-hover:bg-white/10"
+            )}
+          >
+            <Icon className="h-3.5 w-3.5" />
+          </span>
+          <span className="truncate">{text[item.key]}</span>
         </Link>
       );
     });
 
   return (
     <div className="min-h-screen bg-background lg:flex" dir={locale === "ar" ? "rtl" : "ltr"}>
-      <aside className="sticky top-0 hidden h-screen w-56 shrink-0 flex-col border-r border-[#3d2014] bg-[#21100a] p-3 lg:flex">
-        <Link href="/admin/dashboard" className="mb-6 [&_span]:text-[#fff5ee]">
+      <aside className="sticky top-0 hidden h-screen w-64 shrink-0 flex-col border-r border-[#3d2014] bg-[#21100a] p-4 shadow-[8px_0_28px_rgba(0,0,0,0.16)] lg:flex">
+        <Link href="/admin/dashboard" className="mb-6 rounded-lg border border-white/10 bg-white/5 p-3 [&_span]:text-[#fff5ee]">
           <AppLogo />
         </Link>
-        <p className="mb-2 px-2.5 text-[0.65rem] font-semibold uppercase tracking-[0.14em] text-[#a99080]">
+        <p className="mb-3 px-3 text-[0.65rem] font-semibold uppercase tracking-[0.14em] text-[#a99080]">
           {text.management}
         </p>
-        <nav className="min-h-0 flex-1 space-y-0.5 overflow-y-auto pr-1">{renderLinks()}</nav>
-        <div className="shrink-0 border-t border-[#3d2014] pt-3">
-          <p className="mb-2 truncate px-2.5 text-xs text-[#a99080]">{user?.email}</p>
+        <nav className="min-h-0 flex-1 space-y-1 overflow-y-auto pr-1">{renderLinks()}</nav>
+        <div className="mt-4 shrink-0 rounded-lg border border-white/10 bg-white/5 p-3">
+          <p className="mb-3 truncate text-xs font-medium text-[#cdb5a5]">{user?.email}</p>
           <Button
             variant="outline"
-            className="h-9 w-full justify-start gap-2.5 border-white/70 bg-white px-2.5 text-xs font-bold text-[#21100a] shadow-sm hover:border-accent/50 hover:bg-[#fff5ee] hover:text-[#21100a]"
+            className="h-10 w-full justify-start gap-2.5 rounded-lg border-white/70 bg-white px-3 text-xs font-bold text-[#21100a] shadow-sm hover:border-accent/50 hover:bg-[#fff5ee] hover:text-[#21100a]"
             onClick={() => {
               logout();
               router.replace("/admin/login");
@@ -173,8 +188,8 @@ export function AdminShell({ children }: { children: React.ReactNode }) {
               onClick={() => setIsMobileSidebarOpen(false)}
               aria-label="Close navigation"
             />
-            <aside className="relative flex h-full w-64 max-w-[85vw] flex-col border-r border-[#3d2014] bg-[#21100a] p-3 shadow-2xl">
-              <div className="mb-6 flex items-center justify-between">
+            <aside className="relative flex h-full w-72 max-w-[85vw] flex-col border-r border-[#3d2014] bg-[#21100a] p-4 shadow-2xl">
+              <div className="mb-6 flex items-center justify-between rounded-lg border border-white/10 bg-white/5 p-3">
                 <Link
                   href="/admin/dashboard"
                   className="[&_span]:text-[#fff5ee]"
@@ -193,17 +208,17 @@ export function AdminShell({ children }: { children: React.ReactNode }) {
                   <X className="h-4 w-4" />
                 </Button>
               </div>
-              <p className="mb-2 px-2.5 text-[0.65rem] font-semibold uppercase tracking-[0.14em] text-[#a99080]">
+              <p className="mb-3 px-3 text-[0.65rem] font-semibold uppercase tracking-[0.14em] text-[#a99080]">
                 {text.management}
               </p>
-              <nav className="min-h-0 flex-1 space-y-0.5 overflow-y-auto pr-1">
+              <nav className="min-h-0 flex-1 space-y-1 overflow-y-auto pr-1">
                 {renderLinks(() => setIsMobileSidebarOpen(false))}
               </nav>
-              <div className="shrink-0 border-t border-[#3d2014] pt-3">
-                <p className="mb-2 truncate px-2.5 text-xs text-[#a99080]">{user?.email}</p>
+              <div className="mt-4 shrink-0 rounded-lg border border-white/10 bg-white/5 p-3">
+                <p className="mb-3 truncate text-xs font-medium text-[#cdb5a5]">{user?.email}</p>
                 <Button
                   variant="outline"
-                  className="h-9 w-full justify-start gap-2.5 border-white/70 bg-white px-2.5 text-xs font-bold text-[#21100a] shadow-sm hover:border-accent/50 hover:bg-[#fff5ee] hover:text-[#21100a]"
+                  className="h-10 w-full justify-start gap-2.5 rounded-lg border-white/70 bg-white px-3 text-xs font-bold text-[#21100a] shadow-sm hover:border-accent/50 hover:bg-[#fff5ee] hover:text-[#21100a]"
                   onClick={() => {
                     setIsMobileSidebarOpen(false);
                     logout();
