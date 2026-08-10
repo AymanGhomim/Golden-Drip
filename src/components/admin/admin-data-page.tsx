@@ -171,7 +171,7 @@ export function AdminDataPage<T>({
                   {resolvedFilterGroups.length > 0 ? (
                     <Button
                       type="button"
-                      className="h-12 w-full justify-center gap-2 rounded-md bg-primary px-5 text-sm text-primary-foreground shadow-[0_8px_20px_rgba(42,16,10,0.18)] transition-all hover:-translate-y-0.5 hover:bg-primary/95 hover:shadow-[0_10px_24px_rgba(42,16,10,0.22)] sm:w-auto"
+                      className="h-12 w-full justify-center gap-2 rounded-md bg-primary px-5 text-sm text-primary-foreground shadow-[0_8px_20px_hsl(var(--foreground)/0.18)] transition-all hover:-translate-y-0.5 hover:bg-primary/95 hover:shadow-[0_10px_24px_hsl(var(--foreground)/0.22)] sm:w-auto"
                       onClick={() => {
                         setDraftFilters(activeFilters);
                         setIsFilterPanelOpen((open) => !open);
@@ -190,7 +190,7 @@ export function AdminDataPage<T>({
                 {isFilterPanelOpen && resolvedFilterGroups.length > 0 ? (
                   <div
                     className={cn(
-                      "mt-4 w-full max-w-2xl overflow-hidden rounded-md border bg-background shadow-[0_16px_40px_rgba(42,16,10,0.10)]",
+                      "mt-4 w-full max-w-2xl overflow-hidden rounded-md border bg-background shadow-[0_16px_40px_hsl(var(--foreground)/0.10)]",
                       isArabicControls ? "mr-auto" : "ml-auto",
                     )}
                   >

@@ -1,0 +1,2 @@
+import { AdminModulePage } from "@/components/admin/admin-module-page";
+export default function Page() { return <AdminModulePage section="المالية" title="الورديات" description="افتح وأغلق الورديات مع مطابقة النقدية والفروقات." action="فتح وردية" rows={[{ title: "وردية أحمد", meta: "10 أغسطس · 08:00", value: "5,840 ج.م", status: "مفتوحة" }, { title: "وردية سارة", meta: "9 أغسطس · 16:00", value: "8,230 ج.م", status: "مغلقة" }]} />; }

@@ -1,0 +1,52 @@
+"use client";
+
+import { useState } from "react";
+import { Copy, Eye, Pencil, Plus, Search, Trash2 } from "lucide-react";
+import { toast } from "sonner";
+import { AdminShell } from "@/components/admin/admin-shell";
+import { PermissionGate } from "@/components/access/permission-gate";
+import { ConfirmDialog } from "@/components/shared/confirm-dialog";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent } from "@/components/ui/card";
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
+import { PERMISSION_DEFINITIONS, PERMISSION_GROUPS } from "@/config/permissions.config";
+import { useTenant } from "@/providers/tenant-provider";
+import { employeeService } from "@/services/employee.service";
+import { roleService } from "@/services/role.service";
+import type { CafeRole, PermissionKey } from "@/types/access-control.types";
+
+export default function RolesPage() {
+  const { tenant } = useTenant();
+  const [revision, setRevision] = useState(0);
+  const [query, setQuery] = useState("");
+  const [editing, setEditing] = useState<CafeRole | null | undefined>(undefined);
+  const [viewing, setViewing] = useState<CafeRole | null>(null);
+  const [deleteTarget, setDeleteTarget] = useState<CafeRole | null>(null);
+  void revision;
+  const roles = roleService.getRoles(tenant.id);
+  const employees = employeeService.getEmployees(tenant.id);
+  const filtered = roles.filter((role) => `${role.name} ${role.description ?? ""}`.toLowerCase().includes(query.toLowerCase()));
+  const refresh = () => setRevision((value) => value + 1);
+  const duplicate = (role: CafeRole) => { try { const copy = roleService.duplicateRole(role.id, undefined, tenant.id); toast.success(`تم إنشاء ${copy.name}`); refresh(); } catch (error) { toast.error(error instanceof Error ? error.message : "تعذر نسخ الدور."); } };
+
+  return <AdminShell><section dir="rtl" className="mx-auto w-full max-w-[1500px] px-3 py-5 sm:px-5"><div className="mb-5 flex flex-col justify-between gap-3 rounded-xl border bg-card p-5 shadow-sm sm:flex-row sm:items-end"><div><p className="text-xs font-bold text-accent">الموظفون</p><h1 className="mt-1 text-2xl font-black">الأدوار والصلاحيات</h1><p className="mt-1 text-sm text-muted-foreground">أنشئ أدوارًا واضحة وحدد صلاحيات كل دور داخل الكافيه.</p></div><PermissionGate permission="roles.manage"><Button onClick={() => setEditing(null)}><Plus className="ml-2 h-4 w-4" />إضافة دور</Button></PermissionGate></div><Card><CardContent className="p-0"><div className="border-b p-4"><div className="relative max-w-sm"><Search className="absolute right-3 top-3 h-4 w-4 text-muted-foreground" /><Input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="بحث عن دور..." className="pr-9" /></div></div><div className="overflow-x-auto"><table className="w-full min-w-[850px] text-right text-sm"><thead className="bg-muted/50"><tr>{["اسم الدور", "عدد الموظفين", "عدد الصلاحيات", "نوع الدور", "الإجراءات"].map((heading) => <th key={heading} className="px-4 py-3">{heading}</th>)}</tr></thead><tbody>{filtered.map((role) => { const employeeCount = employees.filter((employee) => employee.roleId === role.id).length; return <tr key={role.id} className="border-t"><td className="px-4 py-4"><p className="font-black">{role.name}</p><p className="text-xs text-muted-foreground">{role.description || "—"}</p></td><td className="px-4 py-4">{employeeCount}</td><td className="px-4 py-4">{role.permissions.length}</td><td className="px-4 py-4"><Badge variant={role.systemRole ? "secondary" : "outline"}>{role.systemRole ? "دور أساسي" : "دور مخصص"}</Badge></td><td className="px-4 py-4"><div className="flex gap-1"><Button variant="outline" size="icon" onClick={() => setViewing(role)} aria-label="عرض"><Eye className="h-4 w-4" /></Button><PermissionGate permission="roles.manage">{role.code !== "OWNER" ? <Button variant="outline" size="icon" onClick={() => setEditing(role)} aria-label="تعديل"><Pencil className="h-4 w-4" /></Button> : null}<Button variant="outline" size="icon" onClick={() => duplicate(role)} aria-label="نسخ"><Copy className="h-4 w-4" /></Button>{!role.systemRole ? <Button variant="outline" size="icon" onClick={() => setDeleteTarget(role)} aria-label="حذف"><Trash2 className="h-4 w-4 text-destructive" /></Button> : null}</PermissionGate></div></td></tr>; })}</tbody></table>{!filtered.length ? <div className="p-12 text-center text-sm text-muted-foreground">لم تتم إضافة أدوار مخصصة.</div> : null}</div></CardContent></Card></section>
+    {editing !== undefined ? <RoleEditor role={editing} onClose={() => setEditing(undefined)} onSaved={refresh} /> : null}
+    {viewing ? <RoleViewer role={viewing} onClose={() => setViewing(null)} /> : null}
+    <ConfirmDialog open={Boolean(deleteTarget)} onOpenChange={(open) => !open && setDeleteTarget(null)} title="حذف الدور" description="هل أنت متأكد من حذف هذا الدور؟ لا يمكن حذف دور مرتبط بموظفين." confirmLabel="حذف الدور" onConfirm={() => { if (!deleteTarget) return; try { roleService.deleteRole(deleteTarget.id, tenant.id); toast.success("تم حذف الدور"); setDeleteTarget(null); refresh(); } catch (error) { toast.error(error instanceof Error ? error.message : "تعذر حذف الدور."); } }} />
+  </AdminShell>;
+}
+
+function RoleEditor({ role, onClose, onSaved }: { role: CafeRole | null; onClose: () => void; onSaved: () => void }) {
+  const { tenant } = useTenant();
+  const [name, setName] = useState(role?.name ?? "");
+  const [description, setDescription] = useState(role?.description ?? "");
+  const [permissions, setPermissions] = useState<PermissionKey[]>(role?.permissions ?? []);
+  const toggle = (key: PermissionKey) => setPermissions((current) => current.includes(key) ? current.filter((item) => item !== key) : [...current, key]);
+  const toggleGroup = (group: string) => { const keys = PERMISSION_DEFINITIONS.filter((item) => item.group === group).map((item) => item.key); const complete = keys.every((key) => permissions.includes(key)); setPermissions((current) => complete ? current.filter((key) => !keys.includes(key)) : Array.from(new Set([...current, ...keys]))); };
+  const save = () => { try { if (!name.trim()) throw new Error("اسم الدور مطلوب."); role ? roleService.updateRole(role.id, { name: name.trim(), description: description.trim(), permissions }, tenant.id) : roleService.createRole({ name: name.trim(), description: description.trim(), permissions }, tenant.id); toast.success(role ? "تم تحديث الدور" : "تم إنشاء الدور"); onSaved(); onClose(); } catch (error) { toast.error(error instanceof Error ? error.message : "تعذر حفظ الدور."); } };
+  return <Dialog open onOpenChange={(open) => !open && onClose()}><DialogContent dir="rtl" className="max-h-[92vh] max-w-4xl overflow-y-auto"><DialogHeader><DialogTitle>{role ? "تعديل الدور" : "إضافة دور"}</DialogTitle><DialogDescription>اختر الصلاحيات من أسمائها العربية؛ لا تحتاج إلى كتابة أي أكواد تقنية.</DialogDescription></DialogHeader><div className="grid gap-4 sm:grid-cols-2"><label className="text-sm font-bold">اسم الدور<Input className="mt-2" value={name} onChange={(event) => setName(event.target.value)} /></label><label className="text-sm font-bold">الوصف<Input className="mt-2" value={description} onChange={(event) => setDescription(event.target.value)} /></label></div><div className="space-y-4">{PERMISSION_GROUPS.map((group) => { const definitions = PERMISSION_DEFINITIONS.filter((item) => item.group === group.key); const selected = definitions.filter((item) => permissions.includes(item.key)).length; return <section key={group.key} className="rounded-xl border p-4"><div className="flex items-center justify-between"><div><h3 className="font-black">{group.label}</h3><p className="text-xs text-muted-foreground">{selected} من {definitions.length} محددة</p></div><Button type="button" variant="outline" size="sm" onClick={() => toggleGroup(group.key)}>تحديد الكل</Button></div><div className="mt-4 grid gap-2 sm:grid-cols-2">{definitions.map((definition) => <label key={definition.key} className="flex cursor-pointer gap-3 rounded-lg bg-muted/40 p-3"><input type="checkbox" checked={permissions.includes(definition.key)} onChange={() => toggle(definition.key)} className="mt-1" /><span><span className="block text-sm font-bold">{definition.label}</span><span className="text-xs text-muted-foreground">{definition.description}</span></span></label>)}</div></section>; })}</div><div className="flex justify-end gap-2"><Button variant="outline" onClick={onClose}>إلغاء</Button><Button onClick={save}>حفظ الدور</Button></div></DialogContent></Dialog>;
+}
+
+function RoleViewer({ role, onClose }: { role: CafeRole; onClose: () => void }) { return <Dialog open onOpenChange={(open) => !open && onClose()}><DialogContent dir="rtl" className="max-h-[90vh] max-w-3xl overflow-y-auto"><DialogHeader><DialogTitle>{role.name}</DialogTitle><DialogDescription>{role.description || "تفاصيل الصلاحيات الفعلية لهذا الدور."}</DialogDescription></DialogHeader>{PERMISSION_GROUPS.map((group) => { const items = PERMISSION_DEFINITIONS.filter((item) => item.group === group.key && role.permissions.includes(item.key)); return items.length ? <section key={group.key}><h3 className="font-black">{group.label}</h3><div className="mt-2 grid gap-2 sm:grid-cols-2">{items.map((item) => <div key={item.key} className="rounded-lg bg-muted/50 p-3 text-sm">{item.label}</div>)}</div></section> : null; })}</DialogContent></Dialog>; }

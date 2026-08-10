@@ -1,10 +1,10 @@
 "use client";
 
 import { Facebook, Instagram, MapPin, Music2, Phone } from "lucide-react";
-
+import type { LucideIcon } from "lucide-react";
 import type { Locale } from "@/lib/menu-translations";
 import { cn } from "@/lib/utils";
-import type { LucideIcon } from "lucide-react";
+import { useTenant } from "@/providers/tenant-provider";
 
 type TickerItem = {
   key: string;
@@ -13,38 +13,63 @@ type TickerItem = {
   href?: string;
 };
 
-const phoneNumbers = ["01050555375", "01011329575"];
-const locationUrl =
-  "https://www.google.com/maps/place/4X62%2BG79+golden+drip+coffee,+%D9%82%D8%B3%D9%85+%D9%83%D9%81%D8%B1+%D8%A7%D9%84%D8%B4%D9%8A%D8%AE%D8%8C+%D9%83%D9%81%D8%B1+%D8%A7%D9%84%D8%B4%D9%8A%D8%AE%D8%8C+%D9%85%D8%AD%D8%A7%D9%81%D8%B8%D8%A9+%D9%83%D9%81%D8%B1+%D8%A7%D9%84%D8%B4%D9%8A%D8%AE+6860530%E2%80%AD/data=!4m2!3m1!1s0x14f7ab0048b3fb69:0x6bd69c41de884133!18m1!1e1?entry=gps&coh=192189&g_ep=CAESBzI2LjIwLjEYACCenQoqlQEsOTQyNjc3MjcsOTQyOTIxOTUsOTQyOTk1MzIsMTAwNzk2NDk4LDEwMDc5Nzc2MSwxMDA3OTY1MzUsMTAwODE1MDM2LDk0MjgwNTc2LDk0MjA3Mzk0LDk0MjA3NTA2LDk0MjA4NTA2LDk0MjE4NjUzLDk0MjI5ODM5LDk0Mjc1MTY4LDk0Mjc5NjE5LDEwMDc5MjU3MkICRUc%3D&skid=6d7adfd0-f010-49b2-bc45-93431f164b9d";
-const socialLinks: TickerItem[] = [
-  {
-    key: "facebook",
-    icon: Facebook,
-    text: "Facebook",
-    href: "https://www.facebook.com/people/Golden-Drip/61581964776493/?rdid=8xWLmtdyFR35APth&share_url=https%3A%2F%2Fwww.facebook.com%2Fshare%2F1E9gCqSdbr%2F",
-  },
-  {
-    key: "instagram",
-    icon: Instagram,
-    text: "Instagram",
-    href: "https://www.instagram.com/goldendrip.cafe",
-  },
-  {
-    key: "tiktok",
-    icon: Music2,
-    text: "TikTok",
-    href: "https://www.tiktok.com/@golden_drip_?_r=1",
-  },
-];
-const address = "شارع الاستاد امام بوابه سيتي كلوب الخلفيه";
-
 export function ContactTicker({ locale }: { locale: Locale }) {
-  const addressLabel = locale === "ar" ? address : "El Estad St, behind City Club back gate";
+  const { tenant } = useTenant();
+  const contact = tenant.contact;
   const items: TickerItem[] = [
-    { key: "address", icon: MapPin, text: addressLabel, href: locationUrl },
-    ...phoneNumbers.map((phone) => ({ key: phone, icon: Phone, text: phone })),
-    ...socialLinks,
+    ...(contact?.address
+      ? [
+          {
+            key: "address",
+            icon: MapPin,
+            text: contact.address,
+            href: contact.locationUrl,
+          },
+        ]
+      : []),
+    ...(contact?.phone
+      ? [
+          {
+            key: "phone",
+            icon: Phone,
+            text: contact.phone,
+            href: `tel:${contact.phone}`,
+          },
+        ]
+      : []),
+    ...(contact?.facebook
+      ? [
+          {
+            key: "facebook",
+            icon: Facebook,
+            text: "Facebook",
+            href: contact.facebook,
+          },
+        ]
+      : []),
+    ...(contact?.instagram
+      ? [
+          {
+            key: "instagram",
+            icon: Instagram,
+            text: "Instagram",
+            href: contact.instagram,
+          },
+        ]
+      : []),
+    ...(contact?.tiktok
+      ? [
+          {
+            key: "tiktok",
+            icon: Music2,
+            text: "TikTok",
+            href: contact.tiktok,
+          },
+        ]
+      : []),
   ];
+
+  if (!items.length) return null;
 
   return (
     <div className="overflow-hidden border-t bg-accent/10 text-foreground">
@@ -55,7 +80,10 @@ export function ContactTicker({ locale }: { locale: Locale }) {
         )}
       >
         {[0, 1].map((groupIndex) => (
-          <div key={groupIndex} className="flex w-1/2 shrink-0 items-center justify-around gap-8 px-4">
+          <div
+            key={groupIndex}
+            className="flex w-1/2 shrink-0 items-center justify-around gap-8 px-4"
+          >
             {items.map(({ key, icon: Icon, text, href }) => {
               const content = (
                 <>
@@ -70,14 +98,17 @@ export function ContactTicker({ locale }: { locale: Locale }) {
                 <a
                   key={`${key}-${groupIndex}`}
                   href={href}
-                  target="_blank"
-                  rel="noreferrer"
+                  target={href.startsWith("http") ? "_blank" : undefined}
+                  rel={href.startsWith("http") ? "noreferrer" : undefined}
                   className="flex shrink-0 items-center gap-2 text-xs font-bold transition-colors hover:text-accent sm:text-sm"
                 >
                   {content}
                 </a>
               ) : (
-                <div key={`${key}-${groupIndex}`} className="flex shrink-0 items-center gap-2 text-xs font-bold sm:text-sm">
+                <div
+                  key={`${key}-${groupIndex}`}
+                  className="flex shrink-0 items-center gap-2 text-xs font-bold sm:text-sm"
+                >
                   {content}
                 </div>
               );

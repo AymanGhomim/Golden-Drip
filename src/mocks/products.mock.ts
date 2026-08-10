@@ -1,4 +1,5 @@
 import { Product } from "@/types/product.types";
+import { getMockTenantId } from "@/mocks/mock-tenant-context";
 
 const productImages = {
   espresso: "https://images.unsplash.com/photo-1510707577719-ae7c14805e3a?w=800&auto=format&fit=crop",
@@ -23,7 +24,7 @@ const productImages = {
   hotChocolate: "https://images.unsplash.com/photo-1542990253-0d0f5be5f0ed?w=800&auto=format&fit=crop",
 };
 
-export const mockProducts: Product[] = [
+const goldenProducts: Product[] = [
   { id: "prod-1", name: "Espresso", description: "Double-shot espresso made from freshly ground Arabica beans.", price: 55, image: productImages.espresso, categoryId: "cat-1", isAvailable: true },
   { id: "prod-2", name: "Americano", description: "Double espresso gently lengthened with hot filtered water.", price: 60, image: productImages.americano, categoryId: "cat-1", isAvailable: true },
   { id: "prod-3", name: "Cappuccino", description: "Espresso, steamed whole milk, and a thick layer of silky milk foam.", price: 75, image: productImages.cappuccino, categoryId: "cat-1", isAvailable: true },
@@ -50,3 +51,5 @@ export const mockProducts: Product[] = [
   { id: "prod-19", name: "Golden Drip Signature", description: "Double espresso, date syrup, cinnamon, oat milk, and a delicate sesame crunch.", price: 120, image: productImages.signature, categoryId: "cat-6", isAvailable: true },
   { id: "prod-20", name: "Golden Hot Chocolate", description: "Belgian dark chocolate, steamed milk, vanilla, whipped cream, and cocoa dust.", price: 95, image: productImages.hotChocolate, categoryId: "cat-6", isAvailable: true },
 ];
+const moonProducts: Product[] = [{ id: "moon-prod-1", name: "لاتيه فانيليا", description: "إسبريسو مع حليب وفانيليا", price: 78, categoryId: "moon-cat-1", isAvailable: true }, { id: "moon-prod-2", name: "قهوة اليوم", description: "قهوة مقطرة حسب التحميص المتاح", price: 65, categoryId: "moon-cat-1", isAvailable: true }, { id: "moon-prod-3", name: "تشيز كيك التوت", description: "قطعة تشيز كيك مع صوص التوت", price: 110, categoryId: "moon-cat-2", isAvailable: true }];
+export const mockProducts: Product[] = (getMockTenantId() === "tenant-golden-drip" ? goldenProducts : getMockTenantId() === "tenant-moon-cafe" ? moonProducts : []).map((item) => ({ ...item, tenantId: getMockTenantId() }));

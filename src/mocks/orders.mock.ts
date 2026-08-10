@@ -1,6 +1,7 @@
 import { Order } from "@/types/order.types";
+import { getMockTenantId } from "@/mocks/mock-tenant-context";
 
-export const mockOrders: Order[] = [
+const goldenOrders: Order[] = [
   {
     id: "ord-1",
     orderNumber: "ORD-001",
@@ -126,3 +127,5 @@ export const mockOrders: Order[] = [
     createdAt: new Date(Date.now() - 1000 * 60 * 120).toISOString(),
   },
 ];
+const moonOrders: Order[] = [{ id: "moon-ord-1", orderNumber: "MOON-101", tableNumber: 1, orderType: "TABLE", customerName: "سارة", status: "PREPARING", items: [{ id: "moon-oi-1", productId: "moon-prod-1", productName: "لاتيه فانيليا", unitPrice: 78, quantity: 2, totalPrice: 156 }], subtotal: 156, total: 156, createdAt: new Date().toISOString() }];
+export const mockOrders: Order[] = (getMockTenantId() === "tenant-golden-drip" ? goldenOrders : getMockTenantId() === "tenant-moon-cafe" ? moonOrders : []).map((item) => ({ ...item, tenantId: getMockTenantId() }));

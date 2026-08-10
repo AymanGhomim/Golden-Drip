@@ -1,0 +1,2 @@
+import { AdminModulePage } from "@/components/admin/admin-module-page";
+export default function Page() { return <AdminModulePage section="الإدارة" title="التقارير" description="حلل المبيعات والطلبات والأرباح والمخزون حسب الفترة والقناة." action="تصدير التقرير" rows={[{ title: "تقرير المبيعات اليومية", meta: "اليوم · كل القنوات", value: "24 طلبًا", status: "جاهز" }, { title: "تقرير الأرباح", meta: "هذا الشهر", value: "42,850 ج.م", status: "محدث" }, { title: "تقرير المخزون", meta: "الحالة الحالية", value: "3 أصناف منخفضة", status: "يحتاج مراجعة" }]} />; }

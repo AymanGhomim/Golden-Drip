@@ -1,6 +1,7 @@
 import type { Offer } from "@/types/offer.types";
+import { getMockTenantId } from "@/mocks/mock-tenant-context";
 
-export const mockOffers: Offer[] = [
+const goldenOffers: Offer[] = [
   {
     id: "offer-1",
     title: "Morning Coffee Combo",
@@ -32,3 +33,5 @@ export const mockOffers: Offer[] = [
     sortOrder: 3,
   },
 ];
+const moonOffers: Offer[] = [{ id: "moon-offer-1", title: "باقة المساء", description: "قهوة اليوم مع قطعة حلوى", image: "", originalPrice: 160, price: 125, isActive: true, sortOrder: 1 }];
+export const mockOffers: Offer[] = getMockTenantId() === "tenant-golden-drip" ? goldenOffers : getMockTenantId() === "tenant-moon-cafe" ? moonOffers : [];

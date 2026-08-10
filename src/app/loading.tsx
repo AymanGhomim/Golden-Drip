@@ -1,5 +1,5 @@
-import { PageLoader } from "@/components/feedback/page-loader";
+import { AppLoadingState } from "@/components/feedback/app-state";
 
 export default function RootLoading() {
-  return <PageLoader />;
+  return <AppLoadingState variant="neutral" title="جاري تحميل التطبيق..." fullScreen />;
 }

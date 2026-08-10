@@ -1,0 +1,133 @@
+"use client";
+
+import { createContext, useContext, useEffect, useState } from "react";
+import { DEFAULT_TENANT } from "@/config/tenants.config";
+import type { Tenant } from "@/types/tenant.types";
+import { tenantService } from "@/services/tenant.service";
+import { useCartStore } from "@/store/cart.store";
+import { useOrdersStore } from "@/store/orders.store";
+import { useSettingsStore } from "@/store/settings.store";
+
+type TenantContextValue = {
+  tenant: Tenant;
+  isDemoTenantResolver: boolean;
+  error?: string;
+};
+const TenantContext = createContext<TenantContextValue | null>(null);
+
+function resolveTenant(): { tenant: Tenant; error?: string } {
+  if (typeof window === "undefined") return { tenant: DEFAULT_TENANT };
+  const requestedTenantId = new URLSearchParams(window.location.search).get(
+    "tenantId",
+  );
+  const requestedTenant = requestedTenantId
+    ? tenantService.getTenant(requestedTenantId)
+    : undefined;
+  if (requestedTenant) {
+    if (tenantService.getSelectedDevelopmentTenant() !== requestedTenant.id)
+      tenantService.selectDevelopmentTenant(requestedTenant.id);
+    return { tenant: requestedTenant };
+  }
+  if (requestedTenantId)
+    return {
+      tenant: DEFAULT_TENANT,
+      error: "الكافيه المطلوب غير موجود. ارجع إلى المنصة واختر كافيهًا صالحًا.",
+    };
+  const selectedId = tenantService.getSelectedDevelopmentTenant();
+  const selected = selectedId ? tenantService.getTenant(selectedId) : undefined;
+  if (selected) return { tenant: selected };
+  if (selectedId)
+    return {
+      tenant: DEFAULT_TENANT,
+      error: "تعذر تحديد الكافيه الحالي. اختر كافيهًا صالحًا من المنصة.",
+    };
+  const hostname = window.location.hostname.toLowerCase();
+  const rootDomain = process.env.NEXT_PUBLIC_ROOT_DOMAIN?.toLowerCase();
+  const configuredSlug =
+    process.env.NEXT_PUBLIC_DEFAULT_TENANT_SLUG || DEFAULT_TENANT.slug;
+  const subdomain =
+    rootDomain && hostname.endsWith(`.${rootDomain}`)
+      ? hostname.slice(0, -(rootDomain.length + 1))
+      : undefined;
+  const requestedSlug =
+    subdomain && subdomain !== "www" && subdomain !== "platform"
+      ? subdomain
+      : configuredSlug;
+  const resolved = tenantService
+    .listTenants()
+    .find((tenant) => tenant.slug === requestedSlug);
+  return resolved
+    ? { tenant: resolved }
+    : {
+        tenant: DEFAULT_TENANT,
+        error: "تعذر تحديد هوية الكافيه المطلوبة. راجع إعدادات النطاق في المنصة.",
+      };
+}
+
+export function TenantProvider({ children }: { children: React.ReactNode }) {
+  const [tenant, setTenant] = useState(DEFAULT_TENANT);
+  const [error, setError] = useState<string>();
+  const [resolved, setResolved] = useState(false);
+  useEffect(() => {
+    const refresh = (resetOperationalState: boolean) => {
+      const next = resolveTenant();
+      setTenant(next.tenant);
+      setError(next.error);
+      setResolved(true);
+      if (resetOperationalState) useCartStore.getState().clearCart();
+      if (!next.error && resetOperationalState) {
+        useOrdersStore.getState().loadForTenant(next.tenant.id);
+        useSettingsStore.getState().loadForTenant(next.tenant.id);
+      }
+    };
+    const handleTenantChanged = () => refresh(true);
+    const handleBrandingChanged = () => refresh(false);
+    refresh(true);
+    window.addEventListener("tenant:changed", handleTenantChanged);
+    window.addEventListener("tenant:branding-changed", handleBrandingChanged);
+    return () => {
+      window.removeEventListener("tenant:changed", handleTenantChanged);
+      window.removeEventListener("tenant:branding-changed", handleBrandingChanged);
+    };
+  }, []);
+
+  if (!resolved) {
+    return (
+      <main
+        dir="rtl"
+        className="flex min-h-screen items-center justify-center bg-slate-50 p-6 text-slate-900"
+      >
+        <div className="text-center">
+          <span className="mx-auto block h-10 w-10 animate-spin rounded-full border-4 border-slate-200 border-t-slate-700" />
+          <p className="mt-4 text-sm font-bold">جاري تحديد مساحة الكافيه...</p>
+        </div>
+      </main>
+    );
+  }
+
+  return (
+    <TenantContext.Provider
+      value={{ tenant, isDemoTenantResolver: true, error }}
+    >
+      {error ? (
+        <main
+          dir="rtl"
+          className="flex min-h-screen items-center justify-center bg-slate-50 p-6 text-slate-900"
+        >
+          <div className="max-w-lg rounded-xl border border-slate-200 bg-white p-8 text-center shadow-sm">
+            <h1 className="text-xl font-black">تعذر فتح مساحة العمل</h1>
+            <p className="mt-3 text-sm text-slate-600">{error}</p>
+          </div>
+        </main>
+      ) : (
+        children
+      )}
+    </TenantContext.Provider>
+  );
+}
+
+export function useTenant() {
+  const context = useContext(TenantContext);
+  if (!context) throw new Error("useTenant must be used within TenantProvider");
+  return context;
+}

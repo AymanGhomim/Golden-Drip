@@ -1,0 +1,2 @@
+import { AdminModulePage } from "@/components/admin/admin-module-page";
+export default function Page() { return <AdminModulePage section="الإدارة" title="سجل النشاط" description="سجل غير قابل للتعديل لكل الإجراءات الحساسة داخل النظام." rows={[{ title: "أحمد حسن", meta: "تغيير سعر كابتشينو من 70 إلى 75 ج.م", value: "اليوم 10:42", status: "موثق" }, { title: "النظام", meta: "إعادة إنشاء QR للطاولة 08", value: "اليوم 09:15", status: "موثق" }]} />; }

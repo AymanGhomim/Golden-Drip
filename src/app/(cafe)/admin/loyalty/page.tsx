@@ -1,0 +1,2 @@
+import { AdminModulePage } from "@/components/admin/admin-module-page";
+export default function Page() { return <AdminModulePage section="العملاء" title="نقاط الولاء" description="تابع أرصدة النقاط وقواعد الكسب والاستبدال." action="إعدادات الولاء" rows={[{ title: "أحمد محمد", meta: "النقاط المكتسبة هذا الشهر", value: "420 نقطة", status: "متاح" }, { title: "منى علي", meta: "النقاط المستبدلة", value: "180 نقطة", status: "متاح" }]} />; }

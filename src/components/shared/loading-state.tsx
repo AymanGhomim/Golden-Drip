@@ -16,8 +16,14 @@ const loadingMessage = {
   ar: "جاري التحميل...",
 } as const;
 
-export function LoadingState({ message, className, locale }: LoadingStateProps) {
-  const [detectedLocale, setDetectedLocale] = useState<"en" | "ar">(locale ?? "en");
+export function LoadingState({
+  message,
+  className,
+  locale,
+}: LoadingStateProps) {
+  const [detectedLocale, setDetectedLocale] = useState<"en" | "ar">(
+    locale ?? "en",
+  );
 
   useEffect(() => {
     if (locale) {
@@ -25,7 +31,7 @@ export function LoadingState({ message, className, locale }: LoadingStateProps) 
       return;
     }
 
-    const savedLocale = window.localStorage.getItem("golden-drip-locale");
+    const savedLocale = window.localStorage.getItem("cafe-ui-locale");
     setDetectedLocale(savedLocale === "ar" ? "ar" : "en");
   }, [locale]);
 
@@ -33,7 +39,10 @@ export function LoadingState({ message, className, locale }: LoadingStateProps) 
 
   return (
     <div
-      className={cn("flex flex-col items-center justify-center py-12", className)}
+      className={cn(
+        "flex flex-col items-center justify-center py-12",
+        className,
+      )}
       dir={activeLocale === "ar" ? "rtl" : "ltr"}
     >
       <Loader2 className="h-8 w-8 animate-spin text-primary" />

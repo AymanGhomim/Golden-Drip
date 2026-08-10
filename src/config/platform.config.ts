@@ -1,0 +1,20 @@
+export const PLATFORM_CONFIG = {
+  name: "Penta-K",
+  nameAr: "بينتا-ك",
+  tagline: "إدارة الكافيهات والمطاعم",
+  colors: {
+    ink: "#101828",
+    sidebar: "#111827",
+    sidebarHover: "#1F2937",
+    sidebarActive: "#E5E7EB",
+    primary: "#374151",
+    primaryDark: "#111827",
+    primarySoft: "#F3F4F6",
+    background: "#F5F5F5",
+    surface: "#FFFFFF",
+    border: "#DCE7EA",
+    muted: "#667085",
+    success: "#12B76A",
+    warning: "#F79009",
+  },
+} as const;

@@ -7,11 +7,13 @@ export const ROUTES = {
   admin: {
     login: "/admin/login",
     dashboard: "/admin/dashboard",
+    pos: "/admin/pos",
     products: "/admin/products",
     categories: "/admin/categories",
     offers: "/admin/offers",
     orders: "/admin/orders",
     tables: "/admin/tables",
+    qr: "/admin/qr",
     settings: "/admin/settings",
   },
   kitchen: {

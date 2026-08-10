@@ -1,5 +1,5 @@
 export const APP_CONFIG = {
-  name: process.env.NEXT_PUBLIC_APP_NAME || "Golden Drip Café",
+  name: process.env.NEXT_PUBLIC_APP_NAME || "Cafe Management System",
   apiBaseUrl: process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:5000/api",
   defaultCurrency: "EGP",
   currencySymbol: "ج.م",

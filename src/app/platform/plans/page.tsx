@@ -1,0 +1,323 @@
+"use client";
+import { useEffect, useState } from "react";
+import { Check, Pencil, Plus, Trash2, X } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent } from "@/components/ui/card";
+import {
+  DEFAULT_PLANS,
+  FEATURE_GROUPS,
+  getPlans,
+  savePlans,
+} from "@/config/plans.config";
+import type { FeatureKey, Plan } from "@/types/platform.types";
+
+const emptyPlan: Plan = {
+  id: "",
+  code: "",
+  name: "",
+  description: "",
+  price: 0,
+  active: true,
+  maxBranches: 1,
+  features: [],
+};
+
+export default function PlatformPlansPage() {
+  const [plans, setPlans] = useState<Plan[]>(DEFAULT_PLANS);
+  const [selected, setSelected] = useState("");
+  const [editing, setEditing] = useState<Plan | null>(null);
+  useEffect(() => {
+    const next = getPlans();
+    setPlans(next);
+    setSelected(next[0]?.code || "");
+  }, []);
+  const persist = (next: Plan[]) => {
+    setPlans(next);
+    savePlans(next);
+  };
+  const save = () => {
+    if (!editing?.name.trim() || !editing.code.trim()) return;
+    const next = plans.some((item) => item.id === editing.id)
+      ? plans.map((item) => (item.id === editing.id ? editing : item))
+      : [...plans, { ...editing, id: `plan-${Date.now()}` }];
+    persist(next);
+    setSelected(editing.code);
+    setEditing(null);
+  };
+  const remove = (id: string) => {
+    const plan = plans.find((item) => item.id === id);
+    if (!plan || !window.confirm(`حذف باقة ${plan.name}؟`)) return;
+    const next = plans.filter((item) => item.id !== id);
+    persist(next);
+    setSelected(next[0]?.code || "");
+  };
+  const activePlan = plans.find((item) => item.code === selected) || plans[0];
+  const toggleFeature = (key: FeatureKey) =>
+    setEditing((current) =>
+      current
+        ? {
+            ...current,
+            features: current.features.includes(key)
+              ? current.features.filter((item) => item !== key)
+              : [...current.features, key],
+          }
+        : current,
+    );
+  return (
+    <section className="mx-auto max-w-[1500px] p-5 sm:p-10">
+      <div className="flex flex-col items-start justify-between gap-4 sm:flex-row sm:items-end">
+        <div>
+          <p className="text-sm font-bold text-[#374151]">الاشتراكات</p>
+          <h1 className="mt-2 text-3xl font-black">الباقات</h1>
+          <p className="mt-2 text-sm text-muted-foreground">
+            أضف وعدّل واحذف الباقات والمميزات المرتبطة بها.
+          </p>
+        </div>
+        <Button
+          className="bg-[#111111] hover:bg-[#374151]"
+          onClick={() => setEditing({ ...emptyPlan, id: `plan-${Date.now()}` })}
+        >
+          <Plus className="ml-2 h-4 w-4" />
+          إضافة باقة
+        </Button>
+      </div>
+      <div className="mt-8 grid gap-4 md:grid-cols-3">
+        {plans.map((item) => (
+          <div
+            key={item.id}
+            className={`rounded-2xl border bg-white p-5 text-right transition ${activePlan?.id === item.id ? "border-[#111111] ring-2 ring-[#111111]/15" : "border-[#D1D5DB] hover:border-[#6B7280]"}`}
+          >
+            <button
+              type="button"
+              onClick={() => setSelected(item.code)}
+              className="w-full text-right"
+            >
+              <div className="flex items-start justify-between gap-2">
+                <div>
+                  <p className="text-lg font-black">{item.name}</p>
+                  <p className="mt-2 text-sm text-muted-foreground">
+                    {item.description}
+                  </p>
+                </div>
+                <span
+                  className={`rounded-full px-2 py-1 text-[10px] font-bold ${item.active ? "bg-gray-100 text-gray-700" : "bg-red-50 text-red-600"}`}
+                >
+                  {item.active ? "نشطة" : "غير نشطة"}
+                </span>
+              </div>
+              <p className="mt-5 text-xs font-bold text-[#374151]">
+                {item.features.length} ميزة مضمنة · حتى {item.maxBranches} فروع
+              </p>
+            </button>
+            <div className="mt-4 flex gap-2 border-t pt-3">
+              <Button
+                variant="outline"
+                size="sm"
+                className="flex-1"
+                onClick={() => setEditing({ ...item })}
+              >
+                <Pencil className="ml-1 h-3.5 w-3.5" />
+                تعديل
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                className="text-red-600 hover:text-red-700"
+                onClick={() => remove(item.id)}
+                aria-label={`حذف ${item.name}`}
+              >
+                <Trash2 className="h-3.5 w-3.5" />
+              </Button>
+            </div>
+          </div>
+        ))}
+      </div>
+      {activePlan ? (
+        <Card className="mt-6">
+          <CardContent className="p-6">
+            <div className="flex items-center justify-between">
+              <div>
+                <h2 className="text-xl font-black">{activePlan.name}</h2>
+                <p className="mt-1 text-sm text-muted-foreground">
+                  {activePlan.description}
+                </p>
+              </div>
+              <span className="rounded-full bg-gray-100 px-3 py-1 text-xs font-bold text-gray-700">
+                {activePlan.code}
+              </span>
+            </div>
+            <div className="mt-6 grid gap-6 md:grid-cols-2">
+              {FEATURE_GROUPS.map((group) => (
+                <div key={group.title}>
+                  <h3 className="mb-3 font-black">{group.title}</h3>
+                  <div className="space-y-2">
+                    {group.items.map((feature) => (
+                      <div
+                        key={feature.key}
+                        className="flex items-center gap-2 text-sm"
+                      >
+                        <Check
+                          className={`h-4 w-4 ${activePlan.features.includes(feature.key) ? "text-gray-900" : "text-gray-300"}`}
+                        />
+                        <span
+                          className={
+                            activePlan.features.includes(feature.key)
+                              ? "font-bold"
+                              : "text-muted-foreground"
+                          }
+                        >
+                          {feature.name}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              ))}
+            </div>
+          </CardContent>
+        </Card>
+      ) : (
+        <Card className="mt-6">
+          <CardContent className="p-10 text-center text-muted-foreground">
+            لا توجد باقات حاليًا.
+          </CardContent>
+        </Card>
+      )}
+      {editing ? (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
+          <div className="max-h-[90vh] w-full max-w-2xl overflow-y-auto rounded-2xl bg-white p-6 shadow-2xl">
+            <div className="flex items-center justify-between">
+              <div>
+                <h2 className="text-xl font-black">
+                  {plans.some((item) => item.id === editing.id)
+                    ? "تعديل الباقة"
+                    : "إضافة باقة"}
+                </h2>
+                <p className="mt-1 text-sm text-muted-foreground">
+                  بيانات الباقة والمميزات المتاحة للمشتركين.
+                </p>
+              </div>
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={() => setEditing(null)}
+                aria-label="إغلاق"
+              >
+                <X className="h-5 w-5" />
+              </Button>
+            </div>
+            <div className="mt-6 grid gap-4 sm:grid-cols-2">
+              <label className="text-sm font-bold">
+                اسم الباقة
+                <input
+                  value={editing.name}
+                  onChange={(event) =>
+                    setEditing({ ...editing, name: event.target.value })
+                  }
+                  className="mt-2 h-10 w-full rounded-lg border bg-white px-3"
+                />
+              </label>
+              <label className="text-sm font-bold">
+                الكود
+                <input
+                  value={editing.code}
+                  onChange={(event) =>
+                    setEditing({
+                      ...editing,
+                      code: event.target.value
+                        .toUpperCase()
+                        .replace(/\s/g, "-"),
+                    })
+                  }
+                  className="mt-2 h-10 w-full rounded-lg border bg-white px-3 font-mono"
+                />
+              </label>
+              <label className="text-sm font-bold sm:col-span-2">
+                الوصف
+                <input
+                  value={editing.description}
+                  onChange={(event) =>
+                    setEditing({ ...editing, description: event.target.value })
+                  }
+                  className="mt-2 h-10 w-full rounded-lg border bg-white px-3"
+                />
+              </label>
+              <label className="text-sm font-bold">
+                السعر الشهري
+                <input
+                  type="number"
+                  min="0"
+                  value={editing.price || 0}
+                  onChange={(event) =>
+                    setEditing({
+                      ...editing,
+                      price: Number(event.target.value),
+                    })
+                  }
+                  className="mt-2 h-10 w-full rounded-lg border bg-white px-3"
+                />
+              </label>
+              <label className="text-sm font-bold">
+                الحد الأقصى لعدد الفروع
+                <input
+                  type="number"
+                  min="1"
+                  value={editing.maxBranches}
+                  onChange={(event) =>
+                    setEditing({
+                      ...editing,
+                      maxBranches: Math.max(1, Number(event.target.value)),
+                    })
+                  }
+                  className="mt-2 h-10 w-full rounded-lg border bg-white px-3"
+                />
+              </label>
+              <label className="flex items-center gap-2 self-end text-sm font-bold">
+                <input
+                  type="checkbox"
+                  checked={editing.active}
+                  onChange={(event) =>
+                    setEditing({ ...editing, active: event.target.checked })
+                  }
+                />
+                الباقة نشطة
+              </label>
+            </div>
+            <div className="mt-6">
+              <h3 className="font-black">المميزات</h3>
+              <div className="mt-3 grid gap-2 sm:grid-cols-2">
+                {FEATURE_GROUPS.flatMap((group) => group.items).map(
+                  (feature) => (
+                    <label
+                      key={feature.key}
+                      className="flex cursor-pointer items-center gap-2 rounded-lg border p-3 text-sm"
+                    >
+                      <input
+                        type="checkbox"
+                        checked={editing.features.includes(feature.key)}
+                        onChange={() => toggleFeature(feature.key)}
+                      />
+                      {feature.name}
+                    </label>
+                  ),
+                )}
+              </div>
+            </div>
+            <div className="mt-7 flex justify-end gap-2 border-t pt-5">
+              <Button variant="outline" onClick={() => setEditing(null)}>
+                إلغاء
+              </Button>
+              <Button
+                className="bg-[#111111] hover:bg-[#374151]"
+                onClick={save}
+                disabled={!editing.name.trim() || !editing.code.trim()}
+              >
+                حفظ الباقة
+              </Button>
+            </div>
+          </div>
+        </div>
+      ) : null}
+    </section>
+  );
+}

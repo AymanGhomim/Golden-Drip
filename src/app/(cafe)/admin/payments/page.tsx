@@ -1,0 +1,2 @@
+import { AdminModulePage } from "@/components/admin/admin-module-page";
+export default function Page() { return <AdminModulePage section="المالية" title="المدفوعات" description="تابع كل المدفوعات وطرق الدفع وحالات المعاملات." rows={[{ title: "ORD-142", meta: "نقدي · أحمد محمد", value: "310 ج.م", status: "مدفوع" }, { title: "ORD-141", meta: "بطاقة · منى علي", value: "525 ج.م", status: "مدفوع" }]} />; }

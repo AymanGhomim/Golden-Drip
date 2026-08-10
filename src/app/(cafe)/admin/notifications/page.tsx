@@ -1,0 +1,2 @@
+import { AdminModulePage } from "@/components/admin/admin-module-page";
+export default function Page() { return <AdminModulePage section="الإدارة" title="الإشعارات" description="تابع التنبيهات المهمة واربطها بالطلبات والمخزون والورديات." action="تحديد الكل كمقروء" rows={[{ title: "اللبن أوشك على النفاد", meta: "المخزون · منذ 5 دقائق", value: "2 لتر متبقية", status: "غير مقروء" }, { title: "ORD-142 متأخر في المطبخ", meta: "الطلبات · منذ 12 دقيقة", value: "متأخر", status: "غير مقروء" }]} />; }

@@ -1,0 +1,2 @@
+import { AdminModulePage } from "@/components/admin/admin-module-page";
+export default function Page() { return <AdminModulePage section="المالية" title="الاسترجاعات" description="راجع طلبات الاسترجاع وسجل الموافقات والمبالغ المرتجعة." action="طلب استرجاع" rows={[{ title: "ORD-138", meta: "استرجاع جزئي · عيب في المنتج", value: "75 ج.م", status: "قيد المراجعة" }, { title: "ORD-132", meta: "استرجاع كامل · إلغاء الطلب", value: "240 ج.م", status: "تم الاسترجاع" }]} />; }

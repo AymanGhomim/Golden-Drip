@@ -1,0 +1,2 @@
+import { AdminModulePage } from "@/components/admin/admin-module-page";
+export default function Page() { return <AdminModulePage section="المالية" title="الخزنة" description="تابع رصيد بداية الوردية والمبيعات النقدية والإيداعات والسحوبات." action="تسجيل حركة نقدية" rows={[{ title: "الوردية الحالية", meta: "أحمد · بدأت 08:00", value: "5,840 ج.م", status: "مفتوحة" }, { title: "رصيد متوقع", meta: "بعد المبيعات والمصروفات", value: "7,120 ج.م", status: "محدث" }]} />; }

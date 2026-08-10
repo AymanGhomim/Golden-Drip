@@ -1,15 +1,12 @@
 "use client";
 
-import { createContext, useContext, useEffect, useState } from "react";
+import { createContext, useContext } from "react";
 
 export type AdminLocale = "en" | "ar";
-const AdminLocaleContext = createContext<{ locale: AdminLocale; setLocale: (locale: AdminLocale) => void } | null>(null);
+const AdminLocaleContext = createContext<{ locale: AdminLocale } | null>(null);
 
 export function AdminLocaleProvider({ children }: { children: React.ReactNode }) {
-  const [locale, setLocale] = useState<AdminLocale>("ar");
-  useEffect(() => { if (window.localStorage.getItem("golden-drip-admin-locale") === "ar") setLocale("ar"); }, []);
-  useEffect(() => { window.localStorage.setItem("golden-drip-admin-locale", locale); }, [locale]);
-  return <AdminLocaleContext.Provider value={{ locale, setLocale }}>{children}</AdminLocaleContext.Provider>;
+  return <AdminLocaleContext.Provider value={{ locale: "ar" }}>{children}</AdminLocaleContext.Provider>;
 }
 
 export function useAdminLocale() {
