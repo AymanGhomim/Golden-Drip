@@ -1,2 +1,131 @@
-import { AdminModulePage } from "@/components/admin/admin-module-page";
-export default function Page() { return <AdminModulePage section="الإدارة" title="الإشعارات" description="تابع التنبيهات المهمة واربطها بالطلبات والمخزون والورديات." action="تحديد الكل كمقروء" rows={[{ title: "اللبن أوشك على النفاد", meta: "المخزون · منذ 5 دقائق", value: "2 لتر متبقية", status: "غير مقروء" }, { title: "ORD-142 متأخر في المطبخ", meta: "الطلبات · منذ 12 دقيقة", value: "متأخر", status: "غير مقروء" }]} />; }
+"use client";
+import Link from "next/link";
+import { useEffect, useState } from "react";
+import { CheckCheck } from "lucide-react";
+import { AdminShell } from "@/components/admin/admin-shell";
+import { PermissionGate } from "@/components/access/permission-gate";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent } from "@/components/ui/card";
+import { useCurrentEmployee } from "@/providers/current-employee-provider";
+import { engagementService } from "@/services/engagement.service";
+import type { NotificationRecord } from "@/types/cafe-operations.types";
+const routes: Record<string, string> = {
+  order: "/admin/orders",
+  table: "/admin/tables",
+  waiterRequest: "/admin/waiter-requests",
+  payment: "/admin/payments",
+  inventory: "/admin/inventory",
+};
+const permissions: Record<
+  string,
+  Parameters<ReturnType<typeof useCurrentEmployee>["hasPermission"]>[0]
+> = {
+  order: "orders.view",
+  table: "tables.view",
+  waiterRequest: "waiterRequests.view",
+  payment: "payments.view",
+  inventory: "inventory.view",
+};
+export default function NotificationsPage() {
+  const access = useCurrentEmployee();
+  const [records, setRecords] = useState<NotificationRecord[]>([]);
+  const reload = () => setRecords(engagementService.getNotifications());
+  useEffect(() => {
+    reload();
+    window.addEventListener("operations:changed", reload);
+    return () => window.removeEventListener("operations:changed", reload);
+  }, []);
+  return (
+    <AdminShell>
+      <section
+        dir="rtl"
+        className="mx-auto w-full max-w-[1200px] px-3 py-5 sm:px-5"
+      >
+        <div className="mb-4 flex items-end justify-between">
+          <div>
+            <p className="text-xs font-bold text-accent">الإدارة</p>
+            <h1 className="text-2xl font-black">الإشعارات</h1>
+            <p className="text-sm text-muted-foreground">
+              تنبيهات الكافيه والفرع المرتبطة بالعمليات.
+            </p>
+          </div>
+          <PermissionGate permission="notifications.manage">
+            <Button
+              variant="outline"
+              disabled={!records.some((r) => !r.read)}
+              onClick={() => {
+                engagementService.markAllNotificationsRead();
+                reload();
+              }}
+            >
+              <CheckCheck className="ml-2 h-4 w-4" />
+              تحديد الكل كمقروء
+            </Button>
+          </PermissionGate>
+        </div>
+        <Card>
+          <CardContent className="divide-y p-0">
+            {[...records].reverse().map((record) => {
+              const entity = record.relatedEntityType;
+              const route = entity ? routes[entity] : undefined;
+              const allowed = entity
+                ? access.hasPermission(permissions[entity])
+                : false;
+              return (
+                <div
+                  key={record.id}
+                  className={`p-4 ${record.read ? "opacity-65" : "bg-primary/5"}`}
+                >
+                  <div className="flex justify-between gap-3">
+                    <div>
+                      <b>{record.title}</b>
+                      <p className="mt-1 text-sm text-muted-foreground">
+                        {record.message}
+                      </p>
+                      <p className="mt-1 text-xs text-muted-foreground">
+                        {new Date(record.createdAt).toLocaleString("ar-EG")}
+                      </p>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      {route && allowed ? (
+                        <Button asChild size="sm" variant="outline">
+                          <Link
+                            href={
+                              record.relatedEntityId && entity === "order"
+                                ? `/admin/orders/${record.relatedEntityId}`
+                                : route
+                            }
+                          >
+                            فتح
+                          </Link>
+                        </Button>
+                      ) : null}
+                      {!record.read ? (
+                        <PermissionGate permission="notifications.manage">
+                          <Button
+                            size="sm"
+                            onClick={() => {
+                              engagementService.markNotificationRead(record.id);
+                              reload();
+                            }}
+                          >
+                            مقروء
+                          </Button>
+                        </PermissionGate>
+                      ) : null}
+                    </div>
+                  </div>
+                </div>
+              );
+            })}
+            {!records.length ? (
+              <div className="p-12 text-center text-sm text-muted-foreground">
+                لا توجد إشعارات.
+              </div>
+            ) : null}
+          </CardContent>
+        </Card>
+      </section>
+    </AdminShell>
+  );
+}

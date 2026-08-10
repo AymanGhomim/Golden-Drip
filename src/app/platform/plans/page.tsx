@@ -10,6 +10,10 @@ import {
   savePlans,
 } from "@/config/plans.config";
 import type { FeatureKey, Plan } from "@/types/platform.types";
+import { ConfirmDialog } from "@/components/shared/confirm-dialog";
+import { tenantService } from "@/services/tenant.service";
+import { normalizePlanCode } from "@/config/plans.config";
+import { toast } from "sonner";
 
 const emptyPlan: Plan = {
   id: "",
@@ -26,6 +30,7 @@ export default function PlatformPlansPage() {
   const [plans, setPlans] = useState<Plan[]>(DEFAULT_PLANS);
   const [selected, setSelected] = useState("");
   const [editing, setEditing] = useState<Plan | null>(null);
+  const [removeId, setRemoveId] = useState<string | null>(null);
   useEffect(() => {
     const next = getPlans();
     setPlans(next);
@@ -37,6 +42,17 @@ export default function PlatformPlansPage() {
   };
   const save = () => {
     if (!editing?.name.trim() || !editing.code.trim()) return;
+    const previous = plans.find((item) => item.id === editing.id);
+    if (
+      previous &&
+      previous.code !== editing.code &&
+      tenantService
+        .listTenants()
+        .some((tenant) => normalizePlanCode(tenant.plan) === previous.code)
+    ) {
+      toast.error("لا يمكن تغيير كود باقة مستخدمة بواسطة كافيه حالي.");
+      return;
+    }
     const next = plans.some((item) => item.id === editing.id)
       ? plans.map((item) => (item.id === editing.id ? editing : item))
       : [...plans, { ...editing, id: `plan-${Date.now()}` }];
@@ -46,10 +62,22 @@ export default function PlatformPlansPage() {
   };
   const remove = (id: string) => {
     const plan = plans.find((item) => item.id === id);
-    if (!plan || !window.confirm(`حذف باقة ${plan.name}؟`)) return;
+    if (!plan) return;
+    if (
+      tenantService
+        .listTenants()
+        .some((tenant) => normalizePlanCode(tenant.plan) === plan.code)
+    ) {
+      toast.error(
+        "لا يمكن حذف باقة مرتبطة بكافيه حالي. غيّر باقة الكافيه أولًا.",
+      );
+      setRemoveId(null);
+      return;
+    }
     const next = plans.filter((item) => item.id !== id);
     persist(next);
     setSelected(next[0]?.code || "");
+    setRemoveId(null);
   };
   const activePlan = plans.find((item) => item.code === selected) || plans[0];
   const toggleFeature = (key: FeatureKey) =>
@@ -123,7 +151,7 @@ export default function PlatformPlansPage() {
                 variant="outline"
                 size="sm"
                 className="text-red-600 hover:text-red-700"
-                onClick={() => remove(item.id)}
+                onClick={() => setRemoveId(item.id)}
                 aria-label={`حذف ${item.name}`}
               >
                 <Trash2 className="h-3.5 w-3.5" />
@@ -318,6 +346,14 @@ export default function PlatformPlansPage() {
           </div>
         </div>
       ) : null}
+      <ConfirmDialog
+        open={Boolean(removeId)}
+        onOpenChange={(open) => !open && setRemoveId(null)}
+        title="حذف الباقة؟"
+        description="لن تُحذف بيانات الكافيهات الحالية، لكن يلزم نقلها إلى باقة فعالة عند التعديل التالي."
+        confirmLabel="حذف الباقة"
+        onConfirm={() => remove(removeId!)}
+      />
     </section>
   );
 }

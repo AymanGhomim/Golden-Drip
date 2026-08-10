@@ -1,9 +1,9 @@
 "use client";
-import { Plus, Search, Trash2 } from "lucide-react";
+import { Pencil, Plus, Search, Trash2 } from "lucide-react";
 import { usePathname } from "next/navigation";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { AdminShell } from "@/components/admin/admin-shell";
-import { Badge } from "@/components/ui/badge";
+import { StatusBadge } from "@/components/shared/status-badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -60,6 +60,7 @@ export function AdminModulePage({
   columns = ["العنصر", "التفاصيل", "القيمة", "الحالة"],
   onAdd,
   onDelete,
+  onEdit,
 }: {
   section: string;
   title: string;
@@ -69,6 +70,7 @@ export function AdminModulePage({
   columns?: string[];
   onAdd?: () => void;
   onDelete?: (recordId: string) => void;
+  onEdit?: (recordId: string) => void;
 }) {
   const pathname = usePathname();
   const { hasPermission } = useCurrentEmployee();
@@ -141,7 +143,10 @@ export function AdminModulePage({
               {description}
             </p>
           </div>
-          {onAdd && (!resource || !createPermission[resource] || hasPermission(createPermission[resource]!)) ? (
+          {onAdd &&
+          (!resource ||
+            !createPermission[resource] ||
+            hasPermission(createPermission[resource]!)) ? (
             <Button onClick={onAdd}>
               <Plus className="ml-2 h-4 w-4" />
               {action}
@@ -186,17 +191,30 @@ export function AdminModulePage({
                       </td>
                       <td className="px-4 py-4">{row.value}</td>
                       <td className="px-4 py-4">
-                        <Badge>{row.status || "—"}</Badge>
+                        <StatusBadge status={row.status || "—"} />
                       </td>
                       <td className="px-4 py-4">
-                        {row.id && onDelete ? (
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            onClick={() => onDelete(row.id!)}
-                          >
-                            <Trash2 className="h-4 w-4 text-destructive" />
-                          </Button>
+                        {row.id && (onEdit || onDelete) ? (
+                          <div className="flex gap-1">
+                            {onEdit ? (
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                onClick={() => onEdit(row.id!)}
+                              >
+                                <Pencil className="h-4 w-4" />
+                              </Button>
+                            ) : null}
+                            {onDelete ? (
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                onClick={() => onDelete(row.id!)}
+                              >
+                                <Trash2 className="h-4 w-4 text-destructive" />
+                              </Button>
+                            ) : null}
+                          </div>
                         ) : null}
                       </td>
                     </tr>

@@ -20,19 +20,34 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { formatMoney } from "@/lib/money";
 import { useBranch } from "@/providers/branch-provider";
 import { useTenant } from "@/providers/tenant-provider";
 import { cafeDataService } from "@/services/cafe-data.service";
 import { cafeOperationsService } from "@/services/cafe-operations.service";
 import { checkoutService } from "@/services/checkout.service";
+import { modifierService } from "@/services/modifier.service";
 import { useCartStore } from "@/store/cart.store";
 import { useOrdersStore } from "@/store/orders.store";
-import type { Customer, DeliveryZone } from "@/types/cafe-operations.types";
+import type {
+  Customer,
+  DeliveryZone,
+  ModifierGroup,
+} from "@/types/cafe-operations.types";
 import type { OrderType } from "@/types/order.types";
 import type { Product } from "@/types/product.types";
+import { useSearchParams } from "next/navigation";
 
 export default function PosPage() {
+  const searchParams = useSearchParams();
+  const manualOrder = searchParams.get("source") === "manual";
   const { tenant } = useTenant();
   const { branch } = useBranch();
   const [products, setProducts] = useState<Product[]>([]);
@@ -47,6 +62,11 @@ export default function PosPage() {
   const [couponCode, setCouponCode] = useState("");
   const [paymentOpen, setPaymentOpen] = useState(false);
   const [submitting, setSubmitting] = useState(false);
+  const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
+  const [modifierGroups, setModifierGroups] = useState<ModifierGroup[]>([]);
+  const [modifierSelections, setModifierSelections] = useState<
+    Record<string, string[]>
+  >({});
   const items = useCartStore((state) => state.items);
   const addItem = useCartStore((state) => state.addItem);
   const remove = useCartStore((state) => state.removeItem);
@@ -100,6 +120,7 @@ export default function PosPage() {
           items,
           couponCode || undefined,
           orderType === "DELIVERY" ? deliveryZoneId || undefined : undefined,
+          customerId || undefined,
         ),
         error: "",
       };
@@ -109,7 +130,7 @@ export default function PosPage() {
         error: error instanceof Error ? error.message : "تعذر حساب الطلب.",
       };
     }
-  }, [couponCode, deliveryZoneId, items, orderType]);
+  }, [couponCode, customerId, deliveryZoneId, items, orderType]);
   const money = (value: number) =>
     formatMoney(value, tenant.settings.currencySymbol);
   const selectCustomer = (id: string) => {
@@ -132,6 +153,59 @@ export default function PosPage() {
       toast.success("تمت إضافة العميل");
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "تعذر إضافة العميل");
+    }
+  };
+  const chooseProduct = (product: Product) => {
+    const groups = modifierService.getForProduct(product.id);
+    if (!groups.length) {
+      addItem({
+        productId: product.id,
+        name: product.name,
+        price: product.price,
+        quantity: 1,
+        image: product.image,
+      });
+      return;
+    }
+    setSelectedProduct(product);
+    setModifierGroups(groups);
+    setModifierSelections({});
+  };
+  const toggleModifier = (group: ModifierGroup, optionId: string) => {
+    setModifierSelections((current) => {
+      const selected = current[group.id] ?? [];
+      const next =
+        group.maxSelections === 1
+          ? [optionId]
+          : selected.includes(optionId)
+            ? selected.filter((id) => id !== optionId)
+            : [...selected, optionId];
+      return { ...current, [group.id]: next };
+    });
+  };
+  const confirmModifiers = () => {
+    if (!selectedProduct) return;
+    try {
+      const selectedModifiers = modifierService.validateAndSnapshot(
+        selectedProduct.id,
+        Object.entries(modifierSelections).map(([groupId, optionIds]) => ({
+          groupId,
+          optionIds,
+        })),
+      );
+      addItem({
+        productId: selectedProduct.id,
+        name: selectedProduct.name,
+        price: selectedProduct.price,
+        quantity: 1,
+        image: selectedProduct.image,
+        selectedModifiers,
+      });
+      setSelectedProduct(null);
+    } catch (error) {
+      toast.error(
+        error instanceof Error ? error.message : "تعذر تطبيق الاختيارات.",
+      );
     }
   };
   const openPayment = () => {
@@ -166,6 +240,7 @@ export default function PosPage() {
         paymentMethod: payment.method,
         paymentAllocations: payment.allocations,
         receivedAmount: payment.receivedAmount,
+        source: manualOrder ? "MANUAL" : "POS",
       });
       clearCart();
       resetDraft();
@@ -196,7 +271,9 @@ export default function PosPage() {
             <p className="text-xs font-bold text-accent">
               المبيعات · {branch?.name}
             </p>
-            <h1 className="mt-1 text-2xl font-black">نقطة البيع POS</h1>
+            <h1 className="mt-1 text-2xl font-black">
+              {manualOrder ? "إضافة طلب يدوي" : "نقطة البيع POS"}
+            </h1>
             <p className="mt-1 text-sm text-muted-foreground">
               الأسعار والتوفر من منيو الفرع الحالي.
             </p>
@@ -220,15 +297,7 @@ export default function PosPage() {
                     type="button"
                     key={product.id}
                     className="rounded-xl border p-4 text-right hover:bg-muted"
-                    onClick={() =>
-                      addItem({
-                        productId: product.id,
-                        name: product.name,
-                        price: product.price,
-                        quantity: 1,
-                        image: product.image,
-                      })
-                    }
+                    onClick={() => chooseProduct(product)}
                   >
                     <div className="flex items-center justify-between gap-2">
                       <b>{product.name}</b>
@@ -371,14 +440,17 @@ export default function PosPage() {
                 <div className="max-h-72 space-y-2 overflow-y-auto">
                   {items.map((item) => (
                     <div
-                      key={`${item.productId}-${item.variantId ?? "base"}`}
+                      key={
+                        item.cartId ??
+                        `${item.productId}-${item.variantId ?? "base"}`
+                      }
                       className="rounded-lg border p-3 text-sm"
                     >
                       <div className="flex items-center justify-between gap-2">
                         <b>{item.name}</b>
                         <button
                           type="button"
-                          onClick={() => remove(item.productId)}
+                          onClick={() => remove(item.cartId ?? item.productId)}
                           aria-label="حذف المنتج"
                         >
                           <Trash2 className="h-4 w-4 text-destructive" />
@@ -392,7 +464,9 @@ export default function PosPage() {
                             variant="outline"
                             size="icon"
                             className="h-7 w-7"
-                            onClick={() => decrease(item.productId)}
+                            onClick={() =>
+                              decrease(item.cartId ?? item.productId)
+                            }
                           >
                             <Minus className="h-3 w-3" />
                           </Button>
@@ -402,7 +476,9 @@ export default function PosPage() {
                             variant="outline"
                             size="icon"
                             className="h-7 w-7"
-                            onClick={() => increase(item.productId)}
+                            onClick={() =>
+                              increase(item.cartId ?? item.productId)
+                            }
                           >
                             <Plus className="h-3 w-3" />
                           </Button>
@@ -411,11 +487,24 @@ export default function PosPage() {
                       <Input
                         value={item.notes ?? ""}
                         onChange={(event) =>
-                          updateNotes(item.productId, event.target.value)
+                          updateNotes(
+                            item.cartId ?? item.productId,
+                            event.target.value,
+                          )
                         }
                         placeholder="ملاحظات المنتج"
                         className="mt-2 h-8 text-xs"
                       />
+                      {item.selectedModifiers?.length ? (
+                        <p className="mt-2 text-xs text-muted-foreground">
+                          {item.selectedModifiers
+                            .map(
+                              (modifier) =>
+                                `${modifier.groupName}: ${modifier.optionName}${modifier.priceAdjustment ? ` (+${money(modifier.priceAdjustment)})` : ""}`,
+                            )
+                            .join(" · ")}
+                        </p>
+                      ) : null}
                     </div>
                   ))}
                   {!items.length ? (
@@ -482,6 +571,58 @@ export default function PosPage() {
             onOpenChange={setPaymentOpen}
             onConfirm={checkout}
           />
+          <Dialog
+            open={Boolean(selectedProduct)}
+            onOpenChange={(open) => !open && setSelectedProduct(null)}
+          >
+            <DialogContent dir="rtl" className="max-w-lg">
+              <DialogHeader>
+                <DialogTitle>تخصيص {selectedProduct?.name}</DialogTitle>
+                <DialogDescription>
+                  اختر الإضافات المطلوبة قبل إضافة المنتج إلى الطلب.
+                </DialogDescription>
+              </DialogHeader>
+              <div className="space-y-4">
+                {modifierGroups.map((group) => (
+                  <div key={group.id}>
+                    <div className="mb-2 flex justify-between">
+                      <b>{group.name}</b>
+                      <span className="text-xs text-muted-foreground">
+                        {group.required ? "مطلوب" : "اختياري"} · حد أقصى{" "}
+                        {group.maxSelections}
+                      </span>
+                    </div>
+                    <div className="grid gap-2 sm:grid-cols-2">
+                      {group.options.map((option) => (
+                        <Button
+                          key={option.id}
+                          type="button"
+                          variant={
+                            (modifierSelections[group.id] ?? []).includes(
+                              option.id,
+                            )
+                              ? "default"
+                              : "outline"
+                          }
+                          disabled={!option.available}
+                          onClick={() => toggleModifier(group, option.id)}
+                          className="justify-between"
+                        >
+                          <span>{option.name}</span>
+                          <span>
+                            {option.priceAdjustment
+                              ? `+${money(option.priceAdjustment)}`
+                              : "بدون زيادة"}
+                          </span>
+                        </Button>
+                      ))}
+                    </div>
+                  </div>
+                ))}
+              </div>
+              <Button onClick={confirmModifiers}>إضافة إلى الطلب</Button>
+            </DialogContent>
+          </Dialog>
         </section>
       </BranchRequired>
     </AdminShell>

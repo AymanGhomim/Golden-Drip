@@ -23,6 +23,13 @@ export type OrderItem = {
   notes?: string;
   variantName?: string;
   addons?: { id: string; name: string; price: number }[];
+  selectedModifiers?: {
+    groupId: string;
+    groupName: string;
+    optionId: string;
+    optionName: string;
+    priceAdjustment: number;
+  }[];
 };
 
 export type Order = {
@@ -44,6 +51,16 @@ export type Order = {
   customerPhone?: string;
   customerAddress?: string;
   customerNotes?: string;
+  deliveryZoneName?: string;
+  couponCode?: string;
+  couponDiscount?: number;
+  cancellation?: { reason: string; employeeId?: string; cancelledAt: string };
+  timeline?: {
+    status: OrderStatus;
+    employeeId?: string;
+    at: string;
+    note?: string;
+  }[];
   status: OrderStatus;
   items: OrderItem[];
   subtotal: number;

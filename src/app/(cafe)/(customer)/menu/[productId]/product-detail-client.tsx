@@ -18,12 +18,17 @@ import {
 import { useCartStore } from "@/store/cart.store";
 import type { Product } from "@/types/product.types";
 import { cafeDataService } from "@/services/cafe-data.service";
+import { modifierService } from "@/services/modifier.service";
+import type { ModifierGroup } from "@/types/cafe-operations.types";
+import { toast } from "sonner";
 
 export function ProductDetailClient({ product }: { product: Product }) {
   const [locale, setLocale] = useState<Locale>("en");
   const [quantity, setQuantity] = useState(1);
   const [imageFailed, setImageFailed] = useState(false);
   const [branchPrice, setBranchPrice] = useState(product.price);
+  const [modifierGroups, setModifierGroups] = useState<ModifierGroup[]>([]);
+  const [selections, setSelections] = useState<Record<string, string[]>>({});
   const addItem = useCartStore((state) => state.addItem);
 
   useEffect(() => {
@@ -32,6 +37,8 @@ export function ProductDetailClient({ product }: { product: Product }) {
       cafeDataService.getBranchProducts().find((item) => item.id === product.id)
         ?.price ?? product.price,
     );
+    setModifierGroups(modifierService.getForProduct(product.id));
+    setSelections({});
     void Promise.resolve();
   }, [product.id, product.price]);
 
@@ -50,14 +57,58 @@ export function ProductDetailClient({ product }: { product: Product }) {
   const categoryName = translatedCategoryName(product.categoryId, locale);
 
   function addToCart() {
-    addItem({
-      productId: product.id,
-      name: text.name,
-      price: branchPrice,
-      image: product.image,
-      quantity,
-    });
+    try {
+      const selectedModifiers = modifierService.validateAndSnapshot(
+        product.id,
+        Object.entries(selections).map(([groupId, optionIds]) => ({
+          groupId,
+          optionIds,
+        })),
+      );
+      addItem({
+        productId: product.id,
+        name: text.name,
+        price: branchPrice,
+        image: product.image,
+        quantity,
+        selectedModifiers,
+      });
+      toast.success(
+        locale === "ar" ? "تمت إضافة المنتج إلى السلة" : "Added to cart",
+      );
+    } catch (error) {
+      toast.error(
+        error instanceof Error ? error.message : "تعذر إضافة المنتج.",
+      );
+    }
   }
+  const toggleModifier = (group: ModifierGroup, optionId: string) =>
+    setSelections((current) => {
+      const selected = current[group.id] ?? [];
+      const next =
+        group.maxSelections === 1
+          ? [optionId]
+          : selected.includes(optionId)
+            ? selected.filter((id) => id !== optionId)
+            : [...selected, optionId];
+      return { ...current, [group.id]: next };
+    });
+  const modifierTotal = Object.entries(selections).reduce(
+    (total, [groupId, optionIds]) =>
+      total +
+      optionIds.reduce(
+        (sum, optionId) =>
+          sum +
+          Number(
+            modifierGroups
+              .find((group) => group.id === groupId)
+              ?.options.find((option) => option.id === optionId)
+              ?.priceAdjustment ?? 0,
+          ),
+        0,
+      ),
+    0,
+  );
 
   return (
     <main
@@ -112,6 +163,41 @@ export function ProductDetailClient({ product }: { product: Product }) {
         </div>
 
         <div className="h-fit space-y-4 rounded-md border bg-card p-5 shadow-[0_10px_28px_hsl(var(--foreground)/0.07)]">
+          {modifierGroups.map((group) => (
+            <div key={group.id} className="space-y-2 border-b pb-4">
+              <div className="flex justify-between gap-2">
+                <b>{group.name}</b>
+                <span className="text-xs text-muted-foreground">
+                  {group.required
+                    ? locale === "ar"
+                      ? "مطلوب"
+                      : "Required"
+                    : locale === "ar"
+                      ? "اختياري"
+                      : "Optional"}
+                </span>
+              </div>
+              <div className="grid gap-2">
+                {group.options.map((option) => (
+                  <Button
+                    key={option.id}
+                    type="button"
+                    variant={
+                      (selections[group.id] ?? []).includes(option.id)
+                        ? "default"
+                        : "outline"
+                    }
+                    disabled={!option.available}
+                    onClick={() => toggleModifier(group, option.id)}
+                    className="justify-between"
+                  >
+                    <span>{option.name}</span>
+                    <Price value={option.priceAdjustment} locale={locale} />
+                  </Button>
+                ))}
+              </div>
+            </div>
+          ))}
           <div className="flex items-center justify-between">
             <span className="font-semibold">{copy.quantity}</span>
             <div className="flex items-center gap-3">
@@ -147,7 +233,11 @@ export function ProductDetailClient({ product }: { product: Product }) {
             onClick={addToCart}
           >
             <ShoppingCart className="h-5 w-5" />
-            {copy.addToCart}
+            {copy.addToCart} ·{" "}
+            <Price
+              value={(branchPrice + modifierTotal) * quantity}
+              locale={locale}
+            />
           </Button>
         </div>
       </section>

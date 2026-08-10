@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
-import { Download, Eye, Filter, Plus, RefreshCw, XCircle } from "lucide-react";
+import { Download, Eye, Plus, RefreshCw, XCircle } from "lucide-react";
 import { toast } from "sonner";
 
 import { AdminShell } from "@/components/admin/admin-shell";
@@ -21,7 +21,9 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { useOrdersStore } from "@/store/orders.store";
-import { cafeOperationsService } from "@/services/cafe-operations.service";
+import { orderService } from "@/services/order.service";
+import { canTransitionOrderStatus } from "@/services/order.service";
+import { reportService } from "@/services/report.service";
 import { useTenant } from "@/providers/tenant-provider";
 import { useBranch } from "@/providers/branch-provider";
 import { normalizeTenantBranding } from "@/lib/tenant-branding";
@@ -75,8 +77,6 @@ const tabs: Array<[string, string]> = [
 
 export default function OrdersPage() {
   const orders = useOrdersStore((state) => state.orders);
-  const updateStatus = useOrdersStore((state) => state.updateStatus);
-  const cancelOrder = useOrdersStore((state) => state.cancelOrder);
   const [query, setQuery] = useState("");
   const [tab, setTab] = useState("ALL");
   const [typeFilter, setTypeFilter] = useState("ALL");
@@ -84,6 +84,12 @@ export default function OrdersPage() {
   const [paymentFilter, setPaymentFilter] = useState("ALL");
   const [selectedOrder, setSelectedOrder] = useState<Order | null>(null);
   const [cancelTarget, setCancelTarget] = useState<Order | null>(null);
+  const [cancelReason, setCancelReason] = useState("");
+  const [cancelConfirmOpen, setCancelConfirmOpen] = useState(false);
+  const [dateFrom, setDateFrom] = useState("");
+  const [dateTo, setDateTo] = useState("");
+  const [methodFilter, setMethodFilter] = useState("ALL");
+  const [employeeFilter, setEmployeeFilter] = useState("ALL");
   useEffect(() => {
     const reload = () => {
       setSelectedOrder(null);
@@ -111,10 +117,25 @@ export default function OrdersPage() {
           (tab === "ALL" || order.status === tab) &&
           (typeFilter === "ALL" || order.orderType === typeFilter) &&
           (sourceFilter === "ALL" || order.source === sourceFilter) &&
-          (paymentFilter === "ALL" || order.paymentStatus === paymentFilter)
+          (paymentFilter === "ALL" || order.paymentStatus === paymentFilter) &&
+          (methodFilter === "ALL" || order.paymentMethod === methodFilter) &&
+          (employeeFilter === "ALL" || order.createdBy === employeeFilter) &&
+          (!dateFrom || order.createdAt.slice(0, 10) >= dateFrom) &&
+          (!dateTo || order.createdAt.slice(0, 10) <= dateTo)
         );
       }),
-    [orders, paymentFilter, query, sourceFilter, tab, typeFilter],
+    [
+      dateFrom,
+      dateTo,
+      employeeFilter,
+      methodFilter,
+      orders,
+      paymentFilter,
+      query,
+      sourceFilter,
+      tab,
+      typeFilter,
+    ],
   );
 
   function nextStatus(order: Order) {
@@ -127,21 +148,48 @@ export default function OrdersPage() {
     ];
     const index = sequence.indexOf(order.status);
     if (index >= 0 && index < sequence.length - 1)
-      updateStatus(order.id, sequence[index + 1]);
+      try {
+        orderService.transition(order.id, sequence[index + 1]);
+      } catch (error) {
+        toast.error(
+          error instanceof Error ? error.message : "تعذر تحديث الحالة.",
+        );
+      }
   }
   function confirmCancellation() {
     if (!cancelTarget) return;
-    cancelOrder(cancelTarget.id);
-    cafeOperationsService.audit({
-      module: "orders",
-      action: "ORDER_CANCELLED",
-      description: `تم إلغاء الطلب ${cancelTarget.orderNumber}`,
-      entityType: "order",
-      entityId: cancelTarget.id,
-    });
+    orderService.cancel(cancelTarget.id, cancelReason);
     setCancelTarget(null);
+    setCancelReason("");
+    setCancelConfirmOpen(false);
     window.dispatchEvent(new Event("orders:changed"));
     toast.success("تم إلغاء الطلب");
+  }
+  function exportOrders() {
+    try {
+      const csv = reportService.toCsv(
+        filteredOrders.map((order) => ({
+          رقم_الطلب: order.orderNumber,
+          التاريخ: order.createdAt,
+          المصدر: order.source,
+          النوع: order.orderType,
+          العميل: order.customerName,
+          الإجمالي: order.total,
+          الدفع: order.paymentStatus,
+          الحالة: order.status,
+        })),
+      );
+      const url = URL.createObjectURL(
+        new Blob([csv], { type: "text/csv;charset=utf-8" }),
+      );
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = `orders-${new Date().toISOString().slice(0, 10)}.csv`;
+      link.click();
+      URL.revokeObjectURL(url);
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "تعذر التصدير.");
+    }
   }
 
   return (
@@ -160,12 +208,14 @@ export default function OrdersPage() {
             </p>
           </div>
           <div className="flex flex-wrap gap-2">
-            <PermissionGate permission="orders.create"><Button asChild className="h-10 rounded-lg">
-              <Link href="/admin/pos">
-                <Plus className="ml-2 h-4 w-4" />
-                إضافة طلب يدوي
-              </Link>
-            </Button></PermissionGate>
+            <PermissionGate permission="orders.create">
+              <Button asChild className="h-10 rounded-lg">
+                <Link href="/admin/pos?source=manual">
+                  <Plus className="ml-2 h-4 w-4" />
+                  إضافة طلب يدوي
+                </Link>
+              </Button>
+            </PermissionGate>
             <Button
               type="button"
               variant="outline"
@@ -182,8 +232,8 @@ export default function OrdersPage() {
               type="button"
               variant="outline"
               className="h-10 rounded-lg"
-              disabled
-              title="التصدير يحتاج موصل ملفات وسيتم توفيره لاحقًا"
+              disabled={!filteredOrders.length}
+              onClick={exportOrders}
             >
               <Download className="ml-2 h-4 w-4" />
               تصدير
@@ -219,15 +269,6 @@ export default function OrdersPage() {
                   placeholder="ابحث برقم الطلب أو العميل أو الهاتف أو الطاولة"
                   className="h-11 rounded-lg"
                 />
-                <Button
-                  type="button"
-                  variant="outline"
-                  className="h-11 rounded-lg sm:w-32"
-                  disabled
-                >
-                  <Filter className="ml-2 h-4 w-4" />
-                  الفلاتر
-                </Button>
               </div>
               <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
                 <FilterSelect
@@ -266,10 +307,52 @@ export default function OrdersPage() {
                 />
                 <div>
                   <label className="mb-1 block text-[11px] font-bold text-muted-foreground">
-                    التاريخ
+                    من تاريخ
                   </label>
-                  <Input type="date" className="h-10 rounded-lg" />
+                  <Input
+                    type="date"
+                    className="h-10 rounded-lg"
+                    value={dateFrom}
+                    onChange={(event) => setDateFrom(event.target.value)}
+                  />
                 </div>
+                <div>
+                  <label className="mb-1 block text-[11px] font-bold text-muted-foreground">
+                    إلى تاريخ
+                  </label>
+                  <Input
+                    type="date"
+                    className="h-10 rounded-lg"
+                    value={dateTo}
+                    onChange={(event) => setDateTo(event.target.value)}
+                  />
+                </div>
+                <FilterSelect
+                  label="طريقة الدفع"
+                  value={methodFilter}
+                  onChange={setMethodFilter}
+                  options={[
+                    ["ALL", "كل الطرق"],
+                    ["CASH", "نقدي"],
+                    ["CARD", "بطاقة"],
+                    ["WALLET", "محفظة"],
+                    ["ONLINE", "إلكتروني"],
+                    ["MIXED", "مختلط"],
+                  ]}
+                />
+                <FilterSelect
+                  label="الموظف"
+                  value={employeeFilter}
+                  onChange={setEmployeeFilter}
+                  options={[
+                    ["ALL", "كل الموظفين"],
+                    ...Array.from(
+                      new Set(
+                        orders.map((order) => order.createdBy).filter(Boolean),
+                      ),
+                    ).map((employee) => [employee!, employee!]),
+                  ]}
+                />
               </div>
             </div>
             <div className="overflow-x-auto">
@@ -360,41 +443,52 @@ export default function OrdersPage() {
                       </td>
                       <td className="px-3 py-3">
                         <div className="flex gap-1">
-                          <PermissionGate permission="orders.update"><Button
-                            type="button"
-                            variant="outline"
-                            size="icon"
-                            className="h-8 w-8"
-                            onClick={() => setSelectedOrder(order)}
-                            aria-label="عرض التفاصيل"
-                          >
-                            <Eye className="h-3.5 w-3.5" />
-                          </Button></PermissionGate>
-                          <PermissionGate permission="orders.cancel"><Button
-                            type="button"
-                            className="h-8 rounded-md px-2 text-[11px]"
-                            onClick={() => nextStatus(order)}
-                            disabled={
-                              order.status === "COMPLETED" ||
-                              order.status === "CANCELLED"
-                            }
-                          >
-                            تحديث الحالة
-                          </Button></PermissionGate>
-                          <Button
-                            type="button"
-                            variant="outline"
-                            size="icon"
-                            className="h-8 w-8 text-destructive"
-                            onClick={() => setCancelTarget(order)}
-                            disabled={
-                              order.status === "COMPLETED" ||
-                              order.status === "CANCELLED"
-                            }
-                            aria-label="إلغاء"
-                          >
-                            <XCircle className="h-3.5 w-3.5" />
-                          </Button>
+                          <PermissionGate permission="orders.view">
+                            <Button
+                              asChild
+                              type="button"
+                              variant="outline"
+                              size="icon"
+                              className="h-8 w-8"
+                              aria-label="عرض التفاصيل"
+                            >
+                              <Link href={`/admin/orders/${order.id}`}>
+                                <Eye className="h-3.5 w-3.5" />
+                              </Link>
+                            </Button>
+                          </PermissionGate>
+                          <PermissionGate permission="orders.cancel">
+                            <Button
+                              type="button"
+                              className="h-8 rounded-md px-2 text-[11px]"
+                              onClick={() => nextStatus(order)}
+                              disabled={
+                                order.status === "COMPLETED" ||
+                                order.status === "CANCELLED"
+                              }
+                            >
+                              تحديث الحالة
+                            </Button>
+                          </PermissionGate>
+                          <PermissionGate permission="orders.cancel">
+                            <Button
+                              type="button"
+                              variant="outline"
+                              size="icon"
+                              className="h-8 w-8 text-destructive"
+                              onClick={() => {
+                                setCancelTarget(order);
+                                setCancelReason("");
+                              }}
+                              disabled={
+                                order.status === "COMPLETED" ||
+                                order.status === "CANCELLED"
+                              }
+                              aria-label="إلغاء"
+                            >
+                              <XCircle className="h-3.5 w-3.5" />
+                            </Button>
+                          </PermissionGate>
                         </div>
                       </td>
                     </tr>
@@ -428,16 +522,54 @@ export default function OrdersPage() {
             {selectedOrder ? (
               <OrderDetails
                 order={selectedOrder}
-                onStatus={(status) => updateStatus(selectedOrder.id, status)}
+                onStatus={(status) => {
+                  try {
+                    orderService.transition(selectedOrder.id, status);
+                  } catch (error) {
+                    toast.error(
+                      error instanceof Error
+                        ? error.message
+                        : "تعذر تحديث الحالة.",
+                    );
+                  }
+                }}
               />
             ) : null}
           </DialogContent>
         </Dialog>
-        <ConfirmDialog
+        <Dialog
           open={Boolean(cancelTarget)}
           onOpenChange={(value) => !value && setCancelTarget(null)}
+        >
+          <DialogContent dir="rtl">
+            <DialogHeader>
+              <DialogTitle>إلغاء الطلب {cancelTarget?.orderNumber}</DialogTitle>
+              <DialogDescription>
+                إلغاء الطلب لا يعني استرجاع المبلغ المدفوع تلقائيًا.
+              </DialogDescription>
+            </DialogHeader>
+            <label className="text-sm font-bold">
+              سبب الإلغاء *
+              <Input
+                className="mt-1"
+                value={cancelReason}
+                onChange={(event) => setCancelReason(event.target.value)}
+              />
+            </label>
+            <Button
+              variant="destructive"
+              disabled={!cancelReason.trim()}
+              onClick={() => setCancelConfirmOpen(true)}
+            >
+              متابعة الإلغاء
+            </Button>
+          </DialogContent>
+        </Dialog>
+        <ConfirmDialog
+          open={cancelConfirmOpen}
+          onOpenChange={setCancelConfirmOpen}
           title="إلغاء الطلب؟"
-          description="سيتم تغيير حالة الطلب إلى ملغي. عملية رد المبلغ تُسجل بشكل منفصل إذا كان الطلب مدفوعًا."
+          description={`سيتم إلغاء الطلب بسبب: ${cancelReason}. عملية رد المبلغ تُسجل بشكل منفصل.`}
           confirmLabel="إلغاء الطلب"
           onConfirm={confirmCancellation}
         />
@@ -563,35 +695,43 @@ function OrderDetails({
       </div>
       <div>
         <p className="mb-2 text-sm font-bold">تسلسل الطلب</p>
-        <PermissionGate permission="orders.update"><div className="flex flex-wrap gap-2">
-          {(
-            [
-              "NEW",
-              "ACCEPTED",
-              "PREPARING",
-              "READY",
-              "COMPLETED",
-            ] as OrderStatus[]
-          ).map((status) => (
-            <button
-              type="button"
-              key={status}
-              onClick={() => onStatus(status)}
-              className={`rounded-full border px-3 py-2 text-xs font-bold ${order.status === status ? "border-primary bg-primary text-primary-foreground" : "hover:bg-muted"}`}
-            >
-              {statusLabels[status]}
-            </button>
-          ))}
-        </div></PermissionGate>
+        <PermissionGate permission="orders.update">
+          <div className="flex flex-wrap gap-2">
+            {(
+              [
+                "NEW",
+                "ACCEPTED",
+                "PREPARING",
+                "READY",
+                "COMPLETED",
+              ] as OrderStatus[]
+            ).map((status) => (
+              <button
+                type="button"
+                key={status}
+                onClick={() => onStatus(status)}
+                disabled={
+                  status !== order.status &&
+                  !canTransitionOrderStatus(order.status, status)
+                }
+                className={`rounded-full border px-3 py-2 text-xs font-bold ${order.status === status ? "border-primary bg-primary text-primary-foreground" : "hover:bg-muted"}`}
+              >
+                {statusLabels[status]}
+              </button>
+            ))}
+          </div>
+        </PermissionGate>
       </div>
-      <PermissionGate permission="orders.print"><Button
-        type="button"
-        variant="outline"
-        className="h-10 w-full rounded-lg"
-        onClick={() => window.print()}
-      >
-        طباعة الفاتورة
-      </Button></PermissionGate>
+      <PermissionGate permission="orders.print">
+        <Button
+          type="button"
+          variant="outline"
+          className="h-10 w-full rounded-lg"
+          onClick={() => window.print()}
+        >
+          طباعة الفاتورة
+        </Button>
+      </PermissionGate>
       {branding.receipt?.footer ? (
         <p className="border-t pt-3 text-center text-xs text-muted-foreground">
           {branding.receipt.footer}

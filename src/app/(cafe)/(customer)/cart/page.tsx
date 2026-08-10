@@ -163,8 +163,16 @@ export default function CartPage() {
           tablePrefix: "ترابيزة",
           tableFallback: "الترابيزة الممسوحة",
         };
+  const unitPrice = (item: (typeof items)[number]) =>
+    item.price +
+    Number(item.variantPrice ?? 0) +
+    (item.addons ?? []).reduce((sum, addon) => sum + addon.price, 0) +
+    (item.selectedModifiers ?? []).reduce(
+      (sum, modifier) => sum + modifier.priceAdjustment,
+      0,
+    );
   const subtotal = items.reduce(
-    (sum, item) => sum + item.price * item.quantity,
+    (sum, item) => sum + unitPrice(item) * item.quantity,
     0,
   );
   const serviceTax = getServiceTaxAmount(subtotal);
@@ -284,8 +292,18 @@ export default function CartPage() {
                     />
                   </g>
                   <g transform="translate(74 244)">
-                    <circle cx="32" cy="32" r="22" fill="var(--tenant-secondary)" />
-                    <circle cx="242" cy="32" r="22" fill="var(--tenant-secondary)" />
+                    <circle
+                      cx="32"
+                      cy="32"
+                      r="22"
+                      fill="var(--tenant-secondary)"
+                    />
+                    <circle
+                      cx="242"
+                      cy="32"
+                      r="22"
+                      fill="var(--tenant-secondary)"
+                    />
                     <path
                       d="M20 0 H259"
                       stroke="var(--tenant-secondary)"
@@ -345,7 +363,7 @@ export default function CartPage() {
               <div className="divide-y">
                 {items.map((item) => (
                   <div
-                    key={item.productId}
+                    key={item.cartId ?? item.productId}
                     className="group grid grid-cols-[5.75rem_1fr] gap-3 p-3 transition-colors hover:bg-muted/25 dark:hover:bg-white/5 sm:grid-cols-[8rem_1fr] sm:gap-4 sm:p-4"
                   >
                     <div className="relative h-24 overflow-hidden rounded-md bg-muted shadow-sm dark:bg-white/5 sm:h-32">
@@ -370,17 +388,27 @@ export default function CartPage() {
                             {item.name}
                           </h2>
                           <Price
-                            value={item.price}
+                            value={unitPrice(item)}
                             locale={locale}
                             className="mt-1 text-xs text-muted-foreground"
                           />
                         </div>
                         <Price
-                          value={item.price * item.quantity}
+                          value={unitPrice(item) * item.quantity}
                           locale={locale}
                           className="shrink-0 rounded-full border bg-background px-2.5 py-1 text-xs font-black text-foreground shadow-sm dark:border-white/10 dark:bg-white/8 dark:text-foreground"
                         />
                       </div>
+                      {item.selectedModifiers?.length ? (
+                        <p className="mt-2 text-xs text-muted-foreground">
+                          {item.selectedModifiers
+                            .map(
+                              (modifier) =>
+                                `${modifier.groupName}: ${modifier.optionName}`,
+                            )
+                            .join(" · ")}
+                        </p>
+                      ) : null}
                       <div className="mt-4 flex flex-wrap items-center justify-between gap-2">
                         <div className="flex h-10 items-center overflow-hidden rounded-md border border-accent/30 bg-accent/8 shadow-inner dark:border-accent/45 dark:bg-accent/12">
                           <Button
@@ -388,7 +416,9 @@ export default function CartPage() {
                             size="icon"
                             variant="ghost"
                             className="h-10 w-10 rounded-none transition-colors hover:bg-accent hover:text-accent-foreground"
-                            onClick={() => decreaseQuantity(item.productId)}
+                            onClick={() =>
+                              decreaseQuantity(item.cartId ?? item.productId)
+                            }
                             aria-label="Decrease quantity"
                           >
                             <Minus className="h-3.5 w-3.5" />
@@ -401,7 +431,9 @@ export default function CartPage() {
                             size="icon"
                             variant="ghost"
                             className="h-10 w-10 rounded-none transition-colors hover:bg-accent hover:text-accent-foreground"
-                            onClick={() => increaseQuantity(item.productId)}
+                            onClick={() =>
+                              increaseQuantity(item.cartId ?? item.productId)
+                            }
                             aria-label="Increase quantity"
                           >
                             <Plus className="h-3.5 w-3.5" />
@@ -412,7 +444,9 @@ export default function CartPage() {
                           variant="ghost"
                           size="sm"
                           className="h-9 gap-1 px-2 text-xs font-bold text-destructive hover:bg-destructive/10 hover:text-destructive"
-                          onClick={() => removeItem(item.productId)}
+                          onClick={() =>
+                            removeItem(item.cartId ?? item.productId)
+                          }
                         >
                           <Trash2 className="h-3.5 w-3.5" />
                           {text.remove}
@@ -569,6 +603,12 @@ export default function CartPage() {
                     </Button>
                     <Button
                       type="button"
+                      disabled
+                      title={
+                        locale === "ar"
+                          ? "الدفع الإلكتروني يحتاج Backend وبوابة دفع حقيقية"
+                          : "Online payment requires a backend and a real gateway"
+                      }
                       variant={
                         paymentMethod === "instapay" ? "default" : "outline"
                       }
@@ -582,10 +622,21 @@ export default function CartPage() {
                 </div>
                 <Button
                   type="button"
+                  disabled
+                  title={
+                    locale === "ar"
+                      ? "إرسال الطلب الإلكتروني يحتاج Backend لتأكيد الطلب بأمان"
+                      : "Online ordering requires a backend for secure confirmation"
+                  }
                   className="h-12 w-full rounded-md bg-accent font-bold text-accent-foreground shadow-sm transition-all hover:-translate-y-0.5 hover:bg-accent/90"
                 >
                   {text.checkout}
                 </Button>
+                <p className="text-center text-xs text-muted-foreground">
+                  {locale === "ar"
+                    ? "إرسال الطلب والدفع الإلكتروني غير متاحين في نسخة Frontend فقط."
+                    : "Order submission and online payment are unavailable in the frontend-only build."}
+                </p>
               </CardContent>
             </Card>
           </div>

@@ -10,13 +10,21 @@ import {
 import { tenantService } from "@/services/tenant.service";
 import { useState } from "react";
 import { AppNotFoundState } from "@/components/feedback/app-state";
+import { STATUS_LABELS } from "@/constants/status-presentation";
 
 export default function TenantSubscriptionPage() {
   const { tenantId } = useParams<{ tenantId: string }>();
   const tenant = tenantService.getTenant(tenantId);
   const [months, setMonths] = useState("1");
   if (!tenant)
-    return <AppNotFoundState variant="platform" description="تعذر العثور على الكافيه المطلوب داخل لوحة إدارة المنصة." actionHref="/platform/tenants" actionLabel="العودة إلى الكافيهات" />;
+    return (
+      <AppNotFoundState
+        variant="platform"
+        description="تعذر العثور على الكافيه المطلوب داخل لوحة إدارة المنصة."
+        actionHref="/platform/tenants"
+        actionLabel="العودة إلى الكافيهات"
+      />
+    );
   const extend = () => {
     const current = tenant.subscription?.endsAt
       ? new Date(tenant.subscription.endsAt)
@@ -43,7 +51,10 @@ export default function TenantSubscriptionPage() {
           <div className="mt-5 grid gap-4 sm:grid-cols-2">
             <div>
               <p className="text-sm text-muted-foreground">الحالة</p>
-              <p className="mt-1 font-bold">{tenant.subscriptionStatus}</p>
+              <p className="mt-1 font-bold">
+                {STATUS_LABELS[tenant.subscriptionStatus] ??
+                  tenant.subscriptionStatus}
+              </p>
             </div>
             <div>
               <p className="text-sm text-muted-foreground">ينتهي في</p>

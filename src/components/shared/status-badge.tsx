@@ -1,6 +1,6 @@
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
-import { ORDER_STATUS_COLORS, ORDER_STATUS_LABELS } from "@/constants/order-status";
+import { STATUS_LABELS, STATUS_STYLES } from "@/constants/status-presentation";
 
 interface StatusBadgeProps {
   status: string;
@@ -11,9 +11,9 @@ export function StatusBadge({ status, className }: StatusBadgeProps) {
   return (
     <Badge
       variant="outline"
-      className={cn(ORDER_STATUS_COLORS[status] || "", className)}
+      className={cn(STATUS_STYLES[status] || "", className)}
     >
-      {ORDER_STATUS_LABELS[status] || status}
+      {STATUS_LABELS[status] || status}
     </Badge>
   );
 }

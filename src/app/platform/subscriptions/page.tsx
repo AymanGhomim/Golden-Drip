@@ -5,6 +5,135 @@ import { CalendarPlus } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { tenantService } from "@/services/tenant.service";
+import { STATUS_LABELS } from "@/constants/status-presentation";
+import { getPlanByCode } from "@/config/plans.config";
 import { toast } from "sonner";
 
-export default function PlatformSubscriptionsPage() { const [, refresh] = useState(0); const tenants = tenantService.listTenants(); const active = tenants.filter((tenant) => tenant.status === "ACTIVE").length; const trial = tenants.filter((tenant) => tenant.status === "TRIAL").length; const suspended = tenants.filter((tenant) => tenant.status === "SUSPENDED").length; const extend = (id: string) => { const tenant = tenantService.getTenant(id); if (!tenant) return; const date = tenant.subscription?.endsAt ? new Date(tenant.subscription.endsAt) : new Date(); date.setMonth(date.getMonth() + 1); tenantService.updateTenant(id, { status: "ACTIVE", subscriptionStatus: "ACTIVE", subscription: { type: tenant.subscription?.type || "PAID", startsAt: tenant.subscription?.startsAt || new Date().toISOString(), endsAt: date.toISOString() } }); refresh((value) => value + 1); toast.success("تم تمديد الاشتراك شهرًا"); }; return <section className="mx-auto max-w-[1500px] p-5 sm:p-10"><h1 className="text-3xl font-black">الاشتراكات</h1><p className="mt-2 text-sm text-muted-foreground">متابعة الخطط والحالات والتواريخ. هذه العمليات محلية للتطوير فقط.</p><div className="mt-7 grid gap-4 sm:grid-cols-4">{[["النشطة", active], ["التجريبية", trial], ["تنتهي قريبًا", tenants.filter((tenant) => tenant.subscription?.endsAt && Math.ceil((new Date(tenant.subscription.endsAt).getTime() - Date.now()) / 86400000) <= 30).length], ["الموقوفة", suspended]].map(([label, value]) => <Card key={label as string}><CardContent className="p-5"><p className="text-sm text-muted-foreground">{label}</p><p className="mt-2 text-2xl font-black">{value}</p></CardContent></Card>)}</div><div className="mt-6 overflow-x-auto rounded-2xl border bg-white"><table className="w-full min-w-[850px] text-right text-sm"><thead className="bg-[#F3F4F6]"><tr>{["الكافيه", "الباقة", "الحالة", "تاريخ البداية", "تاريخ النهاية", "الأيام المتبقية", "الإجراءات"].map((label) => <th key={label} className="p-4 font-black">{label}</th>)}</tr></thead><tbody>{tenants.map((tenant) => { const days = tenant.subscription?.endsAt ? Math.ceil((new Date(tenant.subscription.endsAt).getTime() - Date.now()) / 86400000) : null; return <tr key={tenant.id} className="border-t"><td className="p-4"><Link className="font-black hover:underline" href={`/platform/tenants/${tenant.id}`}>{tenant.name}</Link></td><td className="p-4">{tenant.plan}</td><td className="p-4">{tenant.subscriptionStatus}</td><td className="p-4">{tenant.subscription?.startsAt?.slice(0, 10) || "—"}</td><td className="p-4">{tenant.subscription?.endsAt?.slice(0, 10) || "—"}</td><td className="p-4">{days === null ? "—" : `${days} يوم`}</td><td className="p-3"><Button variant="outline" size="sm" onClick={() => extend(tenant.id)}><CalendarPlus className="ml-2 h-4 w-4" />تمديد شهر</Button></td></tr>; })}</tbody></table></div></section>; }
+export default function PlatformSubscriptionsPage() {
+  const [, refresh] = useState(0);
+  const tenants = tenantService.listTenants();
+  const active = tenants.filter((tenant) => tenant.status === "ACTIVE").length;
+  const trial = tenants.filter((tenant) => tenant.status === "TRIAL").length;
+  const suspended = tenants.filter(
+    (tenant) => tenant.status === "SUSPENDED",
+  ).length;
+  const extend = (id: string) => {
+    const tenant = tenantService.getTenant(id);
+    if (!tenant) return;
+    const date = tenant.subscription?.endsAt
+      ? new Date(tenant.subscription.endsAt)
+      : new Date();
+    date.setMonth(date.getMonth() + 1);
+    tenantService.updateTenant(id, {
+      status: "ACTIVE",
+      subscriptionStatus: "ACTIVE",
+      subscription: {
+        type: tenant.subscription?.type || "PAID",
+        startsAt: tenant.subscription?.startsAt || new Date().toISOString(),
+        endsAt: date.toISOString(),
+      },
+    });
+    refresh((value) => value + 1);
+    toast.success("تم تمديد الاشتراك شهرًا");
+  };
+  return (
+    <section className="mx-auto max-w-[1500px] p-5 sm:p-10">
+      <h1 className="text-3xl font-black">الاشتراكات</h1>
+      <p className="mt-2 text-sm text-muted-foreground">
+        متابعة الخطط والحالات والتواريخ. هذه العمليات محلية للتطوير فقط.
+      </p>
+      <div className="mt-7 grid gap-4 sm:grid-cols-4">
+        {[
+          ["النشطة", active],
+          ["التجريبية", trial],
+          [
+            "تنتهي قريبًا",
+            tenants.filter(
+              (tenant) =>
+                tenant.subscription?.endsAt &&
+                Math.ceil(
+                  (new Date(tenant.subscription.endsAt).getTime() -
+                    Date.now()) /
+                    86400000,
+                ) <= 30,
+            ).length,
+          ],
+          ["الموقوفة", suspended],
+        ].map(([label, value]) => (
+          <Card key={label as string}>
+            <CardContent className="p-5">
+              <p className="text-sm text-muted-foreground">{label}</p>
+              <p className="mt-2 text-2xl font-black">{value}</p>
+            </CardContent>
+          </Card>
+        ))}
+      </div>
+      <div className="mt-6 overflow-x-auto rounded-2xl border bg-white">
+        <table className="w-full min-w-[850px] text-right text-sm">
+          <thead className="bg-[#F3F4F6]">
+            <tr>
+              {[
+                "الكافيه",
+                "الباقة",
+                "الحالة",
+                "تاريخ البداية",
+                "تاريخ النهاية",
+                "الأيام المتبقية",
+                "الإجراءات",
+              ].map((label) => (
+                <th key={label} className="p-4 font-black">
+                  {label}
+                </th>
+              ))}
+            </tr>
+          </thead>
+          <tbody>
+            {tenants.map((tenant) => {
+              const days = tenant.subscription?.endsAt
+                ? Math.ceil(
+                    (new Date(tenant.subscription.endsAt).getTime() -
+                      Date.now()) /
+                      86400000,
+                  )
+                : null;
+              return (
+                <tr key={tenant.id} className="border-t">
+                  <td className="p-4">
+                    <Link
+                      className="font-black hover:underline"
+                      href={`/platform/tenants/${tenant.id}`}
+                    >
+                      {tenant.name}
+                    </Link>
+                  </td>
+                  <td className="p-4">{getPlanByCode(tenant.plan).name}</td>
+                  <td className="p-4">
+                    {STATUS_LABELS[tenant.subscriptionStatus] ??
+                      tenant.subscriptionStatus}
+                  </td>
+                  <td className="p-4">
+                    {tenant.subscription?.startsAt?.slice(0, 10) || "—"}
+                  </td>
+                  <td className="p-4">
+                    {tenant.subscription?.endsAt?.slice(0, 10) || "—"}
+                  </td>
+                  <td className="p-4">{days === null ? "—" : `${days} يوم`}</td>
+                  <td className="p-3">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => extend(tenant.id)}
+                    >
+                      <CalendarPlus className="ml-2 h-4 w-4" />
+                      تمديد شهر
+                    </Button>
+                  </td>
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
+      </div>
+    </section>
+  );
+}

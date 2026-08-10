@@ -24,6 +24,9 @@ const resources: OperationResource[] = [
   "cashRegister",
   "shifts",
   "notifications",
+  "waiterRequests",
+  "modifierGroups",
+  "loyaltySettings",
   "auditLog",
 ];
 const activeTenant = () => tenantService.requireActiveTenantId();
@@ -33,6 +36,8 @@ const tenantLevel = new Set<OperationResource>([
   "customers",
   "loyalty",
   "coupons",
+  "modifierGroups",
+  "loyaltySettings",
   "auditLog",
 ]);
 const seed = (
@@ -109,6 +114,28 @@ export const cafeOperationsRepository = {
     if (tenantLevel.has(resource))
       return tenantStorage.set(tenantId, resource, records);
     if (!branchId) return records;
+    return tenantStorage.setForBranch(
+      tenantId,
+      branchId,
+      resource,
+      records.map((record) => ({ ...record, tenantId, branchId })),
+    );
+  },
+  getForBranch<T extends OperationRecord = OperationRecord>(
+    resource: OperationResource,
+    branchId: string,
+    tenantId = activeTenant(),
+  ): T[] {
+    if (tenantLevel.has(resource)) return this.get<T>(resource, tenantId);
+    return tenantStorage.getForBranch<T[]>(tenantId, branchId, resource, []);
+  },
+  setForBranch<T extends OperationRecord = OperationRecord>(
+    resource: OperationResource,
+    branchId: string,
+    records: T[],
+    tenantId = activeTenant(),
+  ) {
+    if (tenantLevel.has(resource)) return this.set(resource, records, tenantId);
     return tenantStorage.setForBranch(
       tenantId,
       branchId,

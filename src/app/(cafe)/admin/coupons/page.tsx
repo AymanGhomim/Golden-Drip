@@ -14,6 +14,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { cafeOperationsService } from "@/services/cafe-operations.service";
 import type { Coupon } from "@/types/cafe-operations.types";
+import { ConfirmDialog } from "@/components/shared/confirm-dialog";
 const empty = {
   code: "",
   type: "PERCENTAGE" as Coupon["type"],
@@ -22,10 +23,14 @@ const empty = {
   maximumDiscount: "",
   startDate: "",
   endDate: "",
+  usageLimit: "",
+  perCustomerLimit: "",
 };
 export default function CouponsPage() {
   const [open, setOpen] = useState(false);
   const [form, setForm] = useState(empty);
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [removeId, setRemoveId] = useState<string | null>(null);
   useEffect(() => {
     const reset = () => {
       setOpen(false);
@@ -42,6 +47,12 @@ export default function CouponsPage() {
       : undefined;
     if (!form.code.trim()) return toast.error("كود الكوبون مطلوب.");
     if (
+      form.startDate &&
+      form.endDate &&
+      new Date(form.startDate) > new Date(form.endDate)
+    )
+      return toast.error("تاريخ انتهاء الكوبون يجب أن يكون بعد تاريخ البداية.");
+    if (
       !Number.isFinite(value) ||
       value <= 0 ||
       (form.type === "PERCENTAGE" && value > 100)
@@ -52,11 +63,12 @@ export default function CouponsPage() {
         .get<Coupon>("coupons")
         .some(
           (coupon) =>
+            coupon.id !== editingId &&
             coupon.code.toLowerCase() === form.code.trim().toLowerCase(),
         )
     )
       return toast.error("كود الكوبون مستخدم بالفعل.");
-    cafeOperationsService.create<Coupon>("coupons", {
+    const couponData = {
       code: form.code.trim().toUpperCase(),
       type: form.type,
       value,
@@ -65,9 +77,35 @@ export default function CouponsPage() {
       startDate: form.startDate || undefined,
       endDate: form.endDate || undefined,
       active: true,
+      usageCount: 0,
+      usages: [],
+      usageLimit: form.usageLimit ? Number(form.usageLimit) : undefined,
+      perCustomerLimit: form.perCustomerLimit
+        ? Number(form.perCustomerLimit)
+        : undefined,
+    };
+    const current = cafeOperationsService.get<Coupon>("coupons");
+    const coupon = editingId
+      ? ({
+          ...current.find((item) => item.id === editingId)!,
+          ...couponData,
+        } as Coupon)
+      : cafeOperationsService.create<Coupon>("coupons", couponData);
+    if (editingId)
+      cafeOperationsService.save(
+        "coupons",
+        current.map((item) => (item.id === editingId ? coupon : item)),
+      );
+    cafeOperationsService.audit({
+      module: "coupons",
+      action: editingId ? "COUPON_UPDATED" : "COUPON_CREATED",
+      description: `${editingId ? "تم تحديث" : "تم إنشاء"} الكوبون ${coupon.code}`,
+      entityType: "coupon",
+      entityId: coupon.id,
     });
     setOpen(false);
     setForm(empty);
+    setEditingId(null);
     window.dispatchEvent(new Event("operations:changed"));
     toast.success("تمت إضافة الكوبون.");
   }
@@ -78,12 +116,45 @@ export default function CouponsPage() {
         title="الكوبونات"
         description="إدارة كوبونات الكافيه وتطبيقها في نقطة البيع."
         action="إضافة كوبون"
-        onAdd={() => setOpen(true)}
+        onAdd={() => {
+          setEditingId(null);
+          setForm(empty);
+          setOpen(true);
+        }}
+        onEdit={(id) => {
+          const coupon = cafeOperationsService
+            .get<Coupon>("coupons")
+            .find((item) => item.id === id);
+          if (!coupon) return;
+          setEditingId(id);
+          setForm({
+            code: coupon.code,
+            type: coupon.type,
+            value: String(coupon.value),
+            minimumOrder: String(coupon.minimumOrder ?? 0),
+            maximumDiscount:
+              coupon.maximumDiscount == null
+                ? ""
+                : String(coupon.maximumDiscount),
+            startDate: coupon.startDate ?? "",
+            endDate: coupon.endDate ?? "",
+            usageLimit:
+              coupon.usageLimit == null ? "" : String(coupon.usageLimit),
+            perCustomerLimit:
+              coupon.perCustomerLimit == null
+                ? ""
+                : String(coupon.perCustomerLimit),
+          });
+          setOpen(true);
+        }}
+        onDelete={setRemoveId}
       />
       <Dialog open={open} onOpenChange={setOpen}>
         <DialogContent dir="rtl" className="max-w-lg">
           <DialogHeader>
-            <DialogTitle>إضافة كوبون</DialogTitle>
+            <DialogTitle>
+              {editingId ? "تعديل كوبون" : "إضافة كوبون"}
+            </DialogTitle>
             <DialogDescription>
               حدد نوع الخصم وحدوده وفترة صلاحيته.
             </DialogDescription>
@@ -121,6 +192,8 @@ export default function CouponsPage() {
               ["maximumDiscount", "الحد الأقصى للخصم", "number"],
               ["startDate", "تاريخ البداية", "date"],
               ["endDate", "تاريخ الانتهاء", "date"],
+              ["usageLimit", "إجمالي مرات الاستخدام", "number"],
+              ["perCustomerLimit", "الحد لكل عميل", "number"],
             ] as const
           ).map(([key, label, type]) => (
             <label key={key} className="text-sm font-semibold">
@@ -142,6 +215,29 @@ export default function CouponsPage() {
           <Button onClick={save}>حفظ الكوبون</Button>
         </DialogContent>
       </Dialog>
+      <ConfirmDialog
+        open={Boolean(removeId)}
+        onOpenChange={(value) => !value && setRemoveId(null)}
+        title="حذف الكوبون؟"
+        description="لن يتغير الخصم المحفوظ داخل الطلبات السابقة."
+        confirmLabel="حذف"
+        onConfirm={() => {
+          if (!removeId) return;
+          const coupon = cafeOperationsService
+            .get<Coupon>("coupons")
+            .find((item) => item.id === removeId);
+          cafeOperationsService.remove("coupons", removeId);
+          if (coupon)
+            cafeOperationsService.audit({
+              module: "coupons",
+              action: "COUPON_DELETED",
+              description: `تم حذف الكوبون ${coupon.code}`,
+              entityType: "coupon",
+              entityId: coupon.id,
+            });
+          setRemoveId(null);
+        }}
+      />
     </>
   );
 }

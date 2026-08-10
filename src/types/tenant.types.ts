@@ -1,6 +1,8 @@
 export type TenantStatus = "ACTIVE" | "SUSPENDED" | "TRIAL" | "ARCHIVED";
-export type SubscriptionPlan = "STARTER" | "GROWTH" | "ENTERPRISE";
-export type SubscriptionStatus = "TRIALING" | "ACTIVE" | "PAST_DUE" | "CANCELED";
+export type SubscriptionPlan =
+  "STARTER" | "GROWTH" | "ENTERPRISE" | (string & {});
+export type SubscriptionStatus =
+  "TRIALING" | "ACTIVE" | "PAST_DUE" | "CANCELED";
 
 export type TenantBranding = {
   logo: string;
@@ -26,9 +28,22 @@ export type TenantBranding = {
   border: string;
   radius: string;
   fontFamily?: string;
-  login?: { backgroundColor: string; backgroundImage?: string; welcomeTitle: string; subtitle: string; cardStyle: "solid" | "glass" };
+  login?: {
+    backgroundColor: string;
+    backgroundImage?: string;
+    welcomeTitle: string;
+    subtitle: string;
+    cardStyle: "solid" | "glass";
+  };
   menu?: { categoryAccent: string; headerText?: string };
-  receipt?: { phone?: string; address?: string; taxNumber?: string; header?: string; footer?: string; showQr: boolean };
+  receipt?: {
+    phone?: string;
+    address?: string;
+    taxNumber?: string;
+    header?: string;
+    footer?: string;
+    showQr: boolean;
+  };
   qr?: { foregroundColor: string; title: string; helperText: string };
 };
 

@@ -12,19 +12,23 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
-import { cafeOperationsService } from "@/services/cafe-operations.service";
+import { financeService } from "@/services/finance.service";
 import type { Expense } from "@/types/cafe-operations.types";
+import { ConfirmDialog } from "@/components/shared/confirm-dialog";
 
 const blank = () => ({
   category: "",
   amount: "",
   date: new Date().toISOString().slice(0, 10),
   notes: "",
+  paymentMethod: "CASH" as Expense["paymentMethod"],
 });
 
 export default function ExpensesPage() {
   const [open, setOpen] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [removeId, setRemoveId] = useState<string | null>(null);
   const [form, setForm] = useState(blank);
   useEffect(() => {
     const reset = () => {
@@ -46,24 +50,22 @@ export default function ExpensesPage() {
     if (!form.date) return toast.error("تاريخ المصروف مطلوب.");
     setSaving(true);
     try {
-      const expense = cafeOperationsService.create<Expense>("expenses", {
+      const value = {
         category: form.category.trim(),
         amount,
         date: form.date,
         notes: form.notes.trim(),
-        createdAt: new Date().toISOString(),
-      });
-      cafeOperationsService.audit({
-        module: "expenses",
-        action: "EXPENSE_CREATED",
-        description: `تم تسجيل مصروف ${form.category.trim()} بقيمة ${amount}`,
-        entityType: "expense",
-        entityId: expense.id,
-      });
+        paymentMethod: form.paymentMethod,
+      };
+      if (editingId) financeService.updateExpense(editingId, value);
+      else financeService.createExpense(value);
       setOpen(false);
       setForm(blank());
+      setEditingId(null);
       window.dispatchEvent(new Event("operations:changed"));
-      toast.success("تم تسجيل المصروف بنجاح.");
+      toast.success(
+        editingId ? "تم تحديث المصروف بنجاح." : "تم تسجيل المصروف بنجاح.",
+      );
     } catch (error) {
       toast.error(
         error instanceof Error ? error.message : "تعذر تسجيل المصروف.",
@@ -79,7 +81,27 @@ export default function ExpensesPage() {
         title="المصروفات"
         description="سجل مصروفات الفرع الحالي حسب التصنيف والتاريخ."
         action="إضافة مصروف"
-        onAdd={() => setOpen(true)}
+        onAdd={() => {
+          setEditingId(null);
+          setForm(blank());
+          setOpen(true);
+        }}
+        onEdit={(id) => {
+          const record = financeService
+            .getExpenses()
+            .find((item) => item.id === id);
+          if (!record) return;
+          setEditingId(id);
+          setForm({
+            category: record.category,
+            amount: String(record.amount),
+            date: record.date,
+            notes: record.notes ?? "",
+            paymentMethod: record.paymentMethod ?? "CASH",
+          });
+          setOpen(true);
+        }}
+        onDelete={setRemoveId}
       />
       <Dialog
         open={open}
@@ -90,7 +112,9 @@ export default function ExpensesPage() {
       >
         <DialogContent dir="rtl" className="max-w-lg">
           <DialogHeader>
-            <DialogTitle>إضافة مصروف</DialogTitle>
+            <DialogTitle>
+              {editingId ? "تعديل مصروف" : "إضافة مصروف"}
+            </DialogTitle>
             <DialogDescription>
               سيتم ربط المصروف بالفرع الحالي تلقائيًا.
             </DialogDescription>
@@ -107,6 +131,24 @@ export default function ExpensesPage() {
                 }))
               }
             />
+          </label>
+          <label className="text-sm font-semibold">
+            طريقة الدفع
+            <select
+              className="mt-1 h-10 w-full rounded-md border bg-background px-3"
+              value={form.paymentMethod}
+              onChange={(event) =>
+                setForm((current) => ({
+                  ...current,
+                  paymentMethod: event.target.value as Expense["paymentMethod"],
+                }))
+              }
+            >
+              <option value="CASH">نقدي</option>
+              <option value="CARD">بطاقة</option>
+              <option value="WALLET">محفظة</option>
+              <option value="ONLINE">إلكتروني</option>
+            </select>
           </label>
           <div className="grid gap-3 sm:grid-cols-2">
             <label className="text-sm font-semibold">
@@ -158,6 +200,18 @@ export default function ExpensesPage() {
           </Button>
         </DialogContent>
       </Dialog>
+      <ConfirmDialog
+        open={Boolean(removeId)}
+        onOpenChange={(value) => !value && setRemoveId(null)}
+        title="حذف المصروف؟"
+        description="سيتم حذف حركة الخزنة المرتبطة إذا كان المصروف نقديًا."
+        confirmLabel="حذف"
+        onConfirm={() => {
+          if (removeId) financeService.removeExpense(removeId);
+          setRemoveId(null);
+          toast.success("تم حذف المصروف.");
+        }}
+      />
     </>
   );
 }

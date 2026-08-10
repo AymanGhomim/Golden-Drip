@@ -12,6 +12,7 @@ import type {
   PaymentRecord,
   Recipe,
   StockMovement,
+  NotificationRecord,
 } from "@/types/cafe-operations.types";
 import type {
   Order,
@@ -21,6 +22,9 @@ import type {
 } from "@/types/order.types";
 import { getEffectiveFeatures } from "@/config/plans.config";
 import { convertInventoryQuantity } from "@/lib/inventory-units";
+import { validateCoupon, customerService } from "@/services/customer.service";
+import { financeService } from "@/services/finance.service";
+import { useAuthStore } from "@/store/auth.store";
 
 export type CheckoutInput = {
   items: CartItem[];
@@ -35,6 +39,7 @@ export type CheckoutInput = {
   paymentMethod: PaymentMethod;
   paymentAllocations?: PaymentRecord["allocations"];
   receivedAmount?: number;
+  source?: Order["source"];
 };
 export type CheckoutTotals = {
   subtotal: number;
@@ -97,42 +102,12 @@ function getInventoryRequirements(
   return requirements;
 }
 
-function couponDiscount(
-  coupon: Coupon | undefined,
-  subtotal: number,
-  items: OrderItem[],
-) {
-  if (!coupon) return 0;
-  const now = Date.now();
-  if (
-    !coupon.active ||
-    (coupon.startDate && new Date(coupon.startDate).getTime() > now) ||
-    (coupon.endDate && new Date(coupon.endDate).getTime() < now)
-  )
-    throw new Error("الكوبون غير صالح أو منتهي.");
-  if (subtotal < Number(coupon.minimumOrder ?? 0))
-    throw new Error("الطلب أقل من الحد الأدنى المطلوب للكوبون.");
-  const eligible = items.filter(
-    (item) =>
-      !coupon.productIds?.length || coupon.productIds.includes(item.productId),
-  );
-  if (!eligible.length) throw new Error("الكوبون لا ينطبق على منتجات الطلب.");
-  const eligibleTotal = eligible.reduce(
-    (sum, item) => sum + item.totalPrice,
-    0,
-  );
-  const raw =
-    coupon.type === "PERCENTAGE"
-      ? percentageOf(eligibleTotal, coupon.value)
-      : coupon.value;
-  return roundMoney(Math.min(raw, coupon.maximumDiscount ?? raw, subtotal));
-}
-
 export const checkoutService = {
   calculate(
     items: CartItem[],
     couponCode?: string,
     deliveryZoneId?: string,
+    customerId?: string,
   ): { items: OrderItem[]; totals: CheckoutTotals; coupon?: Coupon } {
     const { tenantId } = activeContext();
     if (!items.length) throw new Error("السلة فارغة.");
@@ -146,10 +121,15 @@ export const checkoutService = {
       if (!product?.isAvailable)
         throw new Error(`المنتج ${cart.name} غير متاح في منيو الفرع.`);
       const addons = cart.addons ?? [];
+      const selectedModifiers = cart.selectedModifiers ?? [];
       const unitPrice = roundMoney(
         product.price +
           Number(cart.variantPrice ?? 0) +
-          addons.reduce((sum, addon) => sum + addon.price, 0),
+          addons.reduce((sum, addon) => sum + addon.price, 0) +
+          selectedModifiers.reduce(
+            (sum, modifier) => sum + modifier.priceAdjustment,
+            0,
+          ),
       );
       return {
         id: `order-item-${Date.now()}-${index}`,
@@ -161,21 +141,24 @@ export const checkoutService = {
         notes: cart.notes,
         variantName: cart.variantName,
         addons,
+        selectedModifiers,
       };
     });
     const subtotal = roundMoney(
       orderItems.reduce((sum, item) => sum + item.totalPrice, 0),
     );
-    const coupon = couponCode
-      ? cafeOperationsService
-          .get<Coupon>("coupons")
-          .find(
-            (item) =>
-              item.code.toLowerCase() === couponCode.trim().toLowerCase(),
-          )
+    const couponResult = couponCode
+      ? validateCoupon({
+          code: couponCode,
+          subtotal,
+          items: orderItems,
+          customerId,
+        })
       : undefined;
-    if (couponCode && !coupon) throw new Error("كود الخصم غير صحيح.");
-    const discount = couponDiscount(coupon, subtotal, orderItems);
+    if (couponResult && !couponResult.valid)
+      throw new Error(couponResult.message);
+    const coupon = couponResult?.valid ? couponResult.coupon : undefined;
+    const discount = couponResult?.valid ? couponResult.discount : 0;
     const settings = cafeDataService.getSettings();
     const tax = percentageOf(subtotal - discount, settings.taxRate);
     const serviceCharge = percentageOf(
@@ -233,6 +216,7 @@ export const checkoutService = {
       input.items,
       input.couponCode,
       input.orderType === "DELIVERY" ? input.deliveryZoneId : undefined,
+      input.customerId,
     );
     const timestamp = new Date().toISOString();
     if (
@@ -258,12 +242,14 @@ export const checkoutService = {
       tableId: table?.id,
       tableNumber: table?.number ?? 0,
       orderType: input.orderType,
-      source: "POS",
+      source: input.source ?? "POS",
       customerId: input.customerId,
       customerName: input.customerName,
       customerPhone: input.customerPhone,
       customerAddress: input.customerAddress,
       deliveryZoneId: input.deliveryZoneId,
+      couponCode: input.couponCode?.trim().toUpperCase() || undefined,
+      couponDiscount: totals.discount,
       status: "NEW",
       paymentStatus: "PAID",
       paymentMethod: input.paymentMethod,
@@ -271,11 +257,21 @@ export const checkoutService = {
       ...totals,
       createdAt: timestamp,
       updatedAt: timestamp,
+      timeline: [
+        {
+          status: "NEW",
+          employeeId: useAuthStore.getState().user?.employeeId,
+          at: timestamp,
+        },
+      ],
     };
     this.validateInventory(order);
     cafeDataService.saveOrders([order, ...cafeDataService.getOrders()]);
     const payment = cafeOperationsService.create<PaymentRecord>("payments", {
       orderId: order.id,
+      transactionNumber: `PAY-${String(Date.now()).slice(-8)}`,
+      customerId: input.customerId,
+      employeeId: useAuthStore.getState().user?.employeeId,
       amount: order.total,
       method: input.paymentMethod,
       allocations: input.paymentAllocations,
@@ -296,12 +292,37 @@ export const checkoutService = {
               ?.amount ?? 0)
           : 0;
     if (cashAmount > 0)
-      cafeOperationsService.create("cashRegister", {
+      financeService.createCashMovement({
         orderId: order.id,
-        type: "SALE",
+        paymentId: payment.id,
+        type: "CASH_SALE",
         amount: cashAmount,
-        createdAt: timestamp,
+        reason: `بيع نقدي للطلب ${order.orderNumber}`,
       });
+    if (input.couponCode) {
+      const coupons = cafeOperationsService.get<Coupon>("coupons");
+      cafeOperationsService.save(
+        "coupons",
+        coupons.map((coupon) =>
+          coupon.code.toLowerCase() === input.couponCode?.trim().toLowerCase()
+            ? {
+                ...coupon,
+                usageCount: Number(coupon.usageCount ?? 0) + 1,
+                usages: [
+                  ...(coupon.usages ?? []),
+                  {
+                    orderId: order.id,
+                    customerId: input.customerId,
+                    usedAt: timestamp,
+                  },
+                ],
+              }
+            : coupon,
+        ),
+      );
+    }
+    if (input.customerId)
+      customerService.earnForOrder(input.customerId, order.id, order.total);
     cafeOperationsService.audit({
       branchId,
       module: "pos",
@@ -352,5 +373,29 @@ export const checkoutService = {
       return { ...item, quantity: after, updatedAt: new Date().toISOString() };
     });
     cafeOperationsService.save("inventory", updated);
+    const notifications =
+      cafeOperationsService.get<NotificationRecord>("notifications");
+    updated
+      .filter((item) => item.quantity <= item.minimumStock)
+      .forEach((item) => {
+        if (
+          notifications.some(
+            (notification) =>
+              !notification.read &&
+              notification.relatedEntityType === "inventory" &&
+              notification.relatedEntityId === item.id,
+          )
+        )
+          return;
+        cafeOperationsService.create<NotificationRecord>("notifications", {
+          type: item.quantity <= 0 ? "OUT_OF_STOCK" : "LOW_STOCK",
+          title: item.quantity <= 0 ? "نفد عنصر من المخزون" : "مخزون منخفض",
+          message: `${item.name}: ${item.quantity} ${item.unit}`,
+          read: false,
+          relatedEntityType: "inventory",
+          relatedEntityId: item.id,
+          createdAt: new Date().toISOString(),
+        });
+      });
   },
 };
