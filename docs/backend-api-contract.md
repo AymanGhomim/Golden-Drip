@@ -1,11 +1,10 @@
 # Backend API Contract
 
-> Final reviewed contract derived from the existing frontend audit. This document defines contracts only; it does not introduce backend implementation, schema, or frontend changes.
+> Frozen 200-endpoint, self-contained DTO/API contract derived from the existing frontend. Backend implementation must not require reading frontend TypeScript to discover fields.
 
 ## 1. Executive Summary
 
-- Previous endpoint count: **201**
-- Final endpoint count: **200**
+- Endpoints: **200**
 - GET: **89**
 - POST: **50**
 - PATCH: **29**
@@ -15,76 +14,1528 @@
 - P1: **109**
 - P2: **4**
 
-`GET /api/v1/customer/context` was removed. Non-QR public Tenant/Branch resolution is now part of the bundled public-menu request. QR resolution remains exclusively owned by `GET /api/v1/customer/qr/{token}`. No endpoint was added.
-
 ## 2. Architecture
 
 ```text
-Platform
-└── Tenant
-    └── Branch
-        └── Operational Data
-
-Employee
-└── Role
-    └── Permission
-        └── Branch Access
-
-Product (tenant descriptive catalog)
-└── Menu (internal selling configuration)
-    └── MenuItem.price (authoritative branch-menu selling price)
+Platform → Tenant → Branch → Operational Data
+Employee → Role → Permission → Branch Access
+Product → Menu → MenuItem.price
 ```
 
-A Branch is assigned an internal Menu. POS and public checkout load the Branch Menu and its MenuItem server-side. Product `defaultPrice`, when retained for form convenience, is only a suggested initial value and never the final checkout price.
+`MenuItem.price` is the authoritative selling price. `ProductDto.defaultPrice` is an optional helper mapped from the legacy frontend product price and is never trusted by quote or checkout.
 
 ## 3. API Conventions
 
 - Base URL: `/api/v1`.
-- Authentication: short-lived bearer access token and rotating secure HTTP-only refresh cookie.
-- Tenant resolution: authenticated tenant comes from signed session claims, never from request bodies.
-- Branch authorization: `{branchId}` is checked against tenant ownership and employee branch access.
-- Pagination: `page`, `pageSize`; responses include `meta.page`, `pageSize`, `total`, and `totalPages`.
-- Search: `search` with domain-specific indexed fields.
-- Sorting: `sortBy`, `sortOrder=asc|desc`, with an allowlist per endpoint.
-- Date filtering: ISO-8601 `from` and `to`, interpreted in the tenant timezone and persisted as UTC.
-- ISO dates: UTC ISO-8601 strings.
-- Money: decimal values; persistence must use fixed precision, never binary float.
-- Idempotency: `Idempotency-Key` on the operations in section 51.
-- Optimistic concurrency: `version` or `If-Match`; stale writes return `409 VERSION_CONFLICT`.
+- Access token: bearer token; refresh token: rotating Secure, HttpOnly, SameSite cookie.
+- Platform login and Cafe login return `accessToken` and `expiresIn`; neither returns `refreshToken` in JSON.
+- Login/refresh set `Set-Cookie: refresh_token=<opaque>; HttpOnly; Secure; SameSite=Lax; Path=/api/v1/auth; Max-Age=<policy>`.
+- Refresh consumes the cookie, rotates both server session and cookie, and returns a new access token.
+- Logout revokes the session and clears the refresh cookie with `Max-Age=0`.
+- Tenant scope comes from signed session claims; request bodies cannot select a tenant.
+- Branch scope requires tenant ownership plus employee Branch Access.
+- Pagination uses `page` and `pageSize` only where each endpoint explicitly lists them.
+- Sorting/search/date filters are accepted only where explicitly listed.
+- Dates are ISO-8601; persistence uses UTC.
+- Money is JSON decimal and fixed-precision persistence, never binary floating-point.
+- Mutations use the documented 200, 201, or 204 status.
+- Idempotency applies only where marked and in the matrix.
+- Optimistic writes use `version`/`If-Match`; stale writes return `409 VERSION_CONFLICT`.
 
-Success envelope:
-
-```json
-{"success":true,"data":{},"meta":{"page":1,"pageSize":25,"total":0,"totalPages":0}}
-```
-
-Error envelope:
-
-```json
-{"success":false,"error":{"code":"VALIDATION_FAILED","message":"Request validation failed.","details":{},"fields":{"fieldName":["Validation message"]},"requestId":"req_..."}}
-```
-
-Validation errors use HTTP 400/422 with machine-readable field mappings. Conflicts use HTTP 409, including duplicate codes, branch-limit exceeded, role/resource in use, already-received purchases, confirmed stock counts, duplicate open shifts, stale versions, and reused idempotency keys.
+Success envelopes are `ApiSuccess<T>` or `Paginated<T>`. Error envelopes are `ApiError`. 204 responses have no body.
 
 ## 4. Contract Corrections
 
-1. **Menu feature gating:** Internal Menu/MenuItem management has no `onlineMenu` dependency. It is required by POS. `onlineMenu` gates only public online-menu functionality and online-menu-origin customer ordering.
-2. **Selling-price authority:** `MenuItem.price` is authoritative. Existing `Product.price` is represented conceptually as optional `Product.defaultPrice`; checkout never trusts it as final price.
-3. **Notification reads:** Both individual read and mark-all-read require `notifications.view`. `notifications.manage` is reserved for actual administration, for which no current endpoint exists.
-4. **Customer analytics:** Basic order count, total spend, average order, and last order require only `customers.view`; no reports feature.
-5. **State separation:** Operational Order status is `NEW | ACCEPTED | PREPARING | READY | COMPLETED | CANCELLED`. Payment status is `PENDING | PAID | FAILED | PARTIALLY_REFUNDED | REFUNDED`. Refund/payment states never enter order transition validation.
-6. **Public feature matrix:** `QR_MENU + TABLE` requires `qrOrdering`; `ONLINE_MENU + TAKEAWAY` requires `onlineMenu + takeaway`; `ONLINE_MENU + DELIVERY` requires `onlineMenu + delivery`.
-7. **Customer context:** `/customer/qr/{token}` resolves QR-only Tenant + Branch + Table context. `/customer/menu` resolves non-QR Tenant/Branch context. The redundant `/customer/context` endpoint is removed.
+- Internal Menu/MenuItem management is independent of `onlineMenu`.
+- `MenuItem.price` is authoritative; checkout never trusts client price or Product default price.
+- Notification read operations require `notifications.view`.
+- Basic customer analytics requires `customers.view` and no Reports feature.
+- Operational Order status and Payment status are separate state machines.
+- `QR_MENU + TABLE` requires `qrOrdering`; `ONLINE_MENU + TAKEAWAY` requires `onlineMenu + takeaway`; `ONLINE_MENU + DELIVERY` requires `onlineMenu + delivery`.
+- `/customer/qr/{token}` is QR-only context resolution; bundled `/customer/menu` handles non-QR resolution and accepts a validated QR context token.
+
+## Enum Reference
+
+All values are case-sensitive JSON strings. The API operational `OrderStatus` intentionally excludes the legacy frontend-only `REFUNDED` value; refund state belongs to `PaymentStatus`.
+
+### Enum: TenantStatus
+
+```text
+"ACTIVE" | "SUSPENDED" | "TRIAL" | "ARCHIVED"
+```
+
+### Enum: SubscriptionStatus
+
+```text
+"TRIALING" | "ACTIVE" | "PAST_DUE" | "CANCELED"
+```
+
+### Enum: SubscriptionType
+
+```text
+"TRIAL" | "PAID"
+```
+
+### Enum: BranchStatus
+
+```text
+"ACTIVE" | "INACTIVE"
+```
+
+### Enum: MenuStatus
+
+```text
+"ACTIVE" | "INACTIVE"
+```
+
+### Enum: EmployeeStatus
+
+```text
+"ACTIVE" | "SUSPENDED"
+```
+
+### Enum: BranchAccessMode
+
+```text
+"ALL" | "SELECTED"
+```
+
+### Enum: AuthRole
+
+```text
+"admin" | "kitchen" | "platform_super_admin"
+```
+
+### Enum: OrderStatus
+
+```text
+"NEW" | "ACCEPTED" | "PREPARING" | "READY" | "COMPLETED" | "CANCELLED"
+```
+
+### Enum: OrderSource
+
+```text
+"POS" | "QR_MENU" | "ONLINE_MENU" | "MANUAL"
+```
+
+### Enum: OrderType
+
+```text
+"TABLE" | "TAKEAWAY" | "DELIVERY"
+```
+
+### Enum: PaymentMethod
+
+```text
+"CASH" | "CARD" | "WALLET" | "ONLINE" | "MIXED"
+```
+
+### Enum: PaymentAllocationMethod
+
+```text
+"CASH" | "CARD" | "WALLET" | "ONLINE"
+```
+
+### Enum: PaymentStatus
+
+```text
+"PENDING" | "PAID" | "FAILED" | "PARTIALLY_REFUNDED" | "REFUNDED"
+```
+
+### Enum: RefundType
+
+```text
+"FULL" | "PARTIAL"
+```
+
+### Enum: CashTransactionType
+
+```text
+"OPENING_BALANCE" | "CASH_SALE" | "CASH_IN" | "CASH_OUT" | "EXPENSE" | "REFUND" | "SHIFT_ADJUSTMENT"
+```
+
+### Enum: ShiftStatus
+
+```text
+"OPEN" | "CLOSED"
+```
+
+### Enum: PurchaseStatus
+
+```text
+"DRAFT" | "ORDERED" | "RECEIVED" | "CANCELLED"
+```
+
+### Enum: StockCountStatus
+
+```text
+"DRAFT" | "CONFIRMED"
+```
+
+### Enum: StockMovementType
+
+```text
+"PURCHASE" | "SALE" | "WASTE" | "ADJUSTMENT" | "RETURN" | "ORDER_CANCELLATION_RESTORE"
+```
+
+### Enum: LoyaltyTransactionType
+
+```text
+"EARN" | "REDEEM" | "ADJUSTMENT" | "EXPIRED"
+```
+
+### Enum: CouponType
+
+```text
+"PERCENTAGE" | "FIXED"
+```
+
+### Enum: WaiterRequestType
+
+```text
+"WAITER" | "BILL" | "TISSUES" | "HELP" | "OTHER"
+```
+
+### Enum: WaiterRequestStatus
+
+```text
+"NEW" | "ACCEPTED" | "COMPLETED"
+```
+
+### Enum: NotificationType
+
+```text
+"NEW_ORDER" | "QR_ORDER" | "WAITER_REQUEST" | "BILL_REQUEST" | "LOW_STOCK" | "OUT_OF_STOCK" | "KITCHEN_DELAY" | "SHIFT_DIFFERENCE" | "PAYMENT_FAILED" | "REFUND"
+```
+
+### Enum: InventoryUnit
+
+```text
+"g" | "gm" | "gram" | "جم" | "kg" | "kilogram" | "كجم" | "ml" | "مل" | "l" | "liter" | "litre" | "لتر" | "piece" | "pcs" | "قطعة"
+```
+
+### Enum: FeatureKey
+
+```text
+"onlineMenu" | "pos" | "orders" | "tables" | "qrOrdering" | "kitchen" | "takeaway" | "delivery" | "inventory" | "recipes" | "suppliers" | "purchases" | "expenses" | "loyalty" | "employees" | "reports" | "advancedReports"
+```
+
+### Enum: PermissionKey
+
+```text
+"dashboard.view" | "pos.use" | "orders.view" | "orders.create" | "orders.update" | "orders.cancel" | "orders.refund" | "orders.print" | "products.view" | "products.create" | "products.update" | "products.delete" | "categories.view" | "categories.manage" | "menus.view" | "menus.manage" | "branches.view" | "branches.manage" | "tables.view" | "tables.manage" | "qr.view" | "qr.manage" | "kitchen.view" | "kitchen.update" | "inventory.view" | "inventory.create" | "inventory.adjust" | "inventory.stockCount" | "inventory.waste" | "purchases.view" | "purchases.create" | "purchases.update" | "purchases.receive" | "suppliers.view" | "suppliers.manage" | "customers.view" | "customers.manage" | "loyalty.view" | "loyalty.manage" | "coupons.view" | "coupons.manage" | "deliveryZones.view" | "deliveryZones.manage" | "payments.view" | "refunds.view" | "refunds.create" | "expenses.view" | "expenses.create" | "expenses.update" | "expenses.delete" | "cashRegister.view" | "cashRegister.manage" | "shifts.view" | "shifts.open" | "shifts.close" | "waiterRequests.view" | "waiterRequests.manage" | "employees.view" | "employees.create" | "employees.update" | "employees.suspend" | "roles.view" | "roles.manage" | "reports.view" | "notifications.view" | "notifications.manage" | "audit.view" | "settings.view" | "settings.edit"
+```
+
+
+## DTO Reference
+
+Notation is language-neutral TypeScript structural syntax: `?` means an optional JSON member, intersections compose the stated members, and `Omit`/`Pick` have their standard structural meaning. Every referenced type is defined below.
+
+### DTO: PageMeta
+
+```ts
+type PageMeta = { page: number; pageSize: number; total: number; totalPages: number };
+```
+
+### DTO: ApiSuccess<T>
+
+```ts
+type ApiSuccess<T> = { success: true; data: T };
+```
+
+### DTO: Paginated<T>
+
+```ts
+type Paginated<T> = { success: true; data: T[]; meta: PageMeta };
+```
+
+### DTO: ApiError
+
+```ts
+type ApiError = { success: false; error: { code: string; message: string; details: Record<string, unknown>; fields?: Record<string, string[]>; requestId: string } };
+```
+
+### DTO: AuthUserDto
+
+```ts
+type AuthUserDto = { id: string; name: string; email: string; role: AuthRole; tenantId?: string; employeeId?: string };
+```
+
+### DTO: TokenDto
+
+```ts
+type TokenDto = { accessToken: string; expiresIn: number };
+```
+
+`expiresIn` is seconds. Refresh tokens are never returned in JSON.
+
+### DTO: PlatformLoginRequest
+
+```ts
+type PlatformLoginRequest = { login: string; password: string };
+```
+
+### DTO: PlatformLoginResponse
+
+```ts
+type PlatformLoginResponse = ApiSuccess<TokenDto & { user: AuthUserDto }>;
+```
+
+### DTO: CafeLoginRequest
+
+```ts
+type CafeLoginRequest = { tenantCode: string; login: string; password: string };
+```
+
+### DTO: BranchAccessDto
+
+```ts
+type BranchAccessDto = { mode: BranchAccessMode; branchIds: string[] };
+```
+
+### DTO: CafeLoginResponse
+
+```ts
+type CafeLoginResponse = ApiSuccess<TokenDto & { user: AuthUserDto; employee: CafeEmployeeDto; tenant: TenantDto; role: CafeRoleDto; permissions: PermissionKey[]; branchAccess: BranchAccessDto; features: EffectiveFeaturesDto; accessibleBranches: BranchDto[]; currentBranch: BranchDto | null }>;
+```
+
+### DTO: RefreshResponse
+
+```ts
+type RefreshResponse = ApiSuccess<TokenDto>;
+```
+
+### DTO: ForgotPasswordRequest
+
+```ts
+type ForgotPasswordRequest = { tenantCode?: string; login: string };
+```
+
+### DTO: PasswordResetAcceptedDto
+
+```ts
+type PasswordResetAcceptedDto = { accepted: true };
+```
+
+### DTO: ResetPasswordRequest
+
+```ts
+type ResetPasswordRequest = { token: string; newPassword: string };
+```
+
+### DTO: ChangePasswordRequest
+
+```ts
+type ChangePasswordRequest = { currentPassword: string; newPassword: string };
+```
+
+### DTO: SessionDto
+
+```ts
+type SessionDto = { id: string; createdAt: string; lastUsedAt: string; expiresAt: string; ipAddress?: string; userAgent?: string; current: boolean };
+```
+
+Session display fields beyond `id/current/timestamps` are Product decision required if the UI later exposes device details.
+
+### DTO: CafeSessionResponse
+
+```ts
+type CafeSessionResponse = ApiSuccess<{ user: AuthUserDto; employee: CafeEmployeeDto | null; tenant: TenantDto | null; role: CafeRoleDto | null; permissions: PermissionKey[]; branchAccess: BranchAccessDto | null; features: EffectiveFeaturesDto; accessibleBranches: BranchDto[]; currentBranch: BranchDto | null }>;
+```
+
+### DTO: AssetDto
+
+```ts
+type AssetDto = { id: string; url: string; mimeType: string; size: number; width?: number; height?: number; createdAt: string };
+```
+
+### DTO: TenantContactDto
+
+```ts
+type TenantContactDto = { phone?: string; whatsapp?: string; email?: string; address?: string; locationUrl?: string; facebook?: string; instagram?: string; tiktok?: string };
+```
+
+### DTO: TenantOwnerDto
+
+```ts
+type TenantOwnerDto = { name: string; email: string; phone?: string; username?: string };
+```
+
+### DTO: TenantSettingsDto
+
+```ts
+type TenantSettingsDto = { currency: string; currencySymbol: string; timezone: string; locale: "ar" | "en"; taxRate: number };
+```
+
+### DTO: BrandingLoginDto
+
+```ts
+type BrandingLoginDto = { backgroundColor: string; backgroundImage?: string; welcomeTitle: string; subtitle: string; cardStyle: "solid" | "glass" };
+```
+
+### DTO: BrandingReceiptDto
+
+```ts
+type BrandingReceiptDto = { phone?: string; address?: string; taxNumber?: string; header?: string; footer?: string; showQr: boolean };
+```
+
+### DTO: BrandingDto
+
+```ts
+type BrandingDto = { logo: string; favicon?: string; lightLogo?: string; darkLogo?: string; primary: string; primaryForeground?: string; secondary: string; secondaryForeground?: string; accent: string; accentForeground?: string; background: string; surface: string; surfaceSecondary?: string; sidebar: string; sidebarText: string; sidebarActive?: string; sidebarActiveForeground?: string; textPrimary: string; textSecondary: string; muted?: string; border: string; radius: string; fontFamily?: string; login?: BrandingLoginDto; menu?: { categoryAccent: string; headerText?: string }; receipt?: BrandingReceiptDto; qr?: { foregroundColor: string; title: string; helperText: string } };
+```
+
+No Penta-K attribution controls are permitted.
+
+### DTO: UpdateBrandingRequest
+
+```ts
+type UpdateBrandingRequest = BrandingDto;
+```
+
+### DTO: SubscriptionDto
+
+```ts
+type SubscriptionDto = { type: SubscriptionType; startsAt: string; endsAt: string; status: SubscriptionStatus; planCode: string };
+```
+
+### DTO: TenantDto
+
+```ts
+type TenantDto = { id: string; slug: string; name: string; legalName?: string; status: TenantStatus; plan: string; subscriptionStatus: SubscriptionStatus; branding: BrandingDto; settings: TenantSettingsDto; features: EffectiveFeaturesDto; createdAt: string; owner?: TenantOwnerDto; contact?: TenantContactDto; subscription?: { type: SubscriptionType; startsAt: string; endsAt: string }; featureOverrides?: Partial<Record<FeatureKey, boolean>>; maxBranchesOverride?: number };
+```
+
+### DTO: TenantSummaryDto
+
+```ts
+type TenantSummaryDto = { id: string; slug: string; name: string; status: TenantStatus; plan: string; subscriptionStatus: SubscriptionStatus; logo: string; ownerName?: string; phone?: string; subscriptionEndsAt?: string; createdAt: string };
+```
+
+### DTO: TenantDetailsDto
+
+```ts
+type TenantDetailsDto = TenantDto & { branches: BranchDto[]; effectiveBranchLimit: number; subscription: SubscriptionDto | null };
+```
+
+### DTO: CreateTenantRequest
+
+```ts
+type CreateTenantRequest = { slug: string; name: string; status: TenantStatus; plan: string; branding: BrandingDto; settings: TenantSettingsDto; contact: TenantContactDto; owner: { name: string; email: string; phone: string; username: string; password: string }; subscription: { type: SubscriptionType; startsAt: string; endsAt: string }; featureOverrides: Partial<Record<FeatureKey, boolean>> };
+```
+
+### DTO: UpdateTenantRequest
+
+```ts
+type UpdateTenantRequest = { slug?: string; name?: string; legalName?: string; status?: TenantStatus; plan?: string; branding?: BrandingDto; settings?: TenantSettingsDto; contact?: TenantContactDto; owner?: TenantOwnerDto; subscription?: { type: SubscriptionType; startsAt: string; endsAt: string }; featureOverrides?: Partial<Record<FeatureKey, boolean>>; version: number };
+```
+
+### DTO: UpdateTenantContactRequest
+
+```ts
+type UpdateTenantContactRequest = { name?: string; legalName?: string; contact?: TenantContactDto; version: number };
+```
+
+### DTO: TenantStatusRequest
+
+```ts
+type TenantStatusRequest = { status: TenantStatus; version: number };
+```
+
+### DTO: PlanDto
+
+```ts
+type PlanDto = { id: string; code: string; name: string; description: string; price?: number; active: boolean; maxBranches: number; features: FeatureKey[] };
+```
+
+### DTO: CreatePlanRequest
+
+```ts
+type CreatePlanRequest = { code: string; name: string; description: string; price?: number; active: boolean; maxBranches: number; features: FeatureKey[] };
+```
+
+### DTO: UpdatePlanRequest
+
+```ts
+type UpdatePlanRequest = { name?: string; description?: string; price?: number; active?: boolean; maxBranches?: number; features?: FeatureKey[]; version: number };
+```
+
+### DTO: AssignSubscriptionRequest
+
+```ts
+type AssignSubscriptionRequest = { planCode: string; type: SubscriptionType; startsAt: string; endsAt: string; status: SubscriptionStatus; version: number };
+```
+
+### DTO: ExtendSubscriptionRequest
+
+```ts
+type ExtendSubscriptionRequest = { months: 1 | 3 | 6 | 12 };
+```
+
+### DTO: FeatureOverridesDto
+
+```ts
+type FeatureOverridesDto = { overrides: Partial<Record<FeatureKey, boolean>> };
+```
+
+### DTO: EffectiveFeaturesDto
+
+```ts
+type EffectiveFeaturesDto = Record<FeatureKey, boolean>;
+```
+
+### DTO: BranchLimitRequest
+
+```ts
+type BranchLimitRequest = { maxBranchesOverride: number | null; version: number };
+```
+
+### DTO: PlatformDashboardDto
+
+```ts
+type PlatformDashboardDto = { totalTenants: number; activeTenants: number; trialTenants: number; suspendedTenants: number; archivedTenants: number; expiringWithin30Days: number; byStatus: { status: TenantStatus; count: number }[]; byPlan: { planCode: string; planName: string; count: number }[]; recentTenants: TenantSummaryDto[] };
+```
+
+### DTO: BranchSettingsDto
+
+```ts
+type BranchSettingsDto = { dineInEnabled: boolean; takeawayEnabled: boolean; deliveryEnabled: boolean; preparationTime: number; openingHours?: string };
+```
+
+### DTO: BranchDto
+
+```ts
+type BranchDto = { id: string; tenantId: string; name: string; code?: string; phone?: string; email?: string; address?: string; status: BranchStatus; menuId?: string; settings?: BranchSettingsDto; createdAt: string; updatedAt: string };
+```
+
+### DTO: PublicBranchDto
+
+```ts
+type PublicBranchDto = { id: string; name: string; phone?: string; address?: string; status: BranchStatus; settings?: BranchSettingsDto };
+```
+
+### DTO: CreateBranchRequest
+
+```ts
+type CreateBranchRequest = { name: string; code?: string; phone?: string; email?: string; address?: string; status: BranchStatus; menuId?: string; settings?: BranchSettingsDto };
+```
+
+### DTO: UpdateBranchRequest
+
+```ts
+type UpdateBranchRequest = { name?: string; code?: string; phone?: string; email?: string; address?: string; menuId?: string; settings?: BranchSettingsDto; version: number };
+```
+
+### DTO: BranchStatusRequest
+
+```ts
+type BranchStatusRequest = { status: BranchStatus; version: number };
+```
+
+### DTO: AssignBranchMenuRequest
+
+```ts
+type AssignBranchMenuRequest = { menuId: string; version: number };
+```
+
+### DTO: ProductDto
+
+```ts
+type ProductDto = { id: string; tenantId?: string; modifierGroupIds?: string[]; name: string; description: string; defaultPrice?: number; image?: string; categoryId: string; isAvailable: boolean };
+```
+
+`defaultPrice` maps the legacy frontend `price` helper. Checkout ignores it and loads `MenuItem.price`.
+
+### DTO: PublicProductDto
+
+```ts
+type PublicProductDto = { id: string; name: string; description: string; image?: string; categoryId: string; isAvailable: boolean; modifierGroupIds?: string[] };
+```
+
+### DTO: CreateProductRequest
+
+```ts
+type CreateProductRequest = { name: string; description: string; defaultPrice?: number; image?: string; categoryId: string; isAvailable: boolean; modifierGroupIds?: string[] };
+```
+
+### DTO: UpdateProductRequest
+
+```ts
+type UpdateProductRequest = { name?: string; description?: string; defaultPrice?: number; image?: string; categoryId?: string; isAvailable?: boolean; modifierGroupIds?: string[]; version: number };
+```
+
+### DTO: CategoryDto
+
+```ts
+type CategoryDto = { id: string; tenantId?: string; name: string; image?: string; sortOrder: number; isActive: boolean };
+```
+
+### DTO: PublicCategoryDto
+
+```ts
+type PublicCategoryDto = { id: string; name: string; image?: string; sortOrder: number };
+```
+
+### DTO: CreateCategoryRequest
+
+```ts
+type CreateCategoryRequest = { name: string; image?: string; sortOrder: number; isActive: boolean };
+```
+
+### DTO: UpdateCategoryRequest
+
+```ts
+type UpdateCategoryRequest = { name?: string; image?: string; sortOrder?: number; isActive?: boolean; version: number };
+```
+
+### DTO: MenuDto
+
+```ts
+type MenuDto = { id: string; tenantId: string; name: string; description?: string; status: MenuStatus; createdAt: string; updatedAt: string };
+```
+
+### DTO: CreateMenuRequest
+
+```ts
+type CreateMenuRequest = { name: string; description?: string; status: MenuStatus };
+```
+
+### DTO: UpdateMenuRequest
+
+```ts
+type UpdateMenuRequest = { name?: string; description?: string; status?: MenuStatus; version: number };
+```
+
+### DTO: DuplicateMenuRequest
+
+```ts
+type DuplicateMenuRequest = { name?: string };
+```
+
+### DTO: MenuItemDto
+
+```ts
+type MenuItemDto = { id: string; tenantId: string; menuId: string; productId: string; price: number; available: boolean; sortOrder: number };
+```
+
+### DTO: PublicMenuItemDto
+
+```ts
+type PublicMenuItemDto = { id: string; productId: string; price: number; available: boolean; sortOrder: number };
+```
+
+### DTO: CreateMenuItemRequest
+
+```ts
+type CreateMenuItemRequest = { productId: string; price: number; available: boolean; sortOrder: number };
+```
+
+### DTO: UpdateMenuItemRequest
+
+```ts
+type UpdateMenuItemRequest = { price?: number; available?: boolean; sortOrder?: number; version: number };
+```
+
+### DTO: ReorderMenuItemsRequest
+
+```ts
+type ReorderMenuItemsRequest = { items: { menuItemId: string; sortOrder: number }[] };
+```
+
+### DTO: ModifierOptionDto
+
+```ts
+type ModifierOptionDto = { id: string; name: string; priceAdjustment: number; available: boolean; sortOrder?: number };
+```
+
+### DTO: ModifierGroupDto
+
+```ts
+type ModifierGroupDto = { id: string; tenantId?: string; name: string; required: boolean; minSelections: number; maxSelections: number; productIds: string[]; options: ModifierOptionDto[]; active: boolean; sortOrder?: number };
+```
+
+### DTO: CreateModifierGroupRequest
+
+```ts
+type CreateModifierGroupRequest = { name: string; required: boolean; minSelections: number; maxSelections: number; productIds: string[]; options: ModifierOptionDto[]; active: boolean; sortOrder?: number };
+```
+
+### DTO: UpdateModifierGroupRequest
+
+```ts
+type UpdateModifierGroupRequest = Partial<CreateModifierGroupRequest> & { version: number };
+```
+
+### DTO: RecipeIngredientDto
+
+```ts
+type RecipeIngredientDto = { inventoryItemId: string; quantity: number; unit: InventoryUnit };
+```
+
+### DTO: RecipeDto
+
+```ts
+type RecipeDto = { id: string; tenantId?: string; productId: string; ingredients: RecipeIngredientDto[] };
+```
+
+### DTO: UpdateRecipeRequest
+
+```ts
+type UpdateRecipeRequest = { ingredients: RecipeIngredientDto[]; version?: number };
+```
+
+### DTO: TableDto
+
+```ts
+type TableDto = { id: string; tenantId?: string; branchId?: string; number: number; qrCode: string; isActive: boolean };
+```
+
+### DTO: PublicTableDto
+
+```ts
+type PublicTableDto = { id: string; number: number };
+```
+
+### DTO: CreateTableRequest
+
+```ts
+type CreateTableRequest = { number: number; isActive: boolean };
+```
+
+### DTO: UpdateTableRequest
+
+```ts
+type UpdateTableRequest = { number?: number; isActive?: boolean; version: number };
+```
+
+### DTO: QrTokenDto
+
+```ts
+type QrTokenDto = { tableId: string; active: boolean; createdAt: string; rotatedAt?: string; publicUrl: string };
+```
+
+The raw token appears only inside `publicUrl` at creation/rotation; persisted token material must be hashed.
+
+### DTO: RotateQrTokenRequest
+
+```ts
+type RotateQrTokenRequest = { rotate: true };
+```
+
+### DTO: QrResolveResponse
+
+```ts
+type QrResolveResponse = ApiSuccess<{ contextToken: string; tenant: PublicTenantDto; branch: PublicBranchDto; table: PublicTableDto; orderType: "TABLE" }>;
+```
+
+### DTO: CashierQrConfigDto
+
+```ts
+type CashierQrConfigDto = { orderType: OrderType; tableId?: string };
+```
+
+### DTO: PublicTenantDto
+
+```ts
+type PublicTenantDto = { name: string; slug: string; branding: BrandingDto; contact?: TenantContactDto; settings: Pick<TenantSettingsDto, "currency" | "currencySymbol" | "timezone" | "locale"> };
+```
+
+Branding contains no Platform attribution controls.
+
+### DTO: MenuSettingsDto
+
+```ts
+type MenuSettingsDto = { tenantId: string; onlineOrderingEnabled: boolean; menuOpen: boolean; autoAcceptOrders: boolean; qrEnabled: boolean; multipleTableOrders: boolean; waiterRequestsEnabled: boolean; billRequestsEnabled: boolean; payAtCashierEnabled: boolean; electronicDineInPaymentEnabled: boolean; takeawayEnabled: boolean; asapPickupEnabled: boolean; scheduledPickupEnabled: boolean; preparationMinutes: number; deliveryEnabled: boolean; minimumDeliveryOrder: number; estimatedDeliveryMinutes: number; cashEnabled: boolean; cardEnabled: boolean; walletEnabled: boolean; onlinePaymentEnabled: boolean; updatedAt: string };
+```
+
+### DTO: UpdateMenuSettingsRequest
+
+```ts
+type UpdateMenuSettingsRequest = Omit<MenuSettingsDto, "tenantId" | "updatedAt"> & { version: number };
+```
+
+### DTO: PublicMenuResponse
+
+```ts
+type PublicMenuResponse = ApiSuccess<{ contextToken: string; tenant: PublicTenantDto; branch: PublicBranchDto; table?: PublicTableDto; orderType?: OrderType; settings: Omit<MenuSettingsDto, "tenantId" | "updatedAt">; menu: { id: string; name: string; description?: string }; categories: PublicCategoryDto[]; items: PublicMenuItemDto[]; products: PublicProductDto[]; modifierGroups: ModifierGroupDto[]; offers: PublicOfferDto[] }>;
+```
+
+### DTO: ModifierSelectionRequest
+
+```ts
+type ModifierSelectionRequest = { groupId: string; optionIds: string[] };
+```
+
+### DTO: CheckoutItemRequest
+
+```ts
+type CheckoutItemRequest = { productId: string; quantity: number; notes?: string; variantId?: string; modifierSelections?: ModifierSelectionRequest[] };
+```
+
+No client price or trusted total is accepted.
+
+### DTO: CustomerOrderRequest
+
+```ts
+type CustomerOrderRequest = { contextToken: string; items: CheckoutItemRequest[]; orderType: OrderType; customerId?: string; customerName?: string; customerPhone?: string; customerAddress?: string; customerNotes?: string; deliveryZoneId?: string; couponCode?: string; paymentMethod: PaymentMethod; paymentAllocations?: PaymentAllocationDto[]; receivedAmount?: number; source: "QR_MENU" | "ONLINE_MENU"; deferPayment?: boolean };
+```
+
+### DTO: PosCheckoutRequest
+
+```ts
+type PosCheckoutRequest = { items: CheckoutItemRequest[]; orderType: OrderType; tableId?: string; customerId?: string; customerName?: string; customerPhone?: string; customerAddress?: string; customerNotes?: string; deliveryZoneId?: string; couponCode?: string; paymentMethod: PaymentMethod; paymentAllocations?: PaymentAllocationDto[]; receivedAmount?: number; source?: "POS" | "MANUAL"; deferPayment?: boolean };
+```
+
+### DTO: CheckoutQuoteRequest
+
+```ts
+type CheckoutQuoteRequest = { items: CheckoutItemRequest[]; orderType: OrderType; tableId?: string; customerId?: string; deliveryZoneId?: string; couponCode?: string };
+```
+
+### DTO: OrderModifierSnapshotDto
+
+```ts
+type OrderModifierSnapshotDto = { groupId: string; groupName: string; optionId: string; optionName: string; priceAdjustment: number };
+```
+
+### DTO: OrderAddonSnapshotDto
+
+```ts
+type OrderAddonSnapshotDto = { id: string; name: string; price: number };
+```
+
+### DTO: OrderItemDto
+
+```ts
+type OrderItemDto = { id: string; productId: string; productName: string; unitPrice: number; quantity: number; totalPrice: number; notes?: string; variantName?: string; addons?: OrderAddonSnapshotDto[]; selectedModifiers?: OrderModifierSnapshotDto[] };
+```
+
+### DTO: OrderTimelineEntryDto
+
+```ts
+type OrderTimelineEntryDto = { status: OrderStatus; employeeId?: string; at: string; note?: string };
+```
+
+### DTO: OrderTotalsDto
+
+```ts
+type OrderTotalsDto = { subtotal: number; discount: number; tax: number; serviceCharge: number; deliveryFee: number; total: number };
+```
+
+### DTO: OrderCancellationDto
+
+```ts
+type OrderCancellationDto = { reason: string; employeeId?: string; cancelledAt: string };
+```
+
+### DTO: OrderDto
+
+```ts
+type OrderDto = { id: string; tenantId?: string; branchId?: string; orderNumber: string; tableNumber: number; orderType: OrderType; source?: OrderSource; paymentStatus?: PaymentStatus; paymentMethod?: PaymentMethod; createdBy?: string; tableSessionId?: string; tableId?: string; customerId?: string; deliveryZoneId?: string; customerName?: string; customerPhone?: string; customerAddress?: string; customerNotes?: string; deliveryZoneName?: string; couponCode?: string; couponDiscount?: number; cancellation?: OrderCancellationDto; inventoryConsumedAt?: string; inventoryRestoredAt?: string; inventoryRestoredBy?: string; timeline?: OrderTimelineEntryDto[]; status: OrderStatus; items: OrderItemDto[]; subtotal: number; discount?: number; tax?: number; serviceCharge?: number; deliveryFee?: number; total: number; createdAt: string; updatedAt?: string; version: number };
+```
+
+### DTO: PublicOrderDto
+
+```ts
+type PublicOrderDto = { publicOrderToken: string; orderNumber: string; status: OrderStatus; paymentStatus: PaymentStatus; orderType: OrderType; branch: Pick<PublicBranchDto, "name" | "phone" | "address">; items: OrderItemDto[]; totals: OrderTotalsDto; createdAt: string };
+```
+
+### DTO: CheckoutQuoteItemDto
+
+```ts
+type CheckoutQuoteItemDto = { productId: string; productName: string; quantity: number; menuItemPrice: number; modifierAdjustment: number; unitPrice: number; lineTotal: number };
+```
+
+### DTO: StockValidationIssueDto
+
+```ts
+type StockValidationIssueDto = { productId: string; inventoryItemId?: string; code: "INSUFFICIENT_STOCK" | "MISSING_RECIPE_ITEM"; message: string };
+```
+
+### DTO: CheckoutQuoteDto
+
+```ts
+type CheckoutQuoteDto = { items: CheckoutQuoteItemDto[]; subtotal: number; discount: number; coupon?: { code: string; discount: number }; tax: number; serviceCharge: number; deliveryFee: number; total: number; loyalty: { pointsToEarn: number; pointsRedeemed: number; redemptionAmount: number }; stockValidationErrors: StockValidationIssueDto[] };
+```
+
+### DTO: CheckoutResponse
+
+```ts
+type CheckoutResponse = ApiSuccess<{ order: OrderDto; payment: PaymentDto | null; receipt: ReceiptSummaryDto }>;
+```
+
+### DTO: CustomerOrderResponse
+
+```ts
+type CustomerOrderResponse = ApiSuccess<PublicOrderDto>;
+```
+
+### DTO: ReceiptSummaryDto
+
+```ts
+type ReceiptSummaryDto = { orderNumber: string; branchName: string; items: OrderItemDto[]; totals: OrderTotalsDto; paymentMethod?: PaymentMethod; receivedAmount?: number; changeAmount?: number; createdAt: string };
+```
+
+### DTO: UpdateOrderStatusRequest
+
+```ts
+type UpdateOrderStatusRequest = { status: OrderStatus; note?: string; version: number };
+```
+
+### DTO: CancelOrderRequest
+
+```ts
+type CancelOrderRequest = { reason: string; version: number };
+```
+
+### DTO: CancelOrderResponse
+
+```ts
+type CancelOrderResponse = ApiSuccess<{ order: OrderDto; inventoryRestored: boolean; inventoryRestoredAt?: string }>;
+```
+
+### DTO: PrintDataDto
+
+```ts
+type PrintDataDto = { tenantName: string; branchName: string; branding: Pick<BrandingDto, "logo" | "receipt">; order: OrderDto; payment?: PaymentDto; printedAt: string };
+```
+
+### DTO: PaymentAllocationDto
+
+```ts
+type PaymentAllocationDto = { method: PaymentAllocationMethod; amount: number };
+```
+
+### DTO: PaymentDto
+
+```ts
+type PaymentDto = { id: string; tenantId?: string; branchId?: string; transactionNumber?: string; orderId: string; customerId?: string; employeeId?: string; amount: number; method: PaymentMethod; allocations?: PaymentAllocationDto[]; receivedAmount?: number; changeAmount?: number; status: PaymentStatus; transactionReference?: string; createdAt: string };
+```
+
+### DTO: PaymentDetailsDto
+
+```ts
+type PaymentDetailsDto = { payment: PaymentDto; order?: OrderDto; refunds: RefundDto[]; totalRefunded: number; remainingRefundable: number; status: PaymentStatus };
+```
+
+### DTO: CreatePaymentIntentRequest
+
+```ts
+type CreatePaymentIntentRequest = { orderId: string; method: "CARD" | "WALLET" | "ONLINE"; amount: number; returnUrl?: string };
+```
+
+`returnUrl` handling is provider integration data; exact provider allowlist is Product decision required.
+
+### DTO: PaymentIntentDto
+
+```ts
+type PaymentIntentDto = { id: string; orderId: string; amount: number; method: "CARD" | "WALLET" | "ONLINE"; status: PaymentStatus; clientAction?: { type: "REDIRECT"; url: string }; expiresAt?: string; createdAt: string };
+```
+
+### DTO: ConfirmPaymentIntentRequest
+
+```ts
+type ConfirmPaymentIntentRequest = { providerReference?: string };
+```
+
+Provider-specific confirmation fields are Product decision required.
+
+### DTO: CreateRefundRequest
+
+```ts
+type CreateRefundRequest = { amount: number; reason: string };
+```
+
+### DTO: RefundDto
+
+```ts
+type RefundDto = { id: string; tenantId?: string; branchId?: string; orderId: string; paymentId: string; amount: number; type: RefundType; reason: string; employeeId?: string; createdAt: string };
+```
+
+### DTO: RefundResponse
+
+```ts
+type RefundResponse = ApiSuccess<{ refund: RefundDto; payment: PaymentDto; previouslyRefunded: number; remainingRefundable: number }>;
+```
+
+### DTO: CashTransactionDto
+
+```ts
+type CashTransactionDto = { id: string; tenantId?: string; branchId?: string; type: CashTransactionType; amount: number; reason?: string; orderId?: string; paymentId?: string; refundId?: string; expenseId?: string; shiftId?: string; employeeId?: string; createdAt: string };
+```
+
+### DTO: CreateCashTransactionRequest
+
+```ts
+type CreateCashTransactionRequest = { type: "CASH_IN" | "CASH_OUT" | "SHIFT_ADJUSTMENT"; amount: number; reason: string; shiftId?: string };
+```
+
+### DTO: CashRegisterSummaryDto
+
+```ts
+type CashRegisterSummaryDto = { openingCash: number; cashSales: number; cashIn: number; cashOut: number; expenses: number; refunds: number; adjustments: number; expectedCash: number };
+```
+
+### DTO: ShiftDto
+
+```ts
+type ShiftDto = { id: string; tenantId?: string; branchId?: string; employeeId: string; openingCash: number; openedAt: string; status: ShiftStatus; closedAt?: string; expectedCash?: number; actualCash?: number; difference?: number };
+```
+
+### DTO: ShiftDetailsDto
+
+```ts
+type ShiftDetailsDto = ShiftDto & { entries: CashTransactionDto[]; summary: CashRegisterSummaryDto };
+```
+
+### DTO: OpenShiftRequest
+
+```ts
+type OpenShiftRequest = { openingCash: number };
+```
+
+### DTO: CloseShiftRequest
+
+```ts
+type CloseShiftRequest = { actualCash: number };
+```
+
+### DTO: CloseShiftResponse
+
+```ts
+type CloseShiftResponse = ApiSuccess<{ shift: ShiftDto; openingCash: number; cashSales: number; cashIn: number; cashOut: number; expenses: number; refunds: number; adjustments: number; expectedCash: number; actualCash: number; difference: number }>;
+```
+
+### DTO: ExpenseAttachmentDto
+
+```ts
+type ExpenseAttachmentDto = { name: string; type?: string; size?: number };
+```
+
+Binary upload/linkage is Product decision required.
+
+### DTO: ExpenseDto
+
+```ts
+type ExpenseDto = { id: string; tenantId?: string; branchId?: string; category: string; amount: number; date: string; notes?: string; employeeId?: string; paymentMethod?: PaymentAllocationMethod; attachment?: ExpenseAttachmentDto; createdAt: string };
+```
+
+### DTO: CreateExpenseRequest
+
+```ts
+type CreateExpenseRequest = { category: string; amount: number; date: string; notes?: string; paymentMethod?: PaymentAllocationMethod; attachment?: ExpenseAttachmentDto };
+```
+
+### DTO: UpdateExpenseRequest
+
+```ts
+type UpdateExpenseRequest = Partial<CreateExpenseRequest> & { version: number };
+```
+
+### DTO: InventoryItemDto
+
+```ts
+type InventoryItemDto = { id: string; tenantId?: string; branchId?: string; name: string; sku?: string; unit: InventoryUnit; quantity: number; minimumStock: number; averageCost: number; active: boolean; createdAt: string; updatedAt: string };
+```
+
+### DTO: CreateInventoryItemRequest
+
+```ts
+type CreateInventoryItemRequest = { name: string; sku?: string; unit: InventoryUnit; quantity: number; minimumStock: number; averageCost: number; active: boolean };
+```
+
+### DTO: UpdateInventoryItemRequest
+
+```ts
+type UpdateInventoryItemRequest = { name?: string; sku?: string; unit?: InventoryUnit; minimumStock?: number; averageCost?: number; active?: boolean; quantityAdjustment?: number; adjustmentReason?: string; version: number };
+```
+
+### DTO: StockMovementDto
+
+```ts
+type StockMovementDto = { id: string; tenantId?: string; branchId?: string; inventoryItemId: string; type: StockMovementType; quantity: number; quantityBefore: number; quantityAfter: number; notes?: string; createdBy?: string; createdAt: string };
+```
+
+### DTO: StockCountItemDto
+
+```ts
+type StockCountItemDto = { inventoryItemId: string; expectedQuantity: number; actualQuantity: number };
+```
+
+### DTO: StockCountDto
+
+```ts
+type StockCountDto = { id: string; tenantId?: string; branchId?: string; number: string; items: StockCountItemDto[]; status: StockCountStatus; createdAt: string; confirmedAt?: string };
+```
+
+### DTO: CreateStockCountRequest
+
+```ts
+type CreateStockCountRequest = { number?: string; items: StockCountItemDto[] };
+```
+
+### DTO: ConfirmStockCountRequest
+
+```ts
+type ConfirmStockCountRequest = {};
+```
+
+### DTO: ConfirmStockCountResponse
+
+```ts
+type ConfirmStockCountResponse = ApiSuccess<{ stockCount: StockCountDto; movements: StockMovementDto[]; inventory: InventoryItemDto[] }>;
+```
+
+### DTO: WasteDto
+
+```ts
+type WasteDto = { id: string; tenantId?: string; branchId?: string; inventoryItemId: string; quantity: number; unit: InventoryUnit; estimatedCost: number; reason: string; notes?: string; createdAt: string };
+```
+
+### DTO: CreateWasteRequest
+
+```ts
+type CreateWasteRequest = { inventoryItemId: string; quantity: number; unit: InventoryUnit; reason: string; notes?: string };
+```
+
+### DTO: CreateWasteResponse
+
+```ts
+type CreateWasteResponse = ApiSuccess<{ waste: WasteDto; movement: StockMovementDto; inventoryItem: InventoryItemDto }>;
+```
+
+### DTO: SupplierDto
+
+```ts
+type SupplierDto = { id: string; tenantId?: string; name: string; company?: string; phone?: string; email?: string; address?: string; notes?: string; active: boolean; createdAt: string };
+```
+
+### DTO: CreateSupplierRequest
+
+```ts
+type CreateSupplierRequest = { name: string; company?: string; phone?: string; email?: string; address?: string; notes?: string; active: boolean };
+```
+
+### DTO: UpdateSupplierRequest
+
+```ts
+type UpdateSupplierRequest = Partial<CreateSupplierRequest> & { version: number };
+```
+
+### DTO: SupplierStatusRequest
+
+```ts
+type SupplierStatusRequest = { active: boolean; version: number };
+```
+
+### DTO: PurchaseItemDto
+
+```ts
+type PurchaseItemDto = { inventoryItemId: string; quantity: number; unitCost: number; total: number };
+```
+
+### DTO: PurchaseDto
+
+```ts
+type PurchaseDto = { id: string; tenantId?: string; branchId?: string; invoiceNumber: string; supplierId: string; date: string; items: PurchaseItemDto[]; subtotal: number; discount: number; tax: number; total: number; paid: number; remaining: number; status: PurchaseStatus };
+```
+
+### DTO: CreatePurchaseRequest
+
+```ts
+type CreatePurchaseRequest = { invoiceNumber: string; supplierId: string; date: string; items: Omit<PurchaseItemDto, "total">[]; discount: number; tax: number; paid: number };
+```
+
+### DTO: UpdatePurchaseRequest
+
+```ts
+type UpdatePurchaseRequest = Partial<CreatePurchaseRequest> & { status?: "DRAFT" | "ORDERED" | "CANCELLED"; version: number };
+```
+
+### DTO: ReceivePurchaseRequest
+
+```ts
+type ReceivePurchaseRequest = {};
+```
+
+### DTO: ReceivePurchaseResponse
+
+```ts
+type ReceivePurchaseResponse = ApiSuccess<{ purchase: PurchaseDto; movements: StockMovementDto[]; inventory: InventoryItemDto[] }>;
+```
+
+### DTO: CustomerAddressDto
+
+```ts
+type CustomerAddressDto = { id: string; label: string; address: string; notes?: string; phone?: string; isDefault: boolean };
+```
+
+### DTO: CustomerDto
+
+```ts
+type CustomerDto = { id: string; tenantId?: string; name: string; phone?: string; email?: string; address?: string; addresses?: CustomerAddressDto[]; active: boolean; createdAt: string };
+```
+
+### DTO: CreateCustomerRequest
+
+```ts
+type CreateCustomerRequest = { name: string; phone?: string; email?: string; address?: string; active: boolean };
+```
+
+### DTO: UpdateCustomerRequest
+
+```ts
+type UpdateCustomerRequest = Partial<CreateCustomerRequest> & { version: number };
+```
+
+### DTO: CreateCustomerAddressRequest
+
+```ts
+type CreateCustomerAddressRequest = { label: string; address: string; notes?: string; phone?: string; isDefault: boolean };
+```
+
+### DTO: UpdateCustomerAddressRequest
+
+```ts
+type UpdateCustomerAddressRequest = Partial<CreateCustomerAddressRequest> & { version: number };
+```
+
+### DTO: CustomerAnalyticsDto
+
+```ts
+type CustomerAnalyticsDto = { orders: OrderDto[]; orderCount: number; totalSpend: number; averageOrder: number; lastVisit?: string };
+```
+
+### DTO: LoyaltySettingsDto
+
+```ts
+type LoyaltySettingsDto = { id: string; tenantId?: string; enabled: boolean; spendAmountPerPoint: number; pointRedemptionValue: number; minimumRedeemPoints: number; maximumRedemptionAmount?: number; expiryDays?: number; updatedAt: string };
+```
+
+### DTO: UpdateLoyaltySettingsRequest
+
+```ts
+type UpdateLoyaltySettingsRequest = { enabled: boolean; spendAmountPerPoint: number; pointRedemptionValue: number; minimumRedeemPoints: number; maximumRedemptionAmount?: number; expiryDays?: number; version: number };
+```
+
+### DTO: LoyaltyTransactionDto
+
+```ts
+type LoyaltyTransactionDto = { id: string; tenantId?: string; customerId: string; orderId?: string; points: number; type: LoyaltyTransactionType; notes?: string; createdAt: string };
+```
+
+### DTO: LoyaltyBalanceDto
+
+```ts
+type LoyaltyBalanceDto = { customerId: string; points: number };
+```
+
+### DTO: LoyaltyAdjustmentRequest
+
+```ts
+type LoyaltyAdjustmentRequest = { points: number; notes?: string };
+```
+
+### DTO: CouponUsageDto
+
+```ts
+type CouponUsageDto = { orderId: string; customerId?: string; usedAt: string };
+```
+
+### DTO: CouponDto
+
+```ts
+type CouponDto = { id: string; tenantId?: string; code: string; type: CouponType; value: number; minimumOrder?: number; maximumDiscount?: number; startDate?: string; endDate?: string; productIds?: string[]; categoryIds?: string[]; usageLimit?: number; perCustomerLimit?: number; usageCount?: number; usages?: CouponUsageDto[]; active: boolean };
+```
+
+### DTO: CreateCouponRequest
+
+```ts
+type CreateCouponRequest = Omit<CouponDto, "id" | "tenantId" | "usageCount" | "usages">;
+```
+
+### DTO: UpdateCouponRequest
+
+```ts
+type UpdateCouponRequest = Partial<CreateCouponRequest> & { version: number };
+```
+
+### DTO: CouponValidateRequest
+
+```ts
+type CouponValidateRequest = { code: string; subtotal: number; items: { productId: string; quantity: number; lineTotal: number }[]; customerId?: string };
+```
+
+### DTO: CouponValidateResponse
+
+```ts
+type CouponValidateResponse = ApiSuccess<{ valid: true; coupon: CouponDto; discount: number } | { valid: false; code: "NOT_FOUND" | "INACTIVE" | "NOT_STARTED" | "EXPIRED" | "MINIMUM_ORDER" | "USAGE_LIMIT" | "CUSTOMER_LIMIT" | "NOT_APPLICABLE"; message: string }>;
+```
+
+### DTO: OfferDto
+
+```ts
+type OfferDto = { id: string; tenantId: string; title: string; description: string; image: string; originalPrice: number; price: number; isActive: boolean; sortOrder: number };
+```
+
+### DTO: PublicOfferDto
+
+```ts
+type PublicOfferDto = { id: string; title: string; description: string; image: string; originalPrice: number; price: number; sortOrder: number };
+```
+
+### DTO: CreateOfferRequest
+
+```ts
+type CreateOfferRequest = { title: string; description: string; image: string; originalPrice: number; price: number; isActive: boolean; sortOrder: number };
+```
+
+### DTO: UpdateOfferRequest
+
+```ts
+type UpdateOfferRequest = Partial<CreateOfferRequest> & { version: number };
+```
+
+### DTO: DeliveryZoneDto
+
+```ts
+type DeliveryZoneDto = { id: string; tenantId?: string; branchId?: string; name: string; fee: number; minimumOrder?: number; estimatedMinutes?: number; active: boolean };
+```
+
+### DTO: CreateDeliveryZoneRequest
+
+```ts
+type CreateDeliveryZoneRequest = { name: string; fee: number; minimumOrder?: number; estimatedMinutes?: number; active: boolean };
+```
+
+### DTO: UpdateDeliveryZoneRequest
+
+```ts
+type UpdateDeliveryZoneRequest = Partial<CreateDeliveryZoneRequest> & { version: number };
+```
+
+### DTO: CreateWaiterRequest
+
+```ts
+type CreateWaiterRequest = { contextToken: string; type: WaiterRequestType; notes?: string };
+```
+
+### DTO: WaiterRequestDto
+
+```ts
+type WaiterRequestDto = { id: string; tenantId?: string; branchId?: string; tableId: string; tableNumber?: number; type: WaiterRequestType; status: WaiterRequestStatus; notes?: string; acceptedBy?: string; acceptedAt?: string; completedBy?: string; completedAt?: string; createdAt: string };
+```
+
+### DTO: UpdateWaiterRequestStatusRequest
+
+```ts
+type UpdateWaiterRequestStatusRequest = { status: "ACCEPTED" | "COMPLETED"; version: number };
+```
+
+### DTO: NotificationDto
+
+```ts
+type NotificationDto = { id: string; tenantId?: string; branchId?: string; type: NotificationType; title: string; message: string; read: boolean; relatedEntityType?: "order" | "table" | "waiterRequest" | "payment" | "inventory"; relatedEntityId?: string; createdAt: string };
+```
+
+### DTO: UnreadCountDto
+
+```ts
+type UnreadCountDto = { count: number };
+```
+
+### DTO: MarkNotificationReadRequest
+
+```ts
+type MarkNotificationReadRequest = { read: true };
+```
+
+### DTO: MarkAllNotificationsReadDto
+
+```ts
+type MarkAllNotificationsReadDto = { updatedCount: number };
+```
+
+### DTO: AuditEntryDto
+
+```ts
+type AuditEntryDto = { id: string; tenantId?: string; branchId?: string; userId?: string; module: string; action: string; description: string; entityType?: string; entityId?: string; createdAt: string };
+```
+
+### DTO: CafeEmployeeDto
+
+```ts
+type CafeEmployeeDto = { id: string; tenantId: string; name: string; phone: string; email?: string; username?: string; roleId: string; branchAccess: BranchAccessMode; branchIds: string[]; status: EmployeeStatus; joinDate?: string; createdAt: string; updatedAt: string };
+```
+
+### DTO: CreateEmployeeRequest
+
+```ts
+type CreateEmployeeRequest = { name: string; phone: string; email?: string; username?: string; roleId: string; branchAccess: BranchAccessMode; branchIds: string[]; status: EmployeeStatus; joinDate?: string; password?: string };
+```
+
+Password initialization is Product decision required if the Platform owner does not set it separately.
+
+### DTO: UpdateEmployeeRequest
+
+```ts
+type UpdateEmployeeRequest = { name?: string; phone?: string; email?: string; username?: string; roleId?: string; branchAccess?: BranchAccessMode; branchIds?: string[]; status?: EmployeeStatus; joinDate?: string; version: number };
+```
+
+### DTO: EmployeeStatusRequest
+
+```ts
+type EmployeeStatusRequest = { status: EmployeeStatus; version: number };
+```
+
+### DTO: EmployeeRoleRequest
+
+```ts
+type EmployeeRoleRequest = { roleId: string; version: number };
+```
+
+### DTO: EmployeeBranchAccessRequest
+
+```ts
+type EmployeeBranchAccessRequest = { mode: BranchAccessMode; branchIds: string[]; version: number };
+```
+
+### DTO: CafeRoleDto
+
+```ts
+type CafeRoleDto = { id: string; tenantId: string; code?: "OWNER" | "MANAGER" | "CASHIER" | "WAITER" | "KITCHEN"; name: string; description?: string; systemRole: boolean; permissions: PermissionKey[]; createdAt: string; updatedAt: string };
+```
+
+### DTO: CreateRoleRequest
+
+```ts
+type CreateRoleRequest = { name: string; description?: string; permissions: PermissionKey[] };
+```
+
+### DTO: UpdateRoleRequest
+
+```ts
+type UpdateRoleRequest = { name?: string; description?: string; permissions?: PermissionKey[]; version: number };
+```
+
+### DTO: DuplicateRoleRequest
+
+```ts
+type DuplicateRoleRequest = { name?: string };
+```
+
+### DTO: PermissionDefinitionDto
+
+```ts
+type PermissionDefinitionDto = { key: PermissionKey; label: string; description: string; group: string; groupLabel: string };
+```
+
+### DTO: SalesReportDto
+
+```ts
+type SalesReportDto = { orders: OrderDto[]; payments: PaymentDto[]; grossSales: number; discounts: number; refunds: number; netSales: number; taxes: number; serviceCharges: number; deliveryFees: number; orderCount: number; averageOrder: number };
+```
+
+### DTO: ProfitReportDto
+
+```ts
+type ProfitReportDto = { revenue: number; cogs: number; grossProfit: number; expenses: number; netProfit: number; estimated: boolean };
+```
+
+### DTO: ProductReportRowDto
+
+```ts
+type ProductReportRowDto = { productId: string; name: string; quantity: number; revenue: number };
+```
+
+### DTO: OrderBreakdownReportDto
+
+```ts
+type OrderBreakdownReportDto = { byType: { value: OrderType; count: number }[]; bySource: { value: OrderSource; count: number }[] };
+```
+
+### DTO: PaymentReportRowDto
+
+```ts
+type PaymentReportRowDto = { method: PaymentMethod; amount: number; count: number; percentage: number };
+```
+
+### DTO: InventoryReportDto
+
+```ts
+type InventoryReportDto = { value: number; lowStock: number; outOfStock: number; purchases: number; waste: number; saleConsumption: number; adjustments: number };
+```
+
+### DTO: CafeSettingsDto
+
+```ts
+type CafeSettingsDto = { workingHours: string; taxRate: number; serviceCharge: number; onlineOrdering: boolean; takeaway: boolean; delivery: boolean; paymentMethods: PaymentAllocationMethod[]; receiptHeader: string; receiptFooter: string; kitchenSound: boolean };
+```
+
+### DTO: UpdateCafeSettingsRequest
+
+```ts
+type UpdateCafeSettingsRequest = CafeSettingsDto & { version: number };
+```
+
+### DTO: BrandAssetUploadRequest
+
+```ts
+type BrandAssetUploadRequest = { file: binary; kind: "logo" | "favicon" | "loginBackground" };
+```
+
+### DTO: CafeAssetUploadRequest
+
+```ts
+type CafeAssetUploadRequest = { file: binary; purpose: "productImage" | "offerImage"; entityId?: string };
+```
+
+### DTO: BrandAssetResponse
+
+```ts
+type BrandAssetResponse = ApiSuccess<AssetDto>;
+```
+
+### DTO: PaymentWebhookAcknowledgementDto
+
+```ts
+type PaymentWebhookAcknowledgementDto = { received: true; duplicate: boolean };
+```
+
+### DTO: PaymentWebhookRequest
+
+```ts
+type PaymentWebhookRequest = { providerPayload: unknown };
+```
+
+Provider payload and signature header are Product decision required per selected provider; the normalized internal fields are intent reference, provider event ID, amount, and payment status.
+
+### DTO: PlatformAuditQuery
+
+```ts
+type PlatformAuditQuery = { page?: number; pageSize?: number; search?: string; tenantId?: string; userId?: string; action?: string; from?: string; to?: string };
+```
+
+### DTO: CafeAuditQuery
+
+```ts
+type CafeAuditQuery = { page?: number; pageSize?: number; search?: string; branchId?: string; userId?: string; module?: string; action?: string; entityType?: string; entityId?: string; from?: string; to?: string };
+```
+
+### DTO: SubscriptionListItemDto
+
+```ts
+type SubscriptionListItemDto = { tenant: TenantSummaryDto; subscription: SubscriptionDto | null };
+```
 
 ## 5. Authentication Endpoints
 
 ### `POST /api/v1/auth/platform/login`
 
 **Purpose:**  
-Authenticate a Platform operator.
+Authenticate a Platform operator and establish a rotating session.
 
 **Authentication:**  
-Public or token-bound as stated.
+Public/token-bound as stated.
 
 **Scope:**  
 Platform
@@ -97,53 +1548,40 @@ Public
 
 **Path Parameters:**
 
-```json
-{}
-```
+None.
 
 **Query Parameters:**
 
-```json
-{}
-```
+None.
 
-**Request Body:**
+**Request DTO:**  
+`PlatformLoginRequest`
 
-```json
-{
-  "login": "string",
-  "password": "string"
-}
-```
+**Response DTO:**  
+`PlatformLoginResponse`
 
-**Response:**
+**Success Status:**  
+200
 
-```json
-{
-  "success": true,
-  "data": "Authentication result"
-}
-```
-
-**Important Validation:**  
-Validate authentication, scope, permission, feature, and tenant isolation server-side.
+**Important Validation / Machine-readable Errors:**  
+INVALID_CREDENTIALS, RATE_LIMITED
 
 **Transaction Required?**  
-No
+No.
 
 **Idempotency Required?**  
-No
+No.
 
-**Realtime Impact?**  
+**Realtime Impact:**  
 None.
 
 ### `POST /api/v1/auth/cafe/login`
 
 **Purpose:**  
-Authenticate a Cafe owner or employee after tenant resolution.
+Resolve the tenant, authenticate a Cafe owner/employee, and return effective access context.
 
 **Authentication:**  
-Public or token-bound as stated.
+Public/token-bound as stated.
 
 **Scope:**  
 Tenant
@@ -156,54 +1594,40 @@ Public
 
 **Path Parameters:**
 
-```json
-{}
-```
+None.
 
 **Query Parameters:**
 
-```json
-{}
-```
+None.
 
-**Request Body:**
+**Request DTO:**  
+`CafeLoginRequest`
 
-```json
-{
-  "tenantCode": "string",
-  "login": "string",
-  "password": "string"
-}
-```
+**Response DTO:**  
+`CafeLoginResponse`
 
-**Response:**
+**Success Status:**  
+200
 
-```json
-{
-  "success": true,
-  "data": "Authentication result"
-}
-```
-
-**Important Validation:**  
-Validate authentication, scope, permission, feature, and tenant isolation server-side.
+**Important Validation / Machine-readable Errors:**  
+INVALID_CREDENTIALS, TENANT_NOT_FOUND, TENANT_SUSPENDED, EMPLOYEE_SUSPENDED, RATE_LIMITED
 
 **Transaction Required?**  
-No
+No.
 
 **Idempotency Required?**  
-No
+No.
 
-**Realtime Impact?**  
+**Realtime Impact:**  
 None.
 
 ### `POST /api/v1/auth/refresh`
 
 **Purpose:**  
-Rotate the access and refresh tokens.
+Rotate the refresh session and issue a new access token.
 
 **Authentication:**  
-Public or token-bound as stated.
+Public/token-bound as stated.
 
 **Scope:**  
 Tenant
@@ -216,53 +1640,40 @@ Public refresh cookie
 
 **Path Parameters:**
 
-```json
-{}
-```
+None.
 
 **Query Parameters:**
 
-```json
-{}
-```
+None.
 
-**Request Body:**
+**Request DTO:**  
+Empty body (`{}`).
 
-```json
-{
-  "fields": "Current Authentication domain fields",
-  "version": "Required on conflicting updates when applicable"
-}
-```
+**Response DTO:**  
+`RefreshResponse`
 
-**Response:**
+**Success Status:**  
+200
 
-```json
-{
-  "success": true,
-  "data": "Authentication result"
-}
-```
-
-**Important Validation:**  
-Validate authentication, scope, permission, feature, and tenant isolation server-side.
+**Important Validation / Machine-readable Errors:**  
+AUTHENTICATION_REQUIRED, REFRESH_TOKEN_EXPIRED, REFRESH_TOKEN_REUSED
 
 **Transaction Required?**  
-No
+No.
 
 **Idempotency Required?**  
-No
+No.
 
-**Realtime Impact?**  
+**Realtime Impact:**  
 None.
 
 ### `POST /api/v1/auth/logout`
 
 **Purpose:**  
-Revoke the current session.
+Revoke the current session and clear the refresh cookie.
 
 **Authentication:**  
-Authenticated.
+Bearer access token.
 
 **Scope:**  
 Tenant
@@ -275,53 +1686,40 @@ Authenticated
 
 **Path Parameters:**
 
-```json
-{}
-```
+None.
 
 **Query Parameters:**
 
-```json
-{}
-```
+None.
 
-**Request Body:**
+**Request DTO:**  
+Empty body (`{}`).
 
-```json
-{
-  "fields": "Current Authentication domain fields",
-  "version": "Required on conflicting updates when applicable"
-}
-```
+**Response DTO:**  
+Empty response body.
 
-**Response:**
+**Success Status:**  
+204
 
-```json
-{
-  "success": true,
-  "data": "Authentication result"
-}
-```
-
-**Important Validation:**  
-Validate authentication, scope, permission, feature, and tenant isolation server-side.
+**Important Validation / Machine-readable Errors:**  
+AUTHENTICATION_REQUIRED, PERMISSION_DENIED
 
 **Transaction Required?**  
-No
+No.
 
 **Idempotency Required?**  
-No
+No.
 
-**Realtime Impact?**  
+**Realtime Impact:**  
 None.
 
 ### `GET /api/v1/auth/session`
 
 **Purpose:**  
-Return the current principal and effective access context.
+Hydrate the authenticated principal and effective access context.
 
 **Authentication:**  
-Authenticated.
+Bearer access token.
 
 **Scope:**  
 Tenant
@@ -334,74 +1732,40 @@ Authenticated
 
 **Path Parameters:**
 
-```json
-{}
-```
+None.
 
 **Query Parameters:**
 
-```json
-{
-  "page": 1,
-  "pageSize": 25,
-  "search": "optional",
-  "sortBy": "optional",
-  "sortOrder": "asc | desc",
-  "from": "optional ISO date",
-  "to": "optional ISO date"
-}
-```
+None.
 
-**Request Body:**
+**Request DTO:**  
+Empty body (`{}`).
 
-```json
-{}
-```
+**Response DTO:**  
+`CafeSessionResponse`
 
-**Response:**
+**Success Status:**  
+200
 
-```json
-{
-  "success": true,
-  "data": {
-    "user": "principal",
-    "employee": "optional employee",
-    "tenant": "optional tenant",
-    "role": "optional role",
-    "permissions": [
-      "key"
-    ],
-    "branchAccess": [
-      "branch-id"
-    ],
-    "features": {
-      "feature": true
-    },
-    "accessibleBranches": [],
-    "currentBranch": "optional"
-  }
-}
-```
-
-**Important Validation:**  
-Validate authentication, scope, permission, feature, and tenant isolation server-side.
+**Important Validation / Machine-readable Errors:**  
+AUTHENTICATION_REQUIRED, PERMISSION_DENIED
 
 **Transaction Required?**  
-No
+No.
 
 **Idempotency Required?**  
-No
+No.
 
-**Realtime Impact?**  
+**Realtime Impact:**  
 None.
 
 ### `POST /api/v1/auth/forgot-password`
 
 **Purpose:**  
-Start password recovery.
+Accept a password-recovery request without disclosing account existence.
 
 **Authentication:**  
-Public or token-bound as stated.
+Public/token-bound as stated.
 
 **Scope:**  
 Tenant
@@ -414,53 +1778,40 @@ Public
 
 **Path Parameters:**
 
-```json
-{}
-```
+None.
 
 **Query Parameters:**
 
-```json
-{}
-```
+None.
 
-**Request Body:**
+**Request DTO:**  
+`ForgotPasswordRequest`
 
-```json
-{
-  "tenantCode": "optional string",
-  "login": "string"
-}
-```
+**Response DTO:**  
+`ApiSuccess<PasswordResetAcceptedDto>`
 
-**Response:**
+**Success Status:**  
+200
 
-```json
-{
-  "success": true,
-  "data": "Authentication result"
-}
-```
-
-**Important Validation:**  
-Validate authentication, scope, permission, feature, and tenant isolation server-side.
+**Important Validation / Machine-readable Errors:**  
+RATE_LIMITED
 
 **Transaction Required?**  
-No
+No.
 
 **Idempotency Required?**  
-No
+No.
 
-**Realtime Impact?**  
+**Realtime Impact:**  
 None.
 
 ### `POST /api/v1/auth/reset-password`
 
 **Purpose:**  
-Complete password recovery with a single-use token.
+Consume a single-use recovery token and replace the password.
 
 **Authentication:**  
-Public or token-bound as stated.
+Public/token-bound as stated.
 
 **Scope:**  
 Tenant
@@ -473,53 +1824,40 @@ Public
 
 **Path Parameters:**
 
-```json
-{}
-```
+None.
 
 **Query Parameters:**
 
-```json
-{}
-```
+None.
 
-**Request Body:**
+**Request DTO:**  
+`ResetPasswordRequest`
 
-```json
-{
-  "token": "single-use token",
-  "newPassword": "string"
-}
-```
+**Response DTO:**  
+`ApiSuccess<{ passwordChanged: true }>`
 
-**Response:**
+**Success Status:**  
+200
 
-```json
-{
-  "success": true,
-  "data": "Authentication result"
-}
-```
-
-**Important Validation:**  
-Validate authentication, scope, permission, feature, and tenant isolation server-side.
+**Important Validation / Machine-readable Errors:**  
+RESET_TOKEN_INVALID, RESET_TOKEN_EXPIRED, RATE_LIMITED
 
 **Transaction Required?**  
-No
+No.
 
 **Idempotency Required?**  
-No
+No.
 
-**Realtime Impact?**  
+**Realtime Impact:**  
 None.
 
 ### `PATCH /api/v1/auth/password`
 
 **Purpose:**  
-Change the current principal password.
+Verify the current password and replace it.
 
 **Authentication:**  
-Authenticated.
+Bearer access token.
 
 **Scope:**  
 Tenant
@@ -532,53 +1870,40 @@ Authenticated
 
 **Path Parameters:**
 
-```json
-{}
-```
+None.
 
 **Query Parameters:**
 
-```json
-{}
-```
+None.
 
-**Request Body:**
+**Request DTO:**  
+`ChangePasswordRequest`
 
-```json
-{
-  "currentPassword": "string",
-  "newPassword": "string"
-}
-```
+**Response DTO:**  
+`ApiSuccess<{ passwordChanged: true }>`
 
-**Response:**
+**Success Status:**  
+200
 
-```json
-{
-  "success": true,
-  "data": "Authentication result"
-}
-```
-
-**Important Validation:**  
-Validate authentication, scope, permission, feature, and tenant isolation server-side.
+**Important Validation / Machine-readable Errors:**  
+AUTHENTICATION_REQUIRED, PERMISSION_DENIED, VERSION_CONFLICT
 
 **Transaction Required?**  
-No
+No.
 
 **Idempotency Required?**  
-No
+No.
 
-**Realtime Impact?**  
+**Realtime Impact:**  
 None.
 
 ### `GET /api/v1/auth/sessions`
 
 **Purpose:**  
-List the current principal active sessions.
+List or return the authorized Authentication representation required by this route.
 
 **Authentication:**  
-Authenticated.
+Bearer access token.
 
 **Scope:**  
 Tenant
@@ -591,64 +1916,42 @@ Authenticated
 
 **Path Parameters:**
 
-```json
-{}
-```
+None.
 
 **Query Parameters:**
 
-```json
-{
-  "page": 1,
-  "pageSize": 25,
-  "search": "optional",
-  "sortBy": "optional",
-  "sortOrder": "asc | desc",
-  "from": "optional ISO date",
-  "to": "optional ISO date"
-}
+```ts
+type QueryParameters = { page?: number; pageSize?: number };
 ```
 
-**Request Body:**
+**Request DTO:**  
+Empty body (`{}`).
 
-```json
-{}
-```
+**Response DTO:**  
+`Paginated<SessionDto>`
 
-**Response:**
+**Success Status:**  
+200
 
-```json
-{
-  "success": true,
-  "data": [],
-  "meta": {
-    "page": 1,
-    "pageSize": 25,
-    "total": 0,
-    "totalPages": 0
-  }
-}
-```
-
-**Important Validation:**  
-Validate authentication, scope, permission, feature, and tenant isolation server-side.
+**Important Validation / Machine-readable Errors:**  
+AUTHENTICATION_REQUIRED, PERMISSION_DENIED
 
 **Transaction Required?**  
-No
+No.
 
 **Idempotency Required?**  
-No
+No.
 
-**Realtime Impact?**  
+**Realtime Impact:**  
 None.
 
 ### `DELETE /api/v1/auth/sessions/{sessionId}`
 
 **Purpose:**  
-Revoke one active session.
+Delete or revoke the selected Authentication resource.
 
 **Authentication:**  
-Authenticated.
+Bearer access token.
 
 **Scope:**  
 Tenant
@@ -661,43 +1964,33 @@ Authenticated
 
 **Path Parameters:**
 
-```json
-{
-  "sessionId": "Opaque sessionId identifier"
-}
+```ts
+type PathParameters = { sessionId: string };
 ```
 
 **Query Parameters:**
 
-```json
-{}
-```
+None.
 
-**Request Body:**
+**Request DTO:**  
+Empty body (`{}`).
 
-```json
-{}
-```
+**Response DTO:**  
+Empty response body.
 
-**Response:**
+**Success Status:**  
+204
 
-```json
-{
-  "success": true,
-  "data": "Authentication result"
-}
-```
-
-**Important Validation:**  
-Validate authentication, scope, permission, feature, and tenant isolation server-side.
+**Important Validation / Machine-readable Errors:**  
+AUTHENTICATION_REQUIRED, PERMISSION_DENIED
 
 **Transaction Required?**  
-No
+No.
 
 **Idempotency Required?**  
-No
+No.
 
-**Realtime Impact?**  
+**Realtime Impact:**  
 None.
 
 ## 6. Platform Endpoints
@@ -705,10 +1998,10 @@ None.
 ### `GET /api/v1/platform/dashboard`
 
 **Purpose:**  
-Return Platform dashboard summary metrics.
+Return tenant, status, plan, expiry, and recent-tenant Platform metrics.
 
 **Authentication:**  
-Authenticated.
+Bearer access token.
 
 **Scope:**  
 Platform
@@ -721,64 +2014,40 @@ Platform operator
 
 **Path Parameters:**
 
-```json
-{}
-```
+None.
 
 **Query Parameters:**
 
-```json
-{
-  "page": 1,
-  "pageSize": 25,
-  "search": "optional",
-  "sortBy": "optional",
-  "sortOrder": "asc | desc",
-  "from": "optional ISO date",
-  "to": "optional ISO date"
-}
-```
+None.
 
-**Request Body:**
+**Request DTO:**  
+Empty body (`{}`).
 
-```json
-{}
-```
+**Response DTO:**  
+`ApiSuccess<PlatformDashboardDto>`
 
-**Response:**
+**Success Status:**  
+200
 
-```json
-{
-  "success": true,
-  "data": [],
-  "meta": {
-    "page": 1,
-    "pageSize": 25,
-    "total": 0,
-    "totalPages": 0
-  }
-}
-```
-
-**Important Validation:**  
-Validate authentication, scope, permission, feature, and tenant isolation server-side.
+**Important Validation / Machine-readable Errors:**  
+AUTHENTICATION_REQUIRED, PERMISSION_DENIED
 
 **Transaction Required?**  
-No
+No.
 
 **Idempotency Required?**  
-No
+No.
 
-**Realtime Impact?**  
+**Realtime Impact:**  
 None.
 
 ### `GET /api/v1/platform/tenants`
 
 **Purpose:**  
-Search and paginate tenants.
+List or return the authorized Platform representation required by this route.
 
 **Authentication:**  
-Authenticated.
+Bearer access token.
 
 **Scope:**  
 Platform
@@ -791,64 +2060,42 @@ Platform operator
 
 **Path Parameters:**
 
-```json
-{}
-```
+None.
 
 **Query Parameters:**
 
-```json
-{
-  "page": 1,
-  "pageSize": 25,
-  "search": "optional",
-  "sortBy": "optional",
-  "sortOrder": "asc | desc",
-  "from": "optional ISO date",
-  "to": "optional ISO date"
-}
+```ts
+type QueryParameters = { page?: number; pageSize?: number; search?: string; status?: TenantStatus; plan?: string; sortBy?: "name" | "createdAt" | "status"; sortOrder?: "asc" | "desc" };
 ```
 
-**Request Body:**
+**Request DTO:**  
+Empty body (`{}`).
 
-```json
-{}
-```
+**Response DTO:**  
+`Paginated<TenantSummaryDto>`
 
-**Response:**
+**Success Status:**  
+200
 
-```json
-{
-  "success": true,
-  "data": [],
-  "meta": {
-    "page": 1,
-    "pageSize": 25,
-    "total": 0,
-    "totalPages": 0
-  }
-}
-```
-
-**Important Validation:**  
-Validate authentication, scope, permission, feature, and tenant isolation server-side.
+**Important Validation / Machine-readable Errors:**  
+AUTHENTICATION_REQUIRED, PERMISSION_DENIED
 
 **Transaction Required?**  
-No
+No.
 
 **Idempotency Required?**  
-No
+No.
 
-**Realtime Impact?**  
+**Realtime Impact:**  
 None.
 
 ### `POST /api/v1/platform/tenants`
 
 **Purpose:**  
-Create a tenant and owner credential atomically.
+Create a Platform resource.
 
 **Authentication:**  
-Authenticated.
+Bearer access token.
 
 **Scope:**  
 Platform
@@ -861,53 +2108,42 @@ Platform operator
 
 **Path Parameters:**
 
-```json
-{}
-```
+None.
 
 **Query Parameters:**
 
-```json
-{}
+```ts
+type QueryParameters = { page?: number; pageSize?: number; search?: string; status?: TenantStatus; plan?: string; sortBy?: "name" | "createdAt" | "status"; sortOrder?: "asc" | "desc" };
 ```
 
-**Request Body:**
+**Request DTO:**  
+`CreateTenantRequest`
 
-```json
-{
-  "fields": "Current Platform domain fields",
-  "version": "Required on conflicting updates when applicable"
-}
-```
+**Response DTO:**  
+`Paginated<TenantSummaryDto>`
 
-**Response:**
+**Success Status:**  
+201
 
-```json
-{
-  "success": true,
-  "data": "Platform result"
-}
-```
-
-**Important Validation:**  
-Validate authentication, scope, permission, feature, and tenant isolation server-side.
+**Important Validation / Machine-readable Errors:**  
+AUTHENTICATION_REQUIRED, PERMISSION_DENIED
 
 **Transaction Required?**  
-Yes
+Yes.
 
 **Idempotency Required?**  
-No
+No.
 
-**Realtime Impact?**  
+**Realtime Impact:**  
 None.
 
 ### `GET /api/v1/platform/tenants/{tenantId}`
 
 **Purpose:**  
-Return tenant details.
+Return the authorized Platform representation.
 
 **Authentication:**  
-Authenticated.
+Bearer access token.
 
 **Scope:**  
 Platform
@@ -920,52 +2156,42 @@ Platform operator
 
 **Path Parameters:**
 
-```json
-{
-  "tenantId": "Opaque tenantId identifier"
-}
+```ts
+type PathParameters = { tenantId: string };
 ```
 
 **Query Parameters:**
 
-```json
-{}
-```
+None.
 
-**Request Body:**
+**Request DTO:**  
+Empty body (`{}`).
 
-```json
-{}
-```
+**Response DTO:**  
+`ApiSuccess<TenantDetailsDto>`
 
-**Response:**
+**Success Status:**  
+200
 
-```json
-{
-  "success": true,
-  "data": "Platform result"
-}
-```
-
-**Important Validation:**  
-Validate authentication, scope, permission, feature, and tenant isolation server-side.
+**Important Validation / Machine-readable Errors:**  
+AUTHENTICATION_REQUIRED, PERMISSION_DENIED
 
 **Transaction Required?**  
-No
+No.
 
 **Idempotency Required?**  
-No
+No.
 
-**Realtime Impact?**  
+**Realtime Impact:**  
 None.
 
 ### `PATCH /api/v1/platform/tenants/{tenantId}`
 
 **Purpose:**  
-Update tenant identity, contact, and configuration.
+Partially update the selected Platform resource.
 
 **Authentication:**  
-Authenticated.
+Bearer access token.
 
 **Scope:**  
 Platform
@@ -978,55 +2204,42 @@ Platform operator
 
 **Path Parameters:**
 
-```json
-{
-  "tenantId": "Opaque tenantId identifier"
-}
+```ts
+type PathParameters = { tenantId: string };
 ```
 
 **Query Parameters:**
 
-```json
-{}
-```
+None.
 
-**Request Body:**
+**Request DTO:**  
+`UpdateTenantRequest`
 
-```json
-{
-  "fields": "Current Platform domain fields",
-  "version": "Required on conflicting updates when applicable"
-}
-```
+**Response DTO:**  
+`ApiSuccess<TenantDetailsDto>`
 
-**Response:**
+**Success Status:**  
+200
 
-```json
-{
-  "success": true,
-  "data": "Platform result"
-}
-```
-
-**Important Validation:**  
-Validate authentication, scope, permission, feature, and tenant isolation server-side.
+**Important Validation / Machine-readable Errors:**  
+AUTHENTICATION_REQUIRED, PERMISSION_DENIED, VERSION_CONFLICT
 
 **Transaction Required?**  
-No
+No.
 
 **Idempotency Required?**  
-No
+No.
 
-**Realtime Impact?**  
+**Realtime Impact:**  
 None.
 
 ### `PATCH /api/v1/platform/tenants/{tenantId}/status`
 
 **Purpose:**  
-Change tenant lifecycle status.
+Partially update the selected Platform resource.
 
 **Authentication:**  
-Authenticated.
+Bearer access token.
 
 **Scope:**  
 Platform
@@ -1039,56 +2252,42 @@ Platform operator
 
 **Path Parameters:**
 
-```json
-{
-  "tenantId": "Opaque tenantId identifier"
-}
+```ts
+type PathParameters = { tenantId: string };
 ```
 
 **Query Parameters:**
 
-```json
-{}
-```
+None.
 
-**Request Body:**
+**Request DTO:**  
+`TenantStatusRequest`
 
-```json
-{
-  "status": "Allowed domain status",
-  "note": "optional string",
-  "version": "integer"
-}
-```
+**Response DTO:**  
+`ApiSuccess<TenantDetailsDto>`
 
-**Response:**
+**Success Status:**  
+200
 
-```json
-{
-  "success": true,
-  "data": "Platform result"
-}
-```
-
-**Important Validation:**  
-Validate authentication, scope, permission, feature, and tenant isolation server-side.
+**Important Validation / Machine-readable Errors:**  
+AUTHENTICATION_REQUIRED, PERMISSION_DENIED, VERSION_CONFLICT
 
 **Transaction Required?**  
-No
+No.
 
 **Idempotency Required?**  
-No
+No.
 
-**Realtime Impact?**  
+**Realtime Impact:**  
 None.
 
 ### `GET /api/v1/platform/tenants/{tenantId}/branding`
 
 **Purpose:**  
-Return tenant branding.
+List or return the authorized Platform representation required by this route.
 
 **Authentication:**  
-Authenticated.
+Bearer access token.
 
 **Scope:**  
 Platform
@@ -1101,66 +2300,42 @@ Platform operator
 
 **Path Parameters:**
 
-```json
-{
-  "tenantId": "Opaque tenantId identifier"
-}
+```ts
+type PathParameters = { tenantId: string };
 ```
 
 **Query Parameters:**
 
-```json
-{
-  "page": 1,
-  "pageSize": 25,
-  "search": "optional",
-  "sortBy": "optional",
-  "sortOrder": "asc | desc",
-  "from": "optional ISO date",
-  "to": "optional ISO date"
-}
-```
+None.
 
-**Request Body:**
+**Request DTO:**  
+Empty body (`{}`).
 
-```json
-{}
-```
+**Response DTO:**  
+`ApiSuccess<BrandingDto>`
 
-**Response:**
+**Success Status:**  
+200
 
-```json
-{
-  "success": true,
-  "data": [],
-  "meta": {
-    "page": 1,
-    "pageSize": 25,
-    "total": 0,
-    "totalPages": 0
-  }
-}
-```
-
-**Important Validation:**  
-Validate authentication, scope, permission, feature, and tenant isolation server-side.
+**Important Validation / Machine-readable Errors:**  
+AUTHENTICATION_REQUIRED, PERMISSION_DENIED
 
 **Transaction Required?**  
-No
+No.
 
 **Idempotency Required?**  
-No
+No.
 
-**Realtime Impact?**  
+**Realtime Impact:**  
 None.
 
 ### `PUT /api/v1/platform/tenants/{tenantId}/branding`
 
 **Purpose:**  
-Replace tenant branding configuration.
+Replace or assign the selected Platform configuration.
 
 **Authentication:**  
-Authenticated.
+Bearer access token.
 
 **Scope:**  
 Platform
@@ -1173,55 +2348,42 @@ Platform operator
 
 **Path Parameters:**
 
-```json
-{
-  "tenantId": "Opaque tenantId identifier"
-}
+```ts
+type PathParameters = { tenantId: string };
 ```
 
 **Query Parameters:**
 
-```json
-{}
-```
+None.
 
-**Request Body:**
+**Request DTO:**  
+`UpdateBrandingRequest`
 
-```json
-{
-  "fields": "Current Platform domain fields",
-  "version": "Required on conflicting updates when applicable"
-}
-```
+**Response DTO:**  
+`ApiSuccess<BrandingDto>`
 
-**Response:**
+**Success Status:**  
+200
 
-```json
-{
-  "success": true,
-  "data": "Platform result"
-}
-```
-
-**Important Validation:**  
-Validate authentication, scope, permission, feature, and tenant isolation server-side.
+**Important Validation / Machine-readable Errors:**  
+AUTHENTICATION_REQUIRED, PERMISSION_DENIED, VERSION_CONFLICT
 
 **Transaction Required?**  
-No
+No.
 
 **Idempotency Required?**  
-No
+No.
 
-**Realtime Impact?**  
+**Realtime Impact:**  
 None.
 
 ### `POST /api/v1/platform/tenants/{tenantId}/branding/assets`
 
 **Purpose:**  
-Upload a tenant branding asset.
+Create a Platform resource.
 
 **Authentication:**  
-Authenticated.
+Bearer access token.
 
 **Scope:**  
 Platform
@@ -1234,54 +2396,42 @@ Platform operator
 
 **Path Parameters:**
 
-```json
-{
-  "tenantId": "Opaque tenantId identifier"
-}
+```ts
+type PathParameters = { tenantId: string };
 ```
 
 **Query Parameters:**
 
-```json
-{}
-```
+None.
 
-**Request Body:**
+**Request DTO:**  
+`BrandAssetUploadRequest`
 
-```json
-{
-  "multipart": "file, purpose, entityId?"
-}
-```
+**Response DTO:**  
+`BrandAssetResponse`
 
-**Response:**
+**Success Status:**  
+201
 
-```json
-{
-  "success": true,
-  "data": "Platform result"
-}
-```
-
-**Important Validation:**  
-Validate authentication, scope, permission, feature, and tenant isolation server-side.
+**Important Validation / Machine-readable Errors:**  
+AUTHENTICATION_REQUIRED, PERMISSION_DENIED
 
 **Transaction Required?**  
-No
+No.
 
 **Idempotency Required?**  
-No
+No.
 
-**Realtime Impact?**  
+**Realtime Impact:**  
 None.
 
 ### `DELETE /api/v1/platform/tenants/{tenantId}/branding/assets/{assetId}`
 
 **Purpose:**  
-Remove a tenant branding asset.
+Delete or revoke the selected Platform resource.
 
 **Authentication:**  
-Authenticated.
+Bearer access token.
 
 **Scope:**  
 Platform
@@ -1294,53 +2444,42 @@ Platform operator
 
 **Path Parameters:**
 
-```json
-{
-  "tenantId": "Opaque tenantId identifier",
-  "assetId": "Opaque assetId identifier"
-}
+```ts
+type PathParameters = { tenantId: string; assetId: string };
 ```
 
 **Query Parameters:**
 
-```json
-{}
-```
+None.
 
-**Request Body:**
+**Request DTO:**  
+Empty body (`{}`).
 
-```json
-{}
-```
+**Response DTO:**  
+Empty response body.
 
-**Response:**
+**Success Status:**  
+204
 
-```json
-{
-  "success": true,
-  "data": "Platform result"
-}
-```
-
-**Important Validation:**  
-Validate authentication, scope, permission, feature, and tenant isolation server-side.
+**Important Validation / Machine-readable Errors:**  
+AUTHENTICATION_REQUIRED, PERMISSION_DENIED
 
 **Transaction Required?**  
-No
+No.
 
 **Idempotency Required?**  
-No
+No.
 
-**Realtime Impact?**  
+**Realtime Impact:**  
 None.
 
 ### `GET /api/v1/platform/plans`
 
 **Purpose:**  
-List subscription plans.
+List or return the authorized Platform representation required by this route.
 
 **Authentication:**  
-Authenticated.
+Bearer access token.
 
 **Scope:**  
 Platform
@@ -1353,64 +2492,42 @@ Platform operator
 
 **Path Parameters:**
 
-```json
-{}
-```
+None.
 
 **Query Parameters:**
 
-```json
-{
-  "page": 1,
-  "pageSize": 25,
-  "search": "optional",
-  "sortBy": "optional",
-  "sortOrder": "asc | desc",
-  "from": "optional ISO date",
-  "to": "optional ISO date"
-}
+```ts
+type QueryParameters = { active?: boolean };
 ```
 
-**Request Body:**
+**Request DTO:**  
+Empty body (`{}`).
 
-```json
-{}
-```
+**Response DTO:**  
+`ApiSuccess<PlanDto[]>`
 
-**Response:**
+**Success Status:**  
+200
 
-```json
-{
-  "success": true,
-  "data": [],
-  "meta": {
-    "page": 1,
-    "pageSize": 25,
-    "total": 0,
-    "totalPages": 0
-  }
-}
-```
-
-**Important Validation:**  
-Validate authentication, scope, permission, feature, and tenant isolation server-side.
+**Important Validation / Machine-readable Errors:**  
+AUTHENTICATION_REQUIRED, PERMISSION_DENIED
 
 **Transaction Required?**  
-No
+No.
 
 **Idempotency Required?**  
-No
+No.
 
-**Realtime Impact?**  
+**Realtime Impact:**  
 None.
 
 ### `POST /api/v1/platform/plans`
 
 **Purpose:**  
-Create a subscription plan.
+Create a Platform resource.
 
 **Authentication:**  
-Authenticated.
+Bearer access token.
 
 **Scope:**  
 Platform
@@ -1423,53 +2540,42 @@ Platform operator
 
 **Path Parameters:**
 
-```json
-{}
-```
+None.
 
 **Query Parameters:**
 
-```json
-{}
+```ts
+type QueryParameters = { active?: boolean };
 ```
 
-**Request Body:**
+**Request DTO:**  
+`CreatePlanRequest`
 
-```json
-{
-  "fields": "Current Platform domain fields",
-  "version": "Required on conflicting updates when applicable"
-}
-```
+**Response DTO:**  
+`ApiSuccess<PlanDto[]>`
 
-**Response:**
+**Success Status:**  
+201
 
-```json
-{
-  "success": true,
-  "data": "Platform result"
-}
-```
-
-**Important Validation:**  
-Validate authentication, scope, permission, feature, and tenant isolation server-side.
+**Important Validation / Machine-readable Errors:**  
+AUTHENTICATION_REQUIRED, PERMISSION_DENIED
 
 **Transaction Required?**  
-No
+No.
 
 **Idempotency Required?**  
-No
+No.
 
-**Realtime Impact?**  
+**Realtime Impact:**  
 None.
 
 ### `PATCH /api/v1/platform/plans/{planId}`
 
 **Purpose:**  
-Update a subscription plan.
+Partially update the selected Platform resource.
 
 **Authentication:**  
-Authenticated.
+Bearer access token.
 
 **Scope:**  
 Platform
@@ -1482,55 +2588,42 @@ Platform operator
 
 **Path Parameters:**
 
-```json
-{
-  "planId": "Opaque planId identifier"
-}
+```ts
+type PathParameters = { planId: string };
 ```
 
 **Query Parameters:**
 
-```json
-{}
-```
+None.
 
-**Request Body:**
+**Request DTO:**  
+`UpdatePlanRequest`
 
-```json
-{
-  "fields": "Current Platform domain fields",
-  "version": "Required on conflicting updates when applicable"
-}
-```
+**Response DTO:**  
+`ApiSuccess<PlanDto>`
 
-**Response:**
+**Success Status:**  
+200
 
-```json
-{
-  "success": true,
-  "data": "Platform result"
-}
-```
-
-**Important Validation:**  
-Validate authentication, scope, permission, feature, and tenant isolation server-side.
+**Important Validation / Machine-readable Errors:**  
+AUTHENTICATION_REQUIRED, PERMISSION_DENIED, VERSION_CONFLICT
 
 **Transaction Required?**  
-No
+No.
 
 **Idempotency Required?**  
-No
+No.
 
-**Realtime Impact?**  
+**Realtime Impact:**  
 None.
 
 ### `DELETE /api/v1/platform/plans/{planId}`
 
 **Purpose:**  
-Delete an unused subscription plan.
+Delete or revoke the selected Platform resource.
 
 **Authentication:**  
-Authenticated.
+Bearer access token.
 
 **Scope:**  
 Platform
@@ -1543,52 +2636,42 @@ Platform operator
 
 **Path Parameters:**
 
-```json
-{
-  "planId": "Opaque planId identifier"
-}
+```ts
+type PathParameters = { planId: string };
 ```
 
 **Query Parameters:**
 
-```json
-{}
-```
+None.
 
-**Request Body:**
+**Request DTO:**  
+Empty body (`{}`).
 
-```json
-{}
-```
+**Response DTO:**  
+Empty response body.
 
-**Response:**
+**Success Status:**  
+204
 
-```json
-{
-  "success": true,
-  "data": "Platform result"
-}
-```
-
-**Important Validation:**  
-Validate authentication, scope, permission, feature, and tenant isolation server-side.
+**Important Validation / Machine-readable Errors:**  
+AUTHENTICATION_REQUIRED, PERMISSION_DENIED
 
 **Transaction Required?**  
-No
+No.
 
 **Idempotency Required?**  
-No
+No.
 
-**Realtime Impact?**  
+**Realtime Impact:**  
 None.
 
 ### `GET /api/v1/platform/subscriptions`
 
 **Purpose:**  
-Search and paginate subscriptions.
+List or return the authorized Platform representation required by this route.
 
 **Authentication:**  
-Authenticated.
+Bearer access token.
 
 **Scope:**  
 Platform
@@ -1601,64 +2684,42 @@ Platform operator
 
 **Path Parameters:**
 
-```json
-{}
-```
+None.
 
 **Query Parameters:**
 
-```json
-{
-  "page": 1,
-  "pageSize": 25,
-  "search": "optional",
-  "sortBy": "optional",
-  "sortOrder": "asc | desc",
-  "from": "optional ISO date",
-  "to": "optional ISO date"
-}
+```ts
+type QueryParameters = { page?: number; pageSize?: number; search?: string; status?: SubscriptionStatus };
 ```
 
-**Request Body:**
+**Request DTO:**  
+Empty body (`{}`).
 
-```json
-{}
-```
+**Response DTO:**  
+`Paginated<SubscriptionListItemDto>`
 
-**Response:**
+**Success Status:**  
+200
 
-```json
-{
-  "success": true,
-  "data": [],
-  "meta": {
-    "page": 1,
-    "pageSize": 25,
-    "total": 0,
-    "totalPages": 0
-  }
-}
-```
-
-**Important Validation:**  
-Validate authentication, scope, permission, feature, and tenant isolation server-side.
+**Important Validation / Machine-readable Errors:**  
+AUTHENTICATION_REQUIRED, PERMISSION_DENIED
 
 **Transaction Required?**  
-No
+No.
 
 **Idempotency Required?**  
-No
+No.
 
-**Realtime Impact?**  
+**Realtime Impact:**  
 None.
 
 ### `GET /api/v1/platform/tenants/{tenantId}/subscription`
 
 **Purpose:**  
-Return a tenant subscription.
+List or return the authorized Platform representation required by this route.
 
 **Authentication:**  
-Authenticated.
+Bearer access token.
 
 **Scope:**  
 Platform
@@ -1671,66 +2732,42 @@ Platform operator
 
 **Path Parameters:**
 
-```json
-{
-  "tenantId": "Opaque tenantId identifier"
-}
+```ts
+type PathParameters = { tenantId: string };
 ```
 
 **Query Parameters:**
 
-```json
-{
-  "page": 1,
-  "pageSize": 25,
-  "search": "optional",
-  "sortBy": "optional",
-  "sortOrder": "asc | desc",
-  "from": "optional ISO date",
-  "to": "optional ISO date"
-}
-```
+None.
 
-**Request Body:**
+**Request DTO:**  
+Empty body (`{}`).
 
-```json
-{}
-```
+**Response DTO:**  
+`ApiSuccess<SubscriptionDto>`
 
-**Response:**
+**Success Status:**  
+200
 
-```json
-{
-  "success": true,
-  "data": [],
-  "meta": {
-    "page": 1,
-    "pageSize": 25,
-    "total": 0,
-    "totalPages": 0
-  }
-}
-```
-
-**Important Validation:**  
-Validate authentication, scope, permission, feature, and tenant isolation server-side.
+**Important Validation / Machine-readable Errors:**  
+AUTHENTICATION_REQUIRED, PERMISSION_DENIED
 
 **Transaction Required?**  
-No
+No.
 
 **Idempotency Required?**  
-No
+No.
 
-**Realtime Impact?**  
+**Realtime Impact:**  
 None.
 
 ### `PUT /api/v1/platform/tenants/{tenantId}/subscription`
 
 **Purpose:**  
-Assign or replace a tenant subscription.
+Replace or assign the selected Platform configuration.
 
 **Authentication:**  
-Authenticated.
+Bearer access token.
 
 **Scope:**  
 Platform
@@ -1743,55 +2780,42 @@ Platform operator
 
 **Path Parameters:**
 
-```json
-{
-  "tenantId": "Opaque tenantId identifier"
-}
+```ts
+type PathParameters = { tenantId: string };
 ```
 
 **Query Parameters:**
 
-```json
-{}
-```
+None.
 
-**Request Body:**
+**Request DTO:**  
+`AssignSubscriptionRequest`
 
-```json
-{
-  "fields": "Current Platform domain fields",
-  "version": "Required on conflicting updates when applicable"
-}
-```
+**Response DTO:**  
+`ApiSuccess<SubscriptionDto>`
 
-**Response:**
+**Success Status:**  
+200
 
-```json
-{
-  "success": true,
-  "data": "Platform result"
-}
-```
-
-**Important Validation:**  
-Validate authentication, scope, permission, feature, and tenant isolation server-side.
+**Important Validation / Machine-readable Errors:**  
+AUTHENTICATION_REQUIRED, PERMISSION_DENIED, VERSION_CONFLICT
 
 **Transaction Required?**  
-No
+Yes.
 
 **Idempotency Required?**  
-No
+No.
 
-**Realtime Impact?**  
+**Realtime Impact:**  
 None.
 
 ### `POST /api/v1/platform/tenants/{tenantId}/subscription/extensions`
 
 **Purpose:**  
-Extend a tenant subscription.
+Extend the tenant subscription by an allowed month interval.
 
 **Authentication:**  
-Authenticated.
+Bearer access token.
 
 **Scope:**  
 Platform
@@ -1804,54 +2828,42 @@ Platform operator
 
 **Path Parameters:**
 
-```json
-{
-  "tenantId": "Opaque tenantId identifier"
-}
+```ts
+type PathParameters = { tenantId: string };
 ```
 
 **Query Parameters:**
 
-```json
-{}
-```
+None.
 
-**Request Body:**
+**Request DTO:**  
+`ExtendSubscriptionRequest`
 
-```json
-{
-  "months": "1 | 3 | 6 | 12"
-}
-```
+**Response DTO:**  
+`ApiSuccess<SubscriptionDto>`
 
-**Response:**
+**Success Status:**  
+200
 
-```json
-{
-  "success": true,
-  "data": "Platform result"
-}
-```
-
-**Important Validation:**  
-Validate authentication, scope, permission, feature, and tenant isolation server-side.
+**Important Validation / Machine-readable Errors:**  
+AUTHENTICATION_REQUIRED, PERMISSION_DENIED
 
 **Transaction Required?**  
-Yes
+Yes.
 
 **Idempotency Required?**  
-Yes — Idempotency-Key or verified provider event ID
+Yes — `Idempotency-Key`; payment webhook uses verified provider event ID.
 
-**Realtime Impact?**  
+**Realtime Impact:**  
 None.
 
 ### `GET /api/v1/platform/tenants/{tenantId}/features`
 
 **Purpose:**  
-Return plan, overrides, and effective features.
+List or return the authorized Platform representation required by this route.
 
 **Authentication:**  
-Authenticated.
+Bearer access token.
 
 **Scope:**  
 Platform
@@ -1864,66 +2876,42 @@ Platform operator
 
 **Path Parameters:**
 
-```json
-{
-  "tenantId": "Opaque tenantId identifier"
-}
+```ts
+type PathParameters = { tenantId: string };
 ```
 
 **Query Parameters:**
 
-```json
-{
-  "page": 1,
-  "pageSize": 25,
-  "search": "optional",
-  "sortBy": "optional",
-  "sortOrder": "asc | desc",
-  "from": "optional ISO date",
-  "to": "optional ISO date"
-}
-```
+None.
 
-**Request Body:**
+**Request DTO:**  
+Empty body (`{}`).
 
-```json
-{}
-```
+**Response DTO:**  
+`ApiSuccess<EffectiveFeaturesDto>`
 
-**Response:**
+**Success Status:**  
+200
 
-```json
-{
-  "success": true,
-  "data": [],
-  "meta": {
-    "page": 1,
-    "pageSize": 25,
-    "total": 0,
-    "totalPages": 0
-  }
-}
-```
-
-**Important Validation:**  
-Validate authentication, scope, permission, feature, and tenant isolation server-side.
+**Important Validation / Machine-readable Errors:**  
+AUTHENTICATION_REQUIRED, PERMISSION_DENIED
 
 **Transaction Required?**  
-No
+No.
 
 **Idempotency Required?**  
-No
+No.
 
-**Realtime Impact?**  
+**Realtime Impact:**  
 None.
 
 ### `PUT /api/v1/platform/tenants/{tenantId}/feature-overrides`
 
 **Purpose:**  
-Replace explicit tenant feature overrides.
+Replace or assign the selected Platform configuration.
 
 **Authentication:**  
-Authenticated.
+Bearer access token.
 
 **Scope:**  
 Platform
@@ -1936,56 +2924,42 @@ Platform operator
 
 **Path Parameters:**
 
-```json
-{
-  "tenantId": "Opaque tenantId identifier"
-}
+```ts
+type PathParameters = { tenantId: string };
 ```
 
 **Query Parameters:**
 
-```json
-{}
-```
+None.
 
-**Request Body:**
+**Request DTO:**  
+`FeatureOverridesDto`
 
-```json
-{
-  "overrides": {
-    "featureKey": true
-  }
-}
-```
+**Response DTO:**  
+`ApiSuccess<EffectiveFeaturesDto>`
 
-**Response:**
+**Success Status:**  
+200
 
-```json
-{
-  "success": true,
-  "data": "Platform result"
-}
-```
-
-**Important Validation:**  
-Validate authentication, scope, permission, feature, and tenant isolation server-side.
+**Important Validation / Machine-readable Errors:**  
+AUTHENTICATION_REQUIRED, PERMISSION_DENIED, VERSION_CONFLICT
 
 **Transaction Required?**  
-No
+Yes.
 
 **Idempotency Required?**  
-No
+No.
 
-**Realtime Impact?**  
+**Realtime Impact:**  
 None.
 
 ### `PUT /api/v1/platform/tenants/{tenantId}/branch-limit`
 
 **Purpose:**  
-Set or clear the tenant branch-limit override.
+Replace or assign the selected Platform configuration.
 
 **Authentication:**  
-Authenticated.
+Bearer access token.
 
 **Scope:**  
 Platform
@@ -1998,45 +2972,33 @@ Platform operator
 
 **Path Parameters:**
 
-```json
-{
-  "tenantId": "Opaque tenantId identifier"
-}
+```ts
+type PathParameters = { tenantId: string };
 ```
 
 **Query Parameters:**
 
-```json
-{}
-```
+None.
 
-**Request Body:**
+**Request DTO:**  
+`BranchLimitRequest`
 
-```json
-{
-  "maxBranchesOverride": "integer or null"
-}
-```
+**Response DTO:**  
+`ApiSuccess<{ maxBranchesOverride: number | null; effectiveMaxBranches: number }>`
 
-**Response:**
+**Success Status:**  
+200
 
-```json
-{
-  "success": true,
-  "data": "Platform result"
-}
-```
-
-**Important Validation:**  
-Validate authentication, scope, permission, feature, and tenant isolation server-side.
+**Important Validation / Machine-readable Errors:**  
+AUTHENTICATION_REQUIRED, PERMISSION_DENIED, VERSION_CONFLICT
 
 **Transaction Required?**  
-No
+Yes.
 
 **Idempotency Required?**  
-No
+No.
 
-**Realtime Impact?**  
+**Realtime Impact:**  
 None.
 
 ## 7. Tenant Endpoints
@@ -2044,10 +3006,10 @@ None.
 ### `GET /api/v1/cafe/tenant`
 
 **Purpose:**  
-Return the authenticated tenant.
+List or return the authorized Tenant representation required by this route.
 
 **Authentication:**  
-Authenticated.
+Bearer access token.
 
 **Scope:**  
 Tenant
@@ -2060,64 +3022,40 @@ Authenticated
 
 **Path Parameters:**
 
-```json
-{}
-```
+None.
 
 **Query Parameters:**
 
-```json
-{
-  "page": 1,
-  "pageSize": 25,
-  "search": "optional",
-  "sortBy": "optional",
-  "sortOrder": "asc | desc",
-  "from": "optional ISO date",
-  "to": "optional ISO date"
-}
-```
+None.
 
-**Request Body:**
+**Request DTO:**  
+Empty body (`{}`).
 
-```json
-{}
-```
+**Response DTO:**  
+`ApiSuccess<TenantDto>`
 
-**Response:**
+**Success Status:**  
+200
 
-```json
-{
-  "success": true,
-  "data": [],
-  "meta": {
-    "page": 1,
-    "pageSize": 25,
-    "total": 0,
-    "totalPages": 0
-  }
-}
-```
-
-**Important Validation:**  
-Validate authentication, scope, permission, feature, and tenant isolation server-side.
+**Important Validation / Machine-readable Errors:**  
+AUTHENTICATION_REQUIRED, PERMISSION_DENIED
 
 **Transaction Required?**  
-No
+No.
 
 **Idempotency Required?**  
-No
+No.
 
-**Realtime Impact?**  
+**Realtime Impact:**  
 None.
 
 ### `PATCH /api/v1/cafe/tenant`
 
 **Purpose:**  
-Update tenant contact and workspace data.
+Partially update the selected Tenant resource.
 
 **Authentication:**  
-Authenticated.
+Bearer access token.
 
 **Scope:**  
 Tenant
@@ -2130,44 +3068,31 @@ settings.edit
 
 **Path Parameters:**
 
-```json
-{}
-```
+None.
 
 **Query Parameters:**
 
-```json
-{}
-```
+None.
 
-**Request Body:**
+**Request DTO:**  
+`UpdateTenantContactRequest`
 
-```json
-{
-  "fields": "Current Tenant domain fields",
-  "version": "Required on conflicting updates when applicable"
-}
-```
+**Response DTO:**  
+`ApiSuccess<TenantDto>`
 
-**Response:**
+**Success Status:**  
+200
 
-```json
-{
-  "success": true,
-  "data": "Tenant result"
-}
-```
-
-**Important Validation:**  
-Validate authentication, scope, permission, feature, and tenant isolation server-side.
+**Important Validation / Machine-readable Errors:**  
+AUTHENTICATION_REQUIRED, PERMISSION_DENIED, VERSION_CONFLICT
 
 **Transaction Required?**  
-No
+No.
 
 **Idempotency Required?**  
-No
+No.
 
-**Realtime Impact?**  
+**Realtime Impact:**  
 None.
 
 ## 8. Branch Endpoints
@@ -2175,10 +3100,10 @@ None.
 ### `GET /api/v1/cafe/branches`
 
 **Purpose:**  
-List accessible tenant branches.
+List or return the authorized Branch representation required by this route.
 
 **Authentication:**  
-Authenticated.
+Bearer access token.
 
 **Scope:**  
 Tenant
@@ -2191,64 +3116,42 @@ branches.view
 
 **Path Parameters:**
 
-```json
-{}
-```
+None.
 
 **Query Parameters:**
 
-```json
-{
-  "page": 1,
-  "pageSize": 25,
-  "search": "optional",
-  "sortBy": "optional",
-  "sortOrder": "asc | desc",
-  "from": "optional ISO date",
-  "to": "optional ISO date"
-}
+```ts
+type QueryParameters = { status?: BranchStatus };
 ```
 
-**Request Body:**
+**Request DTO:**  
+Empty body (`{}`).
 
-```json
-{}
-```
+**Response DTO:**  
+`ApiSuccess<BranchDto[]>`
 
-**Response:**
+**Success Status:**  
+200
 
-```json
-{
-  "success": true,
-  "data": [],
-  "meta": {
-    "page": 1,
-    "pageSize": 25,
-    "total": 0,
-    "totalPages": 0
-  }
-}
-```
-
-**Important Validation:**  
-Validate authentication, scope, permission, feature, and tenant isolation server-side.
+**Important Validation / Machine-readable Errors:**  
+AUTHENTICATION_REQUIRED, PERMISSION_DENIED
 
 **Transaction Required?**  
-No
+No.
 
 **Idempotency Required?**  
-No
+No.
 
-**Realtime Impact?**  
+**Realtime Impact:**  
 None.
 
 ### `POST /api/v1/cafe/branches`
 
 **Purpose:**  
-Create a branch within the effective branch limit.
+Create a Branch resource.
 
 **Authentication:**  
-Authenticated.
+Bearer access token.
 
 **Scope:**  
 Tenant
@@ -2261,53 +3164,42 @@ branches.manage
 
 **Path Parameters:**
 
-```json
-{}
-```
+None.
 
 **Query Parameters:**
 
-```json
-{}
+```ts
+type QueryParameters = { status?: BranchStatus };
 ```
 
-**Request Body:**
+**Request DTO:**  
+`CreateBranchRequest`
 
-```json
-{
-  "fields": "Current Branch domain fields",
-  "version": "Required on conflicting updates when applicable"
-}
-```
+**Response DTO:**  
+`ApiSuccess<BranchDto[]>`
 
-**Response:**
+**Success Status:**  
+201
 
-```json
-{
-  "success": true,
-  "data": "Branch result"
-}
-```
-
-**Important Validation:**  
-Validate authentication, scope, permission, feature, and tenant isolation server-side.
+**Important Validation / Machine-readable Errors:**  
+AUTHENTICATION_REQUIRED, PERMISSION_DENIED, BRANCH_LIMIT_EXCEEDED
 
 **Transaction Required?**  
-No
+No.
 
 **Idempotency Required?**  
-No
+No.
 
-**Realtime Impact?**  
+**Realtime Impact:**  
 None.
 
 ### `GET /api/v1/cafe/branches/{branchId}`
 
 **Purpose:**  
-Return one accessible branch.
+Return the authorized Branch representation.
 
 **Authentication:**  
-Authenticated.
+Bearer access token.
 
 **Scope:**  
 Branch
@@ -2320,52 +3212,42 @@ branches.view
 
 **Path Parameters:**
 
-```json
-{
-  "branchId": "Opaque branchId identifier"
-}
+```ts
+type PathParameters = { branchId: string };
 ```
 
 **Query Parameters:**
 
-```json
-{}
-```
+None.
 
-**Request Body:**
+**Request DTO:**  
+Empty body (`{}`).
 
-```json
-{}
-```
+**Response DTO:**  
+`ApiSuccess<BranchDto>`
 
-**Response:**
+**Success Status:**  
+200
 
-```json
-{
-  "success": true,
-  "data": "Branch result"
-}
-```
-
-**Important Validation:**  
-Validate authentication, scope, permission, feature, and tenant isolation server-side. Validate employee branch access and resource ownership.
+**Important Validation / Machine-readable Errors:**  
+AUTHENTICATION_REQUIRED, PERMISSION_DENIED, BRANCH_ACCESS_DENIED
 
 **Transaction Required?**  
-No
+No.
 
 **Idempotency Required?**  
-No
+No.
 
-**Realtime Impact?**  
+**Realtime Impact:**  
 None.
 
 ### `PATCH /api/v1/cafe/branches/{branchId}`
 
 **Purpose:**  
-Update branch data and settings.
+Partially update the selected Branch resource.
 
 **Authentication:**  
-Authenticated.
+Bearer access token.
 
 **Scope:**  
 Branch
@@ -2378,55 +3260,42 @@ branches.manage
 
 **Path Parameters:**
 
-```json
-{
-  "branchId": "Opaque branchId identifier"
-}
+```ts
+type PathParameters = { branchId: string };
 ```
 
 **Query Parameters:**
 
-```json
-{}
-```
+None.
 
-**Request Body:**
+**Request DTO:**  
+`UpdateBranchRequest`
 
-```json
-{
-  "fields": "Current Branch domain fields",
-  "version": "Required on conflicting updates when applicable"
-}
-```
+**Response DTO:**  
+`ApiSuccess<BranchDto>`
 
-**Response:**
+**Success Status:**  
+200
 
-```json
-{
-  "success": true,
-  "data": "Branch result"
-}
-```
-
-**Important Validation:**  
-Validate authentication, scope, permission, feature, and tenant isolation server-side. Validate employee branch access and resource ownership.
+**Important Validation / Machine-readable Errors:**  
+AUTHENTICATION_REQUIRED, PERMISSION_DENIED, BRANCH_ACCESS_DENIED, VERSION_CONFLICT
 
 **Transaction Required?**  
-No
+No.
 
 **Idempotency Required?**  
-No
+No.
 
-**Realtime Impact?**  
+**Realtime Impact:**  
 None.
 
 ### `PATCH /api/v1/cafe/branches/{branchId}/status`
 
 **Purpose:**  
-Activate or deactivate a branch.
+Partially update the selected Branch resource.
 
 **Authentication:**  
-Authenticated.
+Bearer access token.
 
 **Scope:**  
 Branch
@@ -2439,56 +3308,42 @@ branches.manage
 
 **Path Parameters:**
 
-```json
-{
-  "branchId": "Opaque branchId identifier"
-}
+```ts
+type PathParameters = { branchId: string };
 ```
 
 **Query Parameters:**
 
-```json
-{}
-```
+None.
 
-**Request Body:**
+**Request DTO:**  
+`BranchStatusRequest`
 
-```json
-{
-  "status": "Allowed domain status",
-  "note": "optional string",
-  "version": "integer"
-}
-```
+**Response DTO:**  
+`ApiSuccess<BranchDto>`
 
-**Response:**
+**Success Status:**  
+200
 
-```json
-{
-  "success": true,
-  "data": "Branch result"
-}
-```
-
-**Important Validation:**  
-Validate authentication, scope, permission, feature, and tenant isolation server-side. Validate employee branch access and resource ownership.
+**Important Validation / Machine-readable Errors:**  
+AUTHENTICATION_REQUIRED, PERMISSION_DENIED, BRANCH_ACCESS_DENIED, VERSION_CONFLICT
 
 **Transaction Required?**  
-No
+No.
 
 **Idempotency Required?**  
-No
+No.
 
-**Realtime Impact?**  
+**Realtime Impact:**  
 None.
 
 ### `PUT /api/v1/cafe/branches/{branchId}/menu`
 
 **Purpose:**  
-Assign an internal menu to a branch.
+Replace or assign the selected Branch configuration.
 
 **Authentication:**  
-Authenticated.
+Bearer access token.
 
 **Scope:**  
 Branch
@@ -2501,59 +3356,44 @@ branches.manage
 
 **Path Parameters:**
 
-```json
-{
-  "branchId": "Opaque branchId identifier"
-}
+```ts
+type PathParameters = { branchId: string };
 ```
 
 **Query Parameters:**
 
-```json
-{}
-```
+None.
 
-**Request Body:**
+**Request DTO:**  
+`AssignBranchMenuRequest`
 
-```json
-{
-  "fields": "Current Branch domain fields",
-  "version": "Required on conflicting updates when applicable"
-}
-```
+**Response DTO:**  
+`ApiSuccess<BranchDto>`
 
-**Response:**
+**Success Status:**  
+200
 
-```json
-{
-  "success": true,
-  "data": "Branch result"
-}
-```
-
-**Important Validation:**  
-Validate authentication, scope, permission, feature, and tenant isolation server-side. Validate employee branch access and resource ownership.
+**Important Validation / Machine-readable Errors:**  
+AUTHENTICATION_REQUIRED, PERMISSION_DENIED, BRANCH_ACCESS_DENIED, VERSION_CONFLICT
 
 **Transaction Required?**  
-No
+No.
 
 **Idempotency Required?**  
-No
+No.
 
-**Realtime Impact?**  
+**Realtime Impact:**  
 None.
 
 ## 9. Product Endpoints
 
-Product fields are descriptive catalog fields. If retained, `defaultPrice` is an optional menu-item creation helper only.
-
 ### `GET /api/v1/cafe/products`
 
 **Purpose:**  
-List tenant products.
+List or return the authorized Product representation required by this route.
 
 **Authentication:**  
-Authenticated.
+Bearer access token.
 
 **Scope:**  
 Tenant
@@ -2566,64 +3406,42 @@ products.view
 
 **Path Parameters:**
 
-```json
-{}
-```
+None.
 
 **Query Parameters:**
 
-```json
-{
-  "page": 1,
-  "pageSize": 25,
-  "search": "optional",
-  "sortBy": "optional",
-  "sortOrder": "asc | desc",
-  "from": "optional ISO date",
-  "to": "optional ISO date"
-}
+```ts
+type QueryParameters = { page?: number; pageSize?: number; search?: string; categoryId?: string; isAvailable?: boolean };
 ```
 
-**Request Body:**
+**Request DTO:**  
+Empty body (`{}`).
 
-```json
-{}
-```
+**Response DTO:**  
+`Paginated<ProductDto>`
 
-**Response:**
+**Success Status:**  
+200
 
-```json
-{
-  "success": true,
-  "data": [],
-  "meta": {
-    "page": 1,
-    "pageSize": 25,
-    "total": 0,
-    "totalPages": 0
-  }
-}
-```
-
-**Important Validation:**  
-Validate authentication, scope, permission, feature, and tenant isolation server-side.
+**Important Validation / Machine-readable Errors:**  
+AUTHENTICATION_REQUIRED, PERMISSION_DENIED
 
 **Transaction Required?**  
-No
+No.
 
 **Idempotency Required?**  
-No
+No.
 
-**Realtime Impact?**  
+**Realtime Impact:**  
 None.
 
 ### `POST /api/v1/cafe/products`
 
 **Purpose:**  
-Create a tenant product.
+Create a Product resource.
 
 **Authentication:**  
-Authenticated.
+Bearer access token.
 
 **Scope:**  
 Tenant
@@ -2636,61 +3454,42 @@ products.create
 
 **Path Parameters:**
 
-```json
-{}
-```
+None.
 
 **Query Parameters:**
 
-```json
-{}
+```ts
+type QueryParameters = { page?: number; pageSize?: number; search?: string; categoryId?: string; isAvailable?: boolean };
 ```
 
-**Request Body:**
+**Request DTO:**  
+`CreateProductRequest`
 
-```json
-{
-  "name": "string",
-  "description": "string",
-  "defaultPrice": "optional helper only",
-  "image": "optional URL/asset",
-  "categoryId": "id",
-  "isAvailable": true,
-  "modifierGroupIds": [
-    "id"
-  ],
-  "version": "integer"
-}
-```
+**Response DTO:**  
+`Paginated<ProductDto>`
 
-**Response:**
+**Success Status:**  
+201
 
-```json
-{
-  "success": true,
-  "data": "Product result"
-}
-```
-
-**Important Validation:**  
-Validate authentication, scope, permission, feature, and tenant isolation server-side.
+**Important Validation / Machine-readable Errors:**  
+AUTHENTICATION_REQUIRED, PERMISSION_DENIED
 
 **Transaction Required?**  
-No
+No.
 
 **Idempotency Required?**  
-No
+No.
 
-**Realtime Impact?**  
+**Realtime Impact:**  
 None.
 
 ### `GET /api/v1/cafe/products/{productId}`
 
 **Purpose:**  
-Return a product.
+Return the authorized Product representation.
 
 **Authentication:**  
-Authenticated.
+Bearer access token.
 
 **Scope:**  
 Tenant
@@ -2703,52 +3502,42 @@ products.view
 
 **Path Parameters:**
 
-```json
-{
-  "productId": "Opaque productId identifier"
-}
+```ts
+type PathParameters = { productId: string };
 ```
 
 **Query Parameters:**
 
-```json
-{}
-```
+None.
 
-**Request Body:**
+**Request DTO:**  
+Empty body (`{}`).
 
-```json
-{}
-```
+**Response DTO:**  
+`ApiSuccess<ProductDto>`
 
-**Response:**
+**Success Status:**  
+200
 
-```json
-{
-  "success": true,
-  "data": "Product result"
-}
-```
-
-**Important Validation:**  
-Validate authentication, scope, permission, feature, and tenant isolation server-side.
+**Important Validation / Machine-readable Errors:**  
+AUTHENTICATION_REQUIRED, PERMISSION_DENIED
 
 **Transaction Required?**  
-No
+No.
 
 **Idempotency Required?**  
-No
+No.
 
-**Realtime Impact?**  
+**Realtime Impact:**  
 None.
 
 ### `PATCH /api/v1/cafe/products/{productId}`
 
 **Purpose:**  
-Update product descriptive data and optional default price.
+Partially update the selected Product resource.
 
 **Authentication:**  
-Authenticated.
+Bearer access token.
 
 **Scope:**  
 Tenant
@@ -2761,63 +3550,42 @@ products.update
 
 **Path Parameters:**
 
-```json
-{
-  "productId": "Opaque productId identifier"
-}
+```ts
+type PathParameters = { productId: string };
 ```
 
 **Query Parameters:**
 
-```json
-{}
-```
+None.
 
-**Request Body:**
+**Request DTO:**  
+`UpdateProductRequest`
 
-```json
-{
-  "name": "string",
-  "description": "string",
-  "defaultPrice": "optional helper only",
-  "image": "optional URL/asset",
-  "categoryId": "id",
-  "isAvailable": true,
-  "modifierGroupIds": [
-    "id"
-  ],
-  "version": "integer"
-}
-```
+**Response DTO:**  
+`ApiSuccess<ProductDto>`
 
-**Response:**
+**Success Status:**  
+200
 
-```json
-{
-  "success": true,
-  "data": "Product result"
-}
-```
-
-**Important Validation:**  
-Validate authentication, scope, permission, feature, and tenant isolation server-side.
+**Important Validation / Machine-readable Errors:**  
+AUTHENTICATION_REQUIRED, PERMISSION_DENIED, VERSION_CONFLICT
 
 **Transaction Required?**  
-No
+No.
 
 **Idempotency Required?**  
-No
+No.
 
-**Realtime Impact?**  
+**Realtime Impact:**  
 None.
 
 ### `DELETE /api/v1/cafe/products/{productId}`
 
 **Purpose:**  
-Delete an unreferenced product.
+Delete or revoke the selected Product resource.
 
 **Authentication:**  
-Authenticated.
+Bearer access token.
 
 **Scope:**  
 Tenant
@@ -2830,43 +3598,33 @@ products.delete
 
 **Path Parameters:**
 
-```json
-{
-  "productId": "Opaque productId identifier"
-}
+```ts
+type PathParameters = { productId: string };
 ```
 
 **Query Parameters:**
 
-```json
-{}
-```
+None.
 
-**Request Body:**
+**Request DTO:**  
+Empty body (`{}`).
 
-```json
-{}
-```
+**Response DTO:**  
+Empty response body.
 
-**Response:**
+**Success Status:**  
+204
 
-```json
-{
-  "success": true,
-  "data": "Product result"
-}
-```
-
-**Important Validation:**  
-Validate authentication, scope, permission, feature, and tenant isolation server-side.
+**Important Validation / Machine-readable Errors:**  
+AUTHENTICATION_REQUIRED, PERMISSION_DENIED
 
 **Transaction Required?**  
-No
+No.
 
 **Idempotency Required?**  
-No
+No.
 
-**Realtime Impact?**  
+**Realtime Impact:**  
 None.
 
 ## 10. Category Endpoints
@@ -2874,10 +3632,10 @@ None.
 ### `GET /api/v1/cafe/categories`
 
 **Purpose:**  
-List product categories.
+List or return the authorized Category representation required by this route.
 
 **Authentication:**  
-Authenticated.
+Bearer access token.
 
 **Scope:**  
 Tenant
@@ -2890,64 +3648,42 @@ categories.view
 
 **Path Parameters:**
 
-```json
-{}
-```
+None.
 
 **Query Parameters:**
 
-```json
-{
-  "page": 1,
-  "pageSize": 25,
-  "search": "optional",
-  "sortBy": "optional",
-  "sortOrder": "asc | desc",
-  "from": "optional ISO date",
-  "to": "optional ISO date"
-}
+```ts
+type QueryParameters = { page?: number; pageSize?: number; search?: string; isActive?: boolean };
 ```
 
-**Request Body:**
+**Request DTO:**  
+Empty body (`{}`).
 
-```json
-{}
-```
+**Response DTO:**  
+`Paginated<CategoryDto>`
 
-**Response:**
+**Success Status:**  
+200
 
-```json
-{
-  "success": true,
-  "data": [],
-  "meta": {
-    "page": 1,
-    "pageSize": 25,
-    "total": 0,
-    "totalPages": 0
-  }
-}
-```
-
-**Important Validation:**  
-Validate authentication, scope, permission, feature, and tenant isolation server-side.
+**Important Validation / Machine-readable Errors:**  
+AUTHENTICATION_REQUIRED, PERMISSION_DENIED
 
 **Transaction Required?**  
-No
+No.
 
 **Idempotency Required?**  
-No
+No.
 
-**Realtime Impact?**  
+**Realtime Impact:**  
 None.
 
 ### `POST /api/v1/cafe/categories`
 
 **Purpose:**  
-Create a category.
+Create a Category resource.
 
 **Authentication:**  
-Authenticated.
+Bearer access token.
 
 **Scope:**  
 Tenant
@@ -2960,53 +3696,42 @@ categories.manage
 
 **Path Parameters:**
 
-```json
-{}
-```
+None.
 
 **Query Parameters:**
 
-```json
-{}
+```ts
+type QueryParameters = { page?: number; pageSize?: number; search?: string; isActive?: boolean };
 ```
 
-**Request Body:**
+**Request DTO:**  
+`CreateCategoryRequest`
 
-```json
-{
-  "fields": "Current Category domain fields",
-  "version": "Required on conflicting updates when applicable"
-}
-```
+**Response DTO:**  
+`Paginated<CategoryDto>`
 
-**Response:**
+**Success Status:**  
+201
 
-```json
-{
-  "success": true,
-  "data": "Category result"
-}
-```
-
-**Important Validation:**  
-Validate authentication, scope, permission, feature, and tenant isolation server-side.
+**Important Validation / Machine-readable Errors:**  
+AUTHENTICATION_REQUIRED, PERMISSION_DENIED
 
 **Transaction Required?**  
-No
+No.
 
 **Idempotency Required?**  
-No
+No.
 
-**Realtime Impact?**  
+**Realtime Impact:**  
 None.
 
 ### `PATCH /api/v1/cafe/categories/{categoryId}`
 
 **Purpose:**  
-Update a category.
+Partially update the selected Category resource.
 
 **Authentication:**  
-Authenticated.
+Bearer access token.
 
 **Scope:**  
 Tenant
@@ -3019,55 +3744,42 @@ categories.manage
 
 **Path Parameters:**
 
-```json
-{
-  "categoryId": "Opaque categoryId identifier"
-}
+```ts
+type PathParameters = { categoryId: string };
 ```
 
 **Query Parameters:**
 
-```json
-{}
-```
+None.
 
-**Request Body:**
+**Request DTO:**  
+`UpdateCategoryRequest`
 
-```json
-{
-  "fields": "Current Category domain fields",
-  "version": "Required on conflicting updates when applicable"
-}
-```
+**Response DTO:**  
+`ApiSuccess<CategoryDto>`
 
-**Response:**
+**Success Status:**  
+200
 
-```json
-{
-  "success": true,
-  "data": "Category result"
-}
-```
-
-**Important Validation:**  
-Validate authentication, scope, permission, feature, and tenant isolation server-side.
+**Important Validation / Machine-readable Errors:**  
+AUTHENTICATION_REQUIRED, PERMISSION_DENIED, VERSION_CONFLICT
 
 **Transaction Required?**  
-No
+No.
 
 **Idempotency Required?**  
-No
+No.
 
-**Realtime Impact?**  
+**Realtime Impact:**  
 None.
 
 ### `DELETE /api/v1/cafe/categories/{categoryId}`
 
 **Purpose:**  
-Delete an unused category.
+Delete or revoke the selected Category resource.
 
 **Authentication:**  
-Authenticated.
+Bearer access token.
 
 **Scope:**  
 Tenant
@@ -3080,56 +3792,46 @@ categories.manage
 
 **Path Parameters:**
 
-```json
-{
-  "categoryId": "Opaque categoryId identifier"
-}
+```ts
+type PathParameters = { categoryId: string };
 ```
 
 **Query Parameters:**
 
-```json
-{}
-```
+None.
 
-**Request Body:**
+**Request DTO:**  
+Empty body (`{}`).
 
-```json
-{}
-```
+**Response DTO:**  
+Empty response body.
 
-**Response:**
+**Success Status:**  
+204
 
-```json
-{
-  "success": true,
-  "data": "Category result"
-}
-```
-
-**Important Validation:**  
-Validate authentication, scope, permission, feature, and tenant isolation server-side.
+**Important Validation / Machine-readable Errors:**  
+AUTHENTICATION_REQUIRED, PERMISSION_DENIED
 
 **Transaction Required?**  
-No
+No.
 
 **Idempotency Required?**  
-No
+No.
 
-**Realtime Impact?**  
+**Realtime Impact:**  
 None.
 
 ## 11. Menu Endpoints
 
-Internal Menu management is available independently of `onlineMenu` so POS pricing remains operable.
+Internal menu administration has no `onlineMenu` gate.
 
 ### `GET /api/v1/cafe/menus`
 
 **Purpose:**  
-List internal menus used by branches and POS.
+List or return the authorized Menu representation required by this route.
 
 **Authentication:**  
-Authenticated.
+Bearer access token.
 
 **Scope:**  
 Tenant
@@ -3142,64 +3844,42 @@ menus.view
 
 **Path Parameters:**
 
-```json
-{}
-```
+None.
 
 **Query Parameters:**
 
-```json
-{
-  "page": 1,
-  "pageSize": 25,
-  "search": "optional",
-  "sortBy": "optional",
-  "sortOrder": "asc | desc",
-  "from": "optional ISO date",
-  "to": "optional ISO date"
-}
+```ts
+type QueryParameters = { page?: number; pageSize?: number; search?: string; status?: MenuStatus };
 ```
 
-**Request Body:**
+**Request DTO:**  
+Empty body (`{}`).
 
-```json
-{}
-```
+**Response DTO:**  
+`Paginated<MenuDto>`
 
-**Response:**
+**Success Status:**  
+200
 
-```json
-{
-  "success": true,
-  "data": [],
-  "meta": {
-    "page": 1,
-    "pageSize": 25,
-    "total": 0,
-    "totalPages": 0
-  }
-}
-```
-
-**Important Validation:**  
-Validate authentication, scope, permission, feature, and tenant isolation server-side.
+**Important Validation / Machine-readable Errors:**  
+AUTHENTICATION_REQUIRED, PERMISSION_DENIED
 
 **Transaction Required?**  
-No
+No.
 
 **Idempotency Required?**  
-No
+No.
 
-**Realtime Impact?**  
+**Realtime Impact:**  
 None.
 
 ### `POST /api/v1/cafe/menus`
 
 **Purpose:**  
-Create an internal menu.
+Create a Menu resource.
 
 **Authentication:**  
-Authenticated.
+Bearer access token.
 
 **Scope:**  
 Tenant
@@ -3212,53 +3892,42 @@ menus.manage
 
 **Path Parameters:**
 
-```json
-{}
-```
+None.
 
 **Query Parameters:**
 
-```json
-{}
+```ts
+type QueryParameters = { page?: number; pageSize?: number; search?: string; status?: MenuStatus };
 ```
 
-**Request Body:**
+**Request DTO:**  
+`CreateMenuRequest`
 
-```json
-{
-  "fields": "Current Menu domain fields",
-  "version": "Required on conflicting updates when applicable"
-}
-```
+**Response DTO:**  
+`Paginated<MenuDto>`
 
-**Response:**
+**Success Status:**  
+201
 
-```json
-{
-  "success": true,
-  "data": "Menu result"
-}
-```
-
-**Important Validation:**  
-Validate authentication, scope, permission, feature, and tenant isolation server-side.
+**Important Validation / Machine-readable Errors:**  
+AUTHENTICATION_REQUIRED, PERMISSION_DENIED
 
 **Transaction Required?**  
-No
+No.
 
 **Idempotency Required?**  
-No
+No.
 
-**Realtime Impact?**  
+**Realtime Impact:**  
 None.
 
 ### `GET /api/v1/cafe/menus/{menuId}`
 
 **Purpose:**  
-Return an internal menu.
+Return the authorized Menu representation.
 
 **Authentication:**  
-Authenticated.
+Bearer access token.
 
 **Scope:**  
 Tenant
@@ -3271,52 +3940,42 @@ menus.view
 
 **Path Parameters:**
 
-```json
-{
-  "menuId": "Opaque menuId identifier"
-}
+```ts
+type PathParameters = { menuId: string };
 ```
 
 **Query Parameters:**
 
-```json
-{}
-```
+None.
 
-**Request Body:**
+**Request DTO:**  
+Empty body (`{}`).
 
-```json
-{}
-```
+**Response DTO:**  
+`ApiSuccess<MenuDto>`
 
-**Response:**
+**Success Status:**  
+200
 
-```json
-{
-  "success": true,
-  "data": "Menu result"
-}
-```
-
-**Important Validation:**  
-Validate authentication, scope, permission, feature, and tenant isolation server-side.
+**Important Validation / Machine-readable Errors:**  
+AUTHENTICATION_REQUIRED, PERMISSION_DENIED
 
 **Transaction Required?**  
-No
+No.
 
 **Idempotency Required?**  
-No
+No.
 
-**Realtime Impact?**  
+**Realtime Impact:**  
 None.
 
 ### `PATCH /api/v1/cafe/menus/{menuId}`
 
 **Purpose:**  
-Update internal menu metadata.
+Partially update the selected Menu resource.
 
 **Authentication:**  
-Authenticated.
+Bearer access token.
 
 **Scope:**  
 Tenant
@@ -3329,55 +3988,42 @@ menus.manage
 
 **Path Parameters:**
 
-```json
-{
-  "menuId": "Opaque menuId identifier"
-}
+```ts
+type PathParameters = { menuId: string };
 ```
 
 **Query Parameters:**
 
-```json
-{}
-```
+None.
 
-**Request Body:**
+**Request DTO:**  
+`UpdateMenuRequest`
 
-```json
-{
-  "fields": "Current Menu domain fields",
-  "version": "Required on conflicting updates when applicable"
-}
-```
+**Response DTO:**  
+`ApiSuccess<MenuDto>`
 
-**Response:**
+**Success Status:**  
+200
 
-```json
-{
-  "success": true,
-  "data": "Menu result"
-}
-```
-
-**Important Validation:**  
-Validate authentication, scope, permission, feature, and tenant isolation server-side.
+**Important Validation / Machine-readable Errors:**  
+AUTHENTICATION_REQUIRED, PERMISSION_DENIED, VERSION_CONFLICT
 
 **Transaction Required?**  
-No
+No.
 
 **Idempotency Required?**  
-No
+No.
 
-**Realtime Impact?**  
+**Realtime Impact:**  
 None.
 
 ### `POST /api/v1/cafe/menus/{menuId}/duplicate`
 
 **Purpose:**  
-Duplicate an internal menu and its items.
+Duplicate the selected Menu resource.
 
 **Authentication:**  
-Authenticated.
+Bearer access token.
 
 **Scope:**  
 Tenant
@@ -3390,52 +4036,42 @@ menus.manage
 
 **Path Parameters:**
 
-```json
-{
-  "menuId": "Opaque menuId identifier"
-}
+```ts
+type PathParameters = { menuId: string };
 ```
 
 **Query Parameters:**
 
-```json
-{}
-```
+None.
 
-**Request Body:**
+**Request DTO:**  
+`DuplicateMenuRequest`
 
-```json
-{}
-```
+**Response DTO:**  
+`ApiSuccess<MenuDto>`
 
-**Response:**
+**Success Status:**  
+201
 
-```json
-{
-  "success": true,
-  "data": "Menu result"
-}
-```
-
-**Important Validation:**  
-Validate authentication, scope, permission, feature, and tenant isolation server-side.
+**Important Validation / Machine-readable Errors:**  
+AUTHENTICATION_REQUIRED, PERMISSION_DENIED
 
 **Transaction Required?**  
-No
+No.
 
 **Idempotency Required?**  
-No
+No.
 
-**Realtime Impact?**  
+**Realtime Impact:**  
 None.
 
 ### `DELETE /api/v1/cafe/menus/{menuId}`
 
 **Purpose:**  
-Delete an unassigned internal menu.
+Delete or revoke the selected Menu resource.
 
 **Authentication:**  
-Authenticated.
+Bearer access token.
 
 **Scope:**  
 Tenant
@@ -3448,56 +4084,46 @@ menus.manage
 
 **Path Parameters:**
 
-```json
-{
-  "menuId": "Opaque menuId identifier"
-}
+```ts
+type PathParameters = { menuId: string };
 ```
 
 **Query Parameters:**
 
-```json
-{}
-```
+None.
 
-**Request Body:**
+**Request DTO:**  
+Empty body (`{}`).
 
-```json
-{}
-```
+**Response DTO:**  
+Empty response body.
 
-**Response:**
+**Success Status:**  
+204
 
-```json
-{
-  "success": true,
-  "data": "Menu result"
-}
-```
-
-**Important Validation:**  
-Validate authentication, scope, permission, feature, and tenant isolation server-side.
+**Important Validation / Machine-readable Errors:**  
+AUTHENTICATION_REQUIRED, PERMISSION_DENIED
 
 **Transaction Required?**  
-No
+No.
 
 **Idempotency Required?**  
-No
+No.
 
-**Realtime Impact?**  
+**Realtime Impact:**  
 None.
 
 ## 12. MenuItem Endpoints
 
-`MenuItem.price` is the only authoritative base selling price for checkout.
+All quote and checkout operations load `MenuItem.price` server-side.
 
 ### `GET /api/v1/cafe/menus/{menuId}/items`
 
 **Purpose:**  
-List internal menu items and authoritative selling prices.
+List or return the authorized MenuItem representation required by this route.
 
 **Authentication:**  
-Authenticated.
+Bearer access token.
 
 **Scope:**  
 Tenant
@@ -3510,66 +4136,42 @@ menus.view
 
 **Path Parameters:**
 
-```json
-{
-  "menuId": "Opaque menuId identifier"
-}
+```ts
+type PathParameters = { menuId: string };
 ```
 
 **Query Parameters:**
 
-```json
-{
-  "page": 1,
-  "pageSize": 25,
-  "search": "optional",
-  "sortBy": "optional",
-  "sortOrder": "asc | desc",
-  "from": "optional ISO date",
-  "to": "optional ISO date"
-}
-```
+None.
 
-**Request Body:**
+**Request DTO:**  
+Empty body (`{}`).
 
-```json
-{}
-```
+**Response DTO:**  
+`ApiSuccess<MenuItemDto>`
 
-**Response:**
+**Success Status:**  
+200
 
-```json
-{
-  "success": true,
-  "data": [],
-  "meta": {
-    "page": 1,
-    "pageSize": 25,
-    "total": 0,
-    "totalPages": 0
-  }
-}
-```
-
-**Important Validation:**  
-Validate authentication, scope, permission, feature, and tenant isolation server-side. Load MenuItem.price server-side; never accept Product.defaultPrice or a client price as final selling price.
+**Important Validation / Machine-readable Errors:**  
+AUTHENTICATION_REQUIRED, PERMISSION_DENIED
 
 **Transaction Required?**  
-No
+No.
 
 **Idempotency Required?**  
-No
+No.
 
-**Realtime Impact?**  
+**Realtime Impact:**  
 None.
 
 ### `POST /api/v1/cafe/menus/{menuId}/items`
 
 **Purpose:**  
-Add a product and selling price to a menu.
+Create a MenuItem resource.
 
 **Authentication:**  
-Authenticated.
+Bearer access token.
 
 **Scope:**  
 Tenant
@@ -3582,57 +4184,42 @@ menus.manage
 
 **Path Parameters:**
 
-```json
-{
-  "menuId": "Opaque menuId identifier"
-}
+```ts
+type PathParameters = { menuId: string };
 ```
 
 **Query Parameters:**
 
-```json
-{}
-```
+None.
 
-**Request Body:**
+**Request DTO:**  
+`CreateMenuItemRequest`
 
-```json
-{
-  "productId": "id",
-  "price": 0,
-  "available": true,
-  "sortOrder": 0
-}
-```
+**Response DTO:**  
+`ApiSuccess<MenuItemDto>`
 
-**Response:**
+**Success Status:**  
+201
 
-```json
-{
-  "success": true,
-  "data": "MenuItem result"
-}
-```
-
-**Important Validation:**  
-Validate authentication, scope, permission, feature, and tenant isolation server-side. Load MenuItem.price server-side; never accept Product.defaultPrice or a client price as final selling price.
+**Important Validation / Machine-readable Errors:**  
+AUTHENTICATION_REQUIRED, PERMISSION_DENIED
 
 **Transaction Required?**  
-No
+No.
 
 **Idempotency Required?**  
-No
+No.
 
-**Realtime Impact?**  
+**Realtime Impact:**  
 None.
 
 ### `PATCH /api/v1/cafe/menus/{menuId}/items/{menuItemId}`
 
 **Purpose:**  
-Update authoritative menu-item selling price or availability.
+Partially update the selected MenuItem resource.
 
 **Authentication:**  
-Authenticated.
+Bearer access token.
 
 **Scope:**  
 Tenant
@@ -3645,58 +4232,42 @@ menus.manage
 
 **Path Parameters:**
 
-```json
-{
-  "menuId": "Opaque menuId identifier",
-  "menuItemId": "Opaque menuItemId identifier"
-}
+```ts
+type PathParameters = { menuId: string; menuItemId: string };
 ```
 
 **Query Parameters:**
 
-```json
-{}
-```
+None.
 
-**Request Body:**
+**Request DTO:**  
+`UpdateMenuItemRequest`
 
-```json
-{
-  "price": 0,
-  "available": true,
-  "sortOrder": 0,
-  "version": "integer"
-}
-```
+**Response DTO:**  
+`ApiSuccess<MenuItemDto>`
 
-**Response:**
+**Success Status:**  
+200
 
-```json
-{
-  "success": true,
-  "data": "MenuItem result"
-}
-```
-
-**Important Validation:**  
-Validate authentication, scope, permission, feature, and tenant isolation server-side. Load MenuItem.price server-side; never accept Product.defaultPrice or a client price as final selling price.
+**Important Validation / Machine-readable Errors:**  
+AUTHENTICATION_REQUIRED, PERMISSION_DENIED, VERSION_CONFLICT
 
 **Transaction Required?**  
-No
+No.
 
 **Idempotency Required?**  
-No
+No.
 
-**Realtime Impact?**  
+**Realtime Impact:**  
 None.
 
 ### `DELETE /api/v1/cafe/menus/{menuId}/items/{menuItemId}`
 
 **Purpose:**  
-Remove an item from a menu.
+Delete or revoke the selected MenuItem resource.
 
 **Authentication:**  
-Authenticated.
+Bearer access token.
 
 **Scope:**  
 Tenant
@@ -3709,53 +4280,42 @@ menus.manage
 
 **Path Parameters:**
 
-```json
-{
-  "menuId": "Opaque menuId identifier",
-  "menuItemId": "Opaque menuItemId identifier"
-}
+```ts
+type PathParameters = { menuId: string; menuItemId: string };
 ```
 
 **Query Parameters:**
 
-```json
-{}
-```
+None.
 
-**Request Body:**
+**Request DTO:**  
+Empty body (`{}`).
 
-```json
-{}
-```
+**Response DTO:**  
+Empty response body.
 
-**Response:**
+**Success Status:**  
+204
 
-```json
-{
-  "success": true,
-  "data": "MenuItem result"
-}
-```
-
-**Important Validation:**  
-Validate authentication, scope, permission, feature, and tenant isolation server-side. Load MenuItem.price server-side; never accept Product.defaultPrice or a client price as final selling price.
+**Important Validation / Machine-readable Errors:**  
+AUTHENTICATION_REQUIRED, PERMISSION_DENIED
 
 **Transaction Required?**  
-No
+No.
 
 **Idempotency Required?**  
-No
+No.
 
-**Realtime Impact?**  
+**Realtime Impact:**  
 None.
 
 ### `PUT /api/v1/cafe/menus/{menuId}/items/order`
 
 **Purpose:**  
-Replace menu-item ordering.
+Replace or assign the selected MenuItem configuration.
 
 **Authentication:**  
-Authenticated.
+Bearer access token.
 
 **Scope:**  
 Tenant
@@ -3768,50 +4328,33 @@ menus.manage
 
 **Path Parameters:**
 
-```json
-{
-  "menuId": "Opaque menuId identifier"
-}
+```ts
+type PathParameters = { menuId: string };
 ```
 
 **Query Parameters:**
 
-```json
-{}
-```
+None.
 
-**Request Body:**
+**Request DTO:**  
+`ReorderMenuItemsRequest`
 
-```json
-{
-  "items": [
-    {
-      "menuItemId": "id",
-      "sortOrder": 0
-    }
-  ]
-}
-```
+**Response DTO:**  
+`ApiSuccess<MenuItemDto>`
 
-**Response:**
+**Success Status:**  
+200
 
-```json
-{
-  "success": true,
-  "data": "MenuItem result"
-}
-```
-
-**Important Validation:**  
-Validate authentication, scope, permission, feature, and tenant isolation server-side. Load MenuItem.price server-side; never accept Product.defaultPrice or a client price as final selling price.
+**Important Validation / Machine-readable Errors:**  
+AUTHENTICATION_REQUIRED, PERMISSION_DENIED, VERSION_CONFLICT
 
 **Transaction Required?**  
-No
+No.
 
 **Idempotency Required?**  
-No
+No.
 
-**Realtime Impact?**  
+**Realtime Impact:**  
 None.
 
 ## 13. Modifier Endpoints
@@ -3819,10 +4362,10 @@ None.
 ### `GET /api/v1/cafe/modifier-groups`
 
 **Purpose:**  
-List modifier groups.
+List or return the authorized Modifier representation required by this route.
 
 **Authentication:**  
-Authenticated.
+Bearer access token.
 
 **Scope:**  
 Tenant
@@ -3835,64 +4378,42 @@ products.view
 
 **Path Parameters:**
 
-```json
-{}
-```
+None.
 
 **Query Parameters:**
 
-```json
-{
-  "page": 1,
-  "pageSize": 25,
-  "search": "optional",
-  "sortBy": "optional",
-  "sortOrder": "asc | desc",
-  "from": "optional ISO date",
-  "to": "optional ISO date"
-}
+```ts
+type QueryParameters = { productId?: string; active?: boolean };
 ```
 
-**Request Body:**
+**Request DTO:**  
+Empty body (`{}`).
 
-```json
-{}
-```
+**Response DTO:**  
+`ApiSuccess<ModifierGroupDto[]>`
 
-**Response:**
+**Success Status:**  
+200
 
-```json
-{
-  "success": true,
-  "data": [],
-  "meta": {
-    "page": 1,
-    "pageSize": 25,
-    "total": 0,
-    "totalPages": 0
-  }
-}
-```
-
-**Important Validation:**  
-Validate authentication, scope, permission, feature, and tenant isolation server-side.
+**Important Validation / Machine-readable Errors:**  
+AUTHENTICATION_REQUIRED, PERMISSION_DENIED
 
 **Transaction Required?**  
-No
+No.
 
 **Idempotency Required?**  
-No
+No.
 
-**Realtime Impact?**  
+**Realtime Impact:**  
 None.
 
 ### `POST /api/v1/cafe/modifier-groups`
 
 **Purpose:**  
-Create a modifier group.
+Create a Modifier resource.
 
 **Authentication:**  
-Authenticated.
+Bearer access token.
 
 **Scope:**  
 Tenant
@@ -3905,53 +4426,42 @@ products.create
 
 **Path Parameters:**
 
-```json
-{}
-```
+None.
 
 **Query Parameters:**
 
-```json
-{}
+```ts
+type QueryParameters = { productId?: string; active?: boolean };
 ```
 
-**Request Body:**
+**Request DTO:**  
+`CreateModifierGroupRequest`
 
-```json
-{
-  "fields": "Current Modifier domain fields",
-  "version": "Required on conflicting updates when applicable"
-}
-```
+**Response DTO:**  
+`ApiSuccess<ModifierGroupDto[]>`
 
-**Response:**
+**Success Status:**  
+201
 
-```json
-{
-  "success": true,
-  "data": "Modifier result"
-}
-```
-
-**Important Validation:**  
-Validate authentication, scope, permission, feature, and tenant isolation server-side.
+**Important Validation / Machine-readable Errors:**  
+AUTHENTICATION_REQUIRED, PERMISSION_DENIED
 
 **Transaction Required?**  
-No
+No.
 
 **Idempotency Required?**  
-No
+No.
 
-**Realtime Impact?**  
+**Realtime Impact:**  
 None.
 
 ### `GET /api/v1/cafe/modifier-groups/{modifierGroupId}`
 
 **Purpose:**  
-Return a modifier group.
+Return the authorized Modifier representation.
 
 **Authentication:**  
-Authenticated.
+Bearer access token.
 
 **Scope:**  
 Tenant
@@ -3964,52 +4474,42 @@ products.view
 
 **Path Parameters:**
 
-```json
-{
-  "modifierGroupId": "Opaque modifierGroupId identifier"
-}
+```ts
+type PathParameters = { modifierGroupId: string };
 ```
 
 **Query Parameters:**
 
-```json
-{}
-```
+None.
 
-**Request Body:**
+**Request DTO:**  
+Empty body (`{}`).
 
-```json
-{}
-```
+**Response DTO:**  
+`ApiSuccess<ModifierGroupDto>`
 
-**Response:**
+**Success Status:**  
+200
 
-```json
-{
-  "success": true,
-  "data": "Modifier result"
-}
-```
-
-**Important Validation:**  
-Validate authentication, scope, permission, feature, and tenant isolation server-side.
+**Important Validation / Machine-readable Errors:**  
+AUTHENTICATION_REQUIRED, PERMISSION_DENIED
 
 **Transaction Required?**  
-No
+No.
 
 **Idempotency Required?**  
-No
+No.
 
-**Realtime Impact?**  
+**Realtime Impact:**  
 None.
 
 ### `PATCH /api/v1/cafe/modifier-groups/{modifierGroupId}`
 
 **Purpose:**  
-Update options, limits, assignments, or availability.
+Partially update the selected Modifier resource.
 
 **Authentication:**  
-Authenticated.
+Bearer access token.
 
 **Scope:**  
 Tenant
@@ -4022,55 +4522,42 @@ products.update
 
 **Path Parameters:**
 
-```json
-{
-  "modifierGroupId": "Opaque modifierGroupId identifier"
-}
+```ts
+type PathParameters = { modifierGroupId: string };
 ```
 
 **Query Parameters:**
 
-```json
-{}
-```
+None.
 
-**Request Body:**
+**Request DTO:**  
+`UpdateModifierGroupRequest`
 
-```json
-{
-  "fields": "Current Modifier domain fields",
-  "version": "Required on conflicting updates when applicable"
-}
-```
+**Response DTO:**  
+`ApiSuccess<ModifierGroupDto>`
 
-**Response:**
+**Success Status:**  
+200
 
-```json
-{
-  "success": true,
-  "data": "Modifier result"
-}
-```
-
-**Important Validation:**  
-Validate authentication, scope, permission, feature, and tenant isolation server-side.
+**Important Validation / Machine-readable Errors:**  
+AUTHENTICATION_REQUIRED, PERMISSION_DENIED, VERSION_CONFLICT
 
 **Transaction Required?**  
-No
+No.
 
 **Idempotency Required?**  
-No
+No.
 
-**Realtime Impact?**  
+**Realtime Impact:**  
 None.
 
 ### `DELETE /api/v1/cafe/modifier-groups/{modifierGroupId}`
 
 **Purpose:**  
-Delete an unused modifier group.
+Delete or revoke the selected Modifier resource.
 
 **Authentication:**  
-Authenticated.
+Bearer access token.
 
 **Scope:**  
 Tenant
@@ -4083,43 +4570,33 @@ products.delete
 
 **Path Parameters:**
 
-```json
-{
-  "modifierGroupId": "Opaque modifierGroupId identifier"
-}
+```ts
+type PathParameters = { modifierGroupId: string };
 ```
 
 **Query Parameters:**
 
-```json
-{}
-```
+None.
 
-**Request Body:**
+**Request DTO:**  
+Empty body (`{}`).
 
-```json
-{}
-```
+**Response DTO:**  
+Empty response body.
 
-**Response:**
+**Success Status:**  
+204
 
-```json
-{
-  "success": true,
-  "data": "Modifier result"
-}
-```
-
-**Important Validation:**  
-Validate authentication, scope, permission, feature, and tenant isolation server-side.
+**Important Validation / Machine-readable Errors:**  
+AUTHENTICATION_REQUIRED, PERMISSION_DENIED
 
 **Transaction Required?**  
-No
+No.
 
 **Idempotency Required?**  
-No
+No.
 
-**Realtime Impact?**  
+**Realtime Impact:**  
 None.
 
 ## 14. Recipe Endpoints
@@ -4127,10 +4604,10 @@ None.
 ### `GET /api/v1/cafe/recipes`
 
 **Purpose:**  
-List product recipes.
+List or return the authorized Recipe representation required by this route.
 
 **Authentication:**  
-Authenticated.
+Bearer access token.
 
 **Scope:**  
 Tenant
@@ -4143,64 +4620,42 @@ recipes
 
 **Path Parameters:**
 
-```json
-{}
-```
+None.
 
 **Query Parameters:**
 
-```json
-{
-  "page": 1,
-  "pageSize": 25,
-  "search": "optional",
-  "sortBy": "optional",
-  "sortOrder": "asc | desc",
-  "from": "optional ISO date",
-  "to": "optional ISO date"
-}
+```ts
+type QueryParameters = { productId?: string };
 ```
 
-**Request Body:**
+**Request DTO:**  
+Empty body (`{}`).
 
-```json
-{}
-```
+**Response DTO:**  
+`ApiSuccess<RecipeDto[]>`
 
-**Response:**
+**Success Status:**  
+200
 
-```json
-{
-  "success": true,
-  "data": [],
-  "meta": {
-    "page": 1,
-    "pageSize": 25,
-    "total": 0,
-    "totalPages": 0
-  }
-}
-```
-
-**Important Validation:**  
-Validate authentication, scope, permission, feature, and tenant isolation server-side.
+**Important Validation / Machine-readable Errors:**  
+AUTHENTICATION_REQUIRED, PERMISSION_DENIED, FEATURE_DISABLED
 
 **Transaction Required?**  
-No
+No.
 
 **Idempotency Required?**  
-No
+No.
 
-**Realtime Impact?**  
+**Realtime Impact:**  
 None.
 
 ### `GET /api/v1/cafe/products/{productId}/recipe`
 
 **Purpose:**  
-Return a product recipe.
+List or return the authorized Recipe representation required by this route.
 
 **Authentication:**  
-Authenticated.
+Bearer access token.
 
 **Scope:**  
 Tenant
@@ -4213,66 +4668,42 @@ recipes
 
 **Path Parameters:**
 
-```json
-{
-  "productId": "Opaque productId identifier"
-}
+```ts
+type PathParameters = { productId: string };
 ```
 
 **Query Parameters:**
 
-```json
-{
-  "page": 1,
-  "pageSize": 25,
-  "search": "optional",
-  "sortBy": "optional",
-  "sortOrder": "asc | desc",
-  "from": "optional ISO date",
-  "to": "optional ISO date"
-}
-```
+None.
 
-**Request Body:**
+**Request DTO:**  
+Empty body (`{}`).
 
-```json
-{}
-```
+**Response DTO:**  
+`ApiSuccess<RecipeDto>`
 
-**Response:**
+**Success Status:**  
+200
 
-```json
-{
-  "success": true,
-  "data": [],
-  "meta": {
-    "page": 1,
-    "pageSize": 25,
-    "total": 0,
-    "totalPages": 0
-  }
-}
-```
-
-**Important Validation:**  
-Validate authentication, scope, permission, feature, and tenant isolation server-side.
+**Important Validation / Machine-readable Errors:**  
+AUTHENTICATION_REQUIRED, PERMISSION_DENIED, FEATURE_DISABLED
 
 **Transaction Required?**  
-No
+No.
 
 **Idempotency Required?**  
-No
+No.
 
-**Realtime Impact?**  
+**Realtime Impact:**  
 None.
 
 ### `PUT /api/v1/cafe/products/{productId}/recipe`
 
 **Purpose:**  
-Create or replace a product recipe.
+Replace or assign the selected Recipe configuration.
 
 **Authentication:**  
-Authenticated.
+Bearer access token.
 
 **Scope:**  
 Tenant
@@ -4285,55 +4716,42 @@ recipes
 
 **Path Parameters:**
 
-```json
-{
-  "productId": "Opaque productId identifier"
-}
+```ts
+type PathParameters = { productId: string };
 ```
 
 **Query Parameters:**
 
-```json
-{}
-```
+None.
 
-**Request Body:**
+**Request DTO:**  
+`UpdateRecipeRequest`
 
-```json
-{
-  "fields": "Current Recipe domain fields",
-  "version": "Required on conflicting updates when applicable"
-}
-```
+**Response DTO:**  
+`ApiSuccess<RecipeDto>`
 
-**Response:**
+**Success Status:**  
+200
 
-```json
-{
-  "success": true,
-  "data": "Recipe result"
-}
-```
-
-**Important Validation:**  
-Validate authentication, scope, permission, feature, and tenant isolation server-side.
+**Important Validation / Machine-readable Errors:**  
+AUTHENTICATION_REQUIRED, PERMISSION_DENIED, FEATURE_DISABLED, VERSION_CONFLICT
 
 **Transaction Required?**  
-No
+No.
 
 **Idempotency Required?**  
-No
+No.
 
-**Realtime Impact?**  
+**Realtime Impact:**  
 None.
 
 ### `DELETE /api/v1/cafe/products/{productId}/recipe`
 
 **Purpose:**  
-Remove a product recipe.
+Delete or revoke the selected Recipe resource.
 
 **Authentication:**  
-Authenticated.
+Bearer access token.
 
 **Scope:**  
 Tenant
@@ -4346,43 +4764,33 @@ recipes
 
 **Path Parameters:**
 
-```json
-{
-  "productId": "Opaque productId identifier"
-}
+```ts
+type PathParameters = { productId: string };
 ```
 
 **Query Parameters:**
 
-```json
-{}
-```
+None.
 
-**Request Body:**
+**Request DTO:**  
+Empty body (`{}`).
 
-```json
-{}
-```
+**Response DTO:**  
+Empty response body.
 
-**Response:**
+**Success Status:**  
+204
 
-```json
-{
-  "success": true,
-  "data": "Recipe result"
-}
-```
-
-**Important Validation:**  
-Validate authentication, scope, permission, feature, and tenant isolation server-side.
+**Important Validation / Machine-readable Errors:**  
+AUTHENTICATION_REQUIRED, PERMISSION_DENIED, FEATURE_DISABLED
 
 **Transaction Required?**  
-No
+No.
 
 **Idempotency Required?**  
-No
+No.
 
-**Realtime Impact?**  
+**Realtime Impact:**  
 None.
 
 ## 15. Table Endpoints
@@ -4390,10 +4798,10 @@ None.
 ### `GET /api/v1/cafe/branches/{branchId}/tables`
 
 **Purpose:**  
-List branch tables.
+List or return the authorized Table representation required by this route.
 
 **Authentication:**  
-Authenticated.
+Bearer access token.
 
 **Scope:**  
 Branch
@@ -4406,66 +4814,44 @@ tables
 
 **Path Parameters:**
 
-```json
-{
-  "branchId": "Opaque branchId identifier"
-}
+```ts
+type PathParameters = { branchId: string };
 ```
 
 **Query Parameters:**
 
-```json
-{
-  "page": 1,
-  "pageSize": 25,
-  "search": "optional",
-  "sortBy": "optional",
-  "sortOrder": "asc | desc",
-  "from": "optional ISO date",
-  "to": "optional ISO date"
-}
+```ts
+type QueryParameters = { search?: string; isActive?: boolean };
 ```
 
-**Request Body:**
+**Request DTO:**  
+Empty body (`{}`).
 
-```json
-{}
-```
+**Response DTO:**  
+`ApiSuccess<TableDto>`
 
-**Response:**
+**Success Status:**  
+200
 
-```json
-{
-  "success": true,
-  "data": [],
-  "meta": {
-    "page": 1,
-    "pageSize": 25,
-    "total": 0,
-    "totalPages": 0
-  }
-}
-```
-
-**Important Validation:**  
-Validate authentication, scope, permission, feature, and tenant isolation server-side. Validate employee branch access and resource ownership.
+**Important Validation / Machine-readable Errors:**  
+AUTHENTICATION_REQUIRED, PERMISSION_DENIED, FEATURE_DISABLED, BRANCH_ACCESS_DENIED
 
 **Transaction Required?**  
-No
+No.
 
 **Idempotency Required?**  
-No
+No.
 
-**Realtime Impact?**  
+**Realtime Impact:**  
 None.
 
 ### `POST /api/v1/cafe/branches/{branchId}/tables`
 
 **Purpose:**  
-Create a branch table.
+Create a Table resource.
 
 **Authentication:**  
-Authenticated.
+Bearer access token.
 
 **Scope:**  
 Branch
@@ -4478,55 +4864,44 @@ tables
 
 **Path Parameters:**
 
-```json
-{
-  "branchId": "Opaque branchId identifier"
-}
+```ts
+type PathParameters = { branchId: string };
 ```
 
 **Query Parameters:**
 
-```json
-{}
+```ts
+type QueryParameters = { search?: string; isActive?: boolean };
 ```
 
-**Request Body:**
+**Request DTO:**  
+`CreateTableRequest`
 
-```json
-{
-  "fields": "Current Table domain fields",
-  "version": "Required on conflicting updates when applicable"
-}
-```
+**Response DTO:**  
+`ApiSuccess<TableDto>`
 
-**Response:**
+**Success Status:**  
+201
 
-```json
-{
-  "success": true,
-  "data": "Table result"
-}
-```
-
-**Important Validation:**  
-Validate authentication, scope, permission, feature, and tenant isolation server-side. Validate employee branch access and resource ownership.
+**Important Validation / Machine-readable Errors:**  
+AUTHENTICATION_REQUIRED, PERMISSION_DENIED, FEATURE_DISABLED, BRANCH_ACCESS_DENIED, BRANCH_LIMIT_EXCEEDED
 
 **Transaction Required?**  
-No
+No.
 
 **Idempotency Required?**  
-No
+No.
 
-**Realtime Impact?**  
+**Realtime Impact:**  
 None.
 
 ### `GET /api/v1/cafe/branches/{branchId}/tables/{tableId}`
 
 **Purpose:**  
-Return a branch table.
+Return the authorized Table representation.
 
 **Authentication:**  
-Authenticated.
+Bearer access token.
 
 **Scope:**  
 Branch
@@ -4539,53 +4914,42 @@ tables
 
 **Path Parameters:**
 
-```json
-{
-  "branchId": "Opaque branchId identifier",
-  "tableId": "Opaque tableId identifier"
-}
+```ts
+type PathParameters = { branchId: string; tableId: string };
 ```
 
 **Query Parameters:**
 
-```json
-{}
-```
+None.
 
-**Request Body:**
+**Request DTO:**  
+Empty body (`{}`).
 
-```json
-{}
-```
+**Response DTO:**  
+`ApiSuccess<TableDto>`
 
-**Response:**
+**Success Status:**  
+200
 
-```json
-{
-  "success": true,
-  "data": "Table result"
-}
-```
-
-**Important Validation:**  
-Validate authentication, scope, permission, feature, and tenant isolation server-side. Validate employee branch access and resource ownership.
+**Important Validation / Machine-readable Errors:**  
+AUTHENTICATION_REQUIRED, PERMISSION_DENIED, FEATURE_DISABLED, BRANCH_ACCESS_DENIED
 
 **Transaction Required?**  
-No
+No.
 
 **Idempotency Required?**  
-No
+No.
 
-**Realtime Impact?**  
+**Realtime Impact:**  
 None.
 
 ### `PATCH /api/v1/cafe/branches/{branchId}/tables/{tableId}`
 
 **Purpose:**  
-Update a branch table.
+Partially update the selected Table resource.
 
 **Authentication:**  
-Authenticated.
+Bearer access token.
 
 **Scope:**  
 Branch
@@ -4598,56 +4962,42 @@ tables
 
 **Path Parameters:**
 
-```json
-{
-  "branchId": "Opaque branchId identifier",
-  "tableId": "Opaque tableId identifier"
-}
+```ts
+type PathParameters = { branchId: string; tableId: string };
 ```
 
 **Query Parameters:**
 
-```json
-{}
-```
+None.
 
-**Request Body:**
+**Request DTO:**  
+`UpdateTableRequest`
 
-```json
-{
-  "fields": "Current Table domain fields",
-  "version": "Required on conflicting updates when applicable"
-}
-```
+**Response DTO:**  
+`ApiSuccess<TableDto>`
 
-**Response:**
+**Success Status:**  
+200
 
-```json
-{
-  "success": true,
-  "data": "Table result"
-}
-```
-
-**Important Validation:**  
-Validate authentication, scope, permission, feature, and tenant isolation server-side. Validate employee branch access and resource ownership.
+**Important Validation / Machine-readable Errors:**  
+AUTHENTICATION_REQUIRED, PERMISSION_DENIED, FEATURE_DISABLED, BRANCH_ACCESS_DENIED, VERSION_CONFLICT
 
 **Transaction Required?**  
-No
+No.
 
 **Idempotency Required?**  
-No
+No.
 
-**Realtime Impact?**  
+**Realtime Impact:**  
 None.
 
 ### `DELETE /api/v1/cafe/branches/{branchId}/tables/{tableId}`
 
 **Purpose:**  
-Delete an unused branch table.
+Delete or revoke the selected Table resource.
 
 **Authentication:**  
-Authenticated.
+Bearer access token.
 
 **Scope:**  
 Branch
@@ -4660,44 +5010,33 @@ tables
 
 **Path Parameters:**
 
-```json
-{
-  "branchId": "Opaque branchId identifier",
-  "tableId": "Opaque tableId identifier"
-}
+```ts
+type PathParameters = { branchId: string; tableId: string };
 ```
 
 **Query Parameters:**
 
-```json
-{}
-```
+None.
 
-**Request Body:**
+**Request DTO:**  
+Empty body (`{}`).
 
-```json
-{}
-```
+**Response DTO:**  
+Empty response body.
 
-**Response:**
+**Success Status:**  
+204
 
-```json
-{
-  "success": true,
-  "data": "Table result"
-}
-```
-
-**Important Validation:**  
-Validate authentication, scope, permission, feature, and tenant isolation server-side. Validate employee branch access and resource ownership.
+**Important Validation / Machine-readable Errors:**  
+AUTHENTICATION_REQUIRED, PERMISSION_DENIED, FEATURE_DISABLED, BRANCH_ACCESS_DENIED
 
 **Transaction Required?**  
-No
+No.
 
 **Idempotency Required?**  
-No
+No.
 
-**Realtime Impact?**  
+**Realtime Impact:**  
 None.
 
 ## 16. QR Endpoints
@@ -4705,10 +5044,10 @@ None.
 ### `GET /api/v1/cafe/branches/{branchId}/tables/{tableId}/qr-token`
 
 **Purpose:**  
-Return QR-token metadata without exposing secrets unnecessarily.
+List or return the authorized QR representation required by this route.
 
 **Authentication:**  
-Authenticated.
+Bearer access token.
 
 **Scope:**  
 Branch
@@ -4721,67 +5060,42 @@ qrOrdering
 
 **Path Parameters:**
 
-```json
-{
-  "branchId": "Opaque branchId identifier",
-  "tableId": "Opaque tableId identifier"
-}
+```ts
+type PathParameters = { branchId: string; tableId: string };
 ```
 
 **Query Parameters:**
 
-```json
-{
-  "page": 1,
-  "pageSize": 25,
-  "search": "optional",
-  "sortBy": "optional",
-  "sortOrder": "asc | desc",
-  "from": "optional ISO date",
-  "to": "optional ISO date"
-}
-```
+None.
 
-**Request Body:**
+**Request DTO:**  
+Empty body (`{}`).
 
-```json
-{}
-```
+**Response DTO:**  
+`ApiSuccess<QrTokenDto>`
 
-**Response:**
+**Success Status:**  
+200
 
-```json
-{
-  "success": true,
-  "data": [],
-  "meta": {
-    "page": 1,
-    "pageSize": 25,
-    "total": 0,
-    "totalPages": 0
-  }
-}
-```
-
-**Important Validation:**  
-Validate authentication, scope, permission, feature, and tenant isolation server-side. Validate employee branch access and resource ownership.
+**Important Validation / Machine-readable Errors:**  
+AUTHENTICATION_REQUIRED, PERMISSION_DENIED, FEATURE_DISABLED, BRANCH_ACCESS_DENIED
 
 **Transaction Required?**  
-No
+No.
 
 **Idempotency Required?**  
-No
+No.
 
-**Realtime Impact?**  
+**Realtime Impact:**  
 None.
 
 ### `PUT /api/v1/cafe/branches/{branchId}/tables/{tableId}/qr-token`
 
 **Purpose:**  
-Create or rotate an opaque table QR token.
+Replace or assign the selected QR configuration.
 
 **Authentication:**  
-Authenticated.
+Bearer access token.
 
 **Scope:**  
 Branch
@@ -4794,55 +5108,42 @@ qrOrdering
 
 **Path Parameters:**
 
-```json
-{
-  "branchId": "Opaque branchId identifier",
-  "tableId": "Opaque tableId identifier"
-}
+```ts
+type PathParameters = { branchId: string; tableId: string };
 ```
 
 **Query Parameters:**
 
-```json
-{}
-```
+None.
 
-**Request Body:**
+**Request DTO:**  
+`RotateQrTokenRequest`
 
-```json
-{
-  "rotate": true
-}
-```
+**Response DTO:**  
+`ApiSuccess<QrTokenDto>`
 
-**Response:**
+**Success Status:**  
+200
 
-```json
-{
-  "success": true,
-  "data": "QR result"
-}
-```
-
-**Important Validation:**  
-Validate authentication, scope, permission, feature, and tenant isolation server-side. Validate employee branch access and resource ownership.
+**Important Validation / Machine-readable Errors:**  
+AUTHENTICATION_REQUIRED, PERMISSION_DENIED, FEATURE_DISABLED, BRANCH_ACCESS_DENIED, VERSION_CONFLICT
 
 **Transaction Required?**  
-No
+No.
 
 **Idempotency Required?**  
-No
+No.
 
-**Realtime Impact?**  
+**Realtime Impact:**  
 None.
 
 ### `DELETE /api/v1/cafe/branches/{branchId}/tables/{tableId}/qr-token`
 
 **Purpose:**  
-Revoke a table QR token.
+Delete or revoke the selected QR resource.
 
 **Authentication:**  
-Authenticated.
+Bearer access token.
 
 **Scope:**  
 Branch
@@ -4855,53 +5156,42 @@ qrOrdering
 
 **Path Parameters:**
 
-```json
-{
-  "branchId": "Opaque branchId identifier",
-  "tableId": "Opaque tableId identifier"
-}
+```ts
+type PathParameters = { branchId: string; tableId: string };
 ```
 
 **Query Parameters:**
 
-```json
-{}
-```
+None.
 
-**Request Body:**
+**Request DTO:**  
+Empty body (`{}`).
 
-```json
-{}
-```
+**Response DTO:**  
+Empty response body.
 
-**Response:**
+**Success Status:**  
+204
 
-```json
-{
-  "success": true,
-  "data": "QR result"
-}
-```
-
-**Important Validation:**  
-Validate authentication, scope, permission, feature, and tenant isolation server-side. Validate employee branch access and resource ownership.
+**Important Validation / Machine-readable Errors:**  
+AUTHENTICATION_REQUIRED, PERMISSION_DENIED, FEATURE_DISABLED, BRANCH_ACCESS_DENIED
 
 **Transaction Required?**  
-No
+No.
 
 **Idempotency Required?**  
-No
+No.
 
-**Realtime Impact?**  
+**Realtime Impact:**  
 None.
 
 ### `GET /api/v1/cafe/branches/{branchId}/cashier-qr`
 
 **Purpose:**  
-Return cashier QR configuration.
+List or return the authorized QR representation required by this route.
 
 **Authentication:**  
-Authenticated.
+Bearer access token.
 
 **Scope:**  
 Branch
@@ -4914,66 +5204,42 @@ qrOrdering
 
 **Path Parameters:**
 
-```json
-{
-  "branchId": "Opaque branchId identifier"
-}
+```ts
+type PathParameters = { branchId: string };
 ```
 
 **Query Parameters:**
 
-```json
-{
-  "page": 1,
-  "pageSize": 25,
-  "search": "optional",
-  "sortBy": "optional",
-  "sortOrder": "asc | desc",
-  "from": "optional ISO date",
-  "to": "optional ISO date"
-}
-```
+None.
 
-**Request Body:**
+**Request DTO:**  
+Empty body (`{}`).
 
-```json
-{}
-```
+**Response DTO:**  
+`ApiSuccess<CashierQrConfigDto>`
 
-**Response:**
+**Success Status:**  
+200
 
-```json
-{
-  "success": true,
-  "data": [],
-  "meta": {
-    "page": 1,
-    "pageSize": 25,
-    "total": 0,
-    "totalPages": 0
-  }
-}
-```
-
-**Important Validation:**  
-Validate authentication, scope, permission, feature, and tenant isolation server-side. Validate employee branch access and resource ownership.
+**Important Validation / Machine-readable Errors:**  
+AUTHENTICATION_REQUIRED, PERMISSION_DENIED, FEATURE_DISABLED, BRANCH_ACCESS_DENIED
 
 **Transaction Required?**  
-No
+No.
 
 **Idempotency Required?**  
-No
+No.
 
-**Realtime Impact?**  
+**Realtime Impact:**  
 None.
 
 ### `PUT /api/v1/cafe/branches/{branchId}/cashier-qr`
 
 **Purpose:**  
-Create or replace cashier QR configuration.
+Replace or assign the selected QR configuration.
 
 **Authentication:**  
-Authenticated.
+Bearer access token.
 
 **Scope:**  
 Branch
@@ -4986,55 +5252,42 @@ qrOrdering
 
 **Path Parameters:**
 
-```json
-{
-  "branchId": "Opaque branchId identifier"
-}
+```ts
+type PathParameters = { branchId: string };
 ```
 
 **Query Parameters:**
 
-```json
-{}
-```
+None.
 
-**Request Body:**
+**Request DTO:**  
+`CashierQrConfigDto`
 
-```json
-{
-  "orderType": "TAKEAWAY",
-  "active": true
-}
-```
+**Response DTO:**  
+`ApiSuccess<CashierQrConfigDto>`
 
-**Response:**
+**Success Status:**  
+200
 
-```json
-{
-  "success": true,
-  "data": "QR result"
-}
-```
-
-**Important Validation:**  
-Validate authentication, scope, permission, feature, and tenant isolation server-side. Validate employee branch access and resource ownership.
+**Important Validation / Machine-readable Errors:**  
+AUTHENTICATION_REQUIRED, PERMISSION_DENIED, FEATURE_DISABLED, BRANCH_ACCESS_DENIED, VERSION_CONFLICT
 
 **Transaction Required?**  
-No
+No.
 
 **Idempotency Required?**  
-No
+No.
 
-**Realtime Impact?**  
+**Realtime Impact:**  
 None.
 
 ### `GET /api/v1/customer/qr/{token}`
 
 **Purpose:**  
-Resolve only an opaque table QR token to public Tenant, Branch, and Table context.
+Resolve an opaque table QR token into safe Tenant, Branch, and Table context.
 
 **Authentication:**  
-Public or token-bound as stated.
+Public/token-bound as stated.
 
 **Scope:**  
 Public
@@ -5047,56 +5300,46 @@ qrOrdering
 
 **Path Parameters:**
 
-```json
-{
-  "token": "Opaque token identifier"
-}
+```ts
+type PathParameters = { token: string };
 ```
 
 **Query Parameters:**
 
-```json
-{}
-```
+None.
 
-**Request Body:**
+**Request DTO:**  
+Empty body (`{}`).
 
-```json
-{}
-```
+**Response DTO:**  
+`QrResolveResponse`
 
-**Response:**
+**Success Status:**  
+200
 
-```json
-{
-  "success": true,
-  "data": "QR result"
-}
-```
-
-**Important Validation:**  
-Validate authentication, scope, permission, feature, and tenant isolation server-side. Resolve only an opaque QR token to Tenant + Branch + Table public context.
+**Important Validation / Machine-readable Errors:**  
+QR_TOKEN_INVALID, QR_TOKEN_REVOKED, TABLE_NOT_FOUND, BRANCH_INACTIVE, FEATURE_DISABLED, RATE_LIMITED
 
 **Transaction Required?**  
-No
+No.
 
 **Idempotency Required?**  
-No
+No.
 
-**Realtime Impact?**  
+**Realtime Impact:**  
 None.
 
 ## 17. Public Customer Endpoints
 
-The bundled public menu resolves non-QR Tenant/Branch context. QR Table context must first be resolved through the QR endpoint.
+Public responses exclude internal tenant IDs, employee data, permissions, costs, inventory, and audit data.
 
 ### `GET /api/v1/customer/menu`
 
 **Purpose:**  
-Resolve non-QR Tenant and Branch context and return a bundled public menu.
+Resolve public context and return the complete bundled customer-menu payload.
 
 **Authentication:**  
-Public or token-bound as stated.
+Public/token-bound as stated.
 
 **Scope:**  
 Public
@@ -5105,63 +5348,46 @@ Public
 Public
 
 **Feature:**  
-`onlineMenu` for non-QR context; `qrOrdering` for validated QR context
+`onlineMenu` non-QR / `qrOrdering` QR
 
 **Path Parameters:**
 
-```json
-{}
-```
+None.
 
 **Query Parameters:**
 
-```json
-{
-  "tenantSlug": "Public tenant identifier",
-  "branchSlug": "Optional public branch identifier"
-}
+```ts
+type QueryParameters = { tenantId?: string; branchId?: string; contextToken?: string };
 ```
 
-**Request Body:**
+**Request DTO:**  
+Empty body (`{}`).
 
-```json
-{}
-```
+**Response DTO:**  
+`PublicMenuResponse`
 
-**Response:**
+**Success Status:**  
+200
 
-```json
-{
-  "success": true,
-  "data": [],
-  "meta": {
-    "page": 1,
-    "pageSize": 25,
-    "total": 0,
-    "totalPages": 0
-  }
-}
-```
-
-**Important Validation:**  
-Validate authentication, scope, permission, feature, and tenant isolation server-side. Resolve only non-QR public Tenant/Branch context; reject table QR token responsibility.
+**Important Validation / Machine-readable Errors:**  
+PUBLIC_CONTEXT_INVALID, TENANT_NOT_FOUND, BRANCH_NOT_FOUND, BRANCH_INACTIVE, MENU_NOT_ASSIGNED, FEATURE_DISABLED, RATE_LIMITED
 
 **Transaction Required?**  
-No
+No.
 
 **Idempotency Required?**  
-No
+No.
 
-**Realtime Impact?**  
+**Realtime Impact:**  
 None.
 
 ### `GET /api/v1/customer/products/{productId}`
 
 **Purpose:**  
-Return public-safe product details.
+Return the authorized Public Customer representation.
 
 **Authentication:**  
-Public or token-bound as stated.
+Public/token-bound as stated.
 
 **Scope:**  
 Public
@@ -5170,56 +5396,48 @@ Public
 Public
 
 **Feature:**  
-`onlineMenu` for non-QR context; `qrOrdering` for validated QR context
+`onlineMenu` non-QR / `qrOrdering` QR
 
 **Path Parameters:**
 
-```json
-{
-  "productId": "Opaque productId identifier"
-}
+```ts
+type PathParameters = { productId: string };
 ```
 
 **Query Parameters:**
 
-```json
-{}
+```ts
+type QueryParameters = { contextToken: string };
 ```
 
-**Request Body:**
+**Request DTO:**  
+Empty body (`{}`).
 
-```json
-{}
-```
+**Response DTO:**  
+`ApiSuccess<PublicProductDto>`
 
-**Response:**
+**Success Status:**  
+200
 
-```json
-{
-  "success": true,
-  "data": "Public Customer result"
-}
-```
-
-**Important Validation:**  
-Validate authentication, scope, permission, feature, and tenant isolation server-side.
+**Important Validation / Machine-readable Errors:**  
+PUBLIC_CONTEXT_INVALID, PRODUCT_NOT_IN_MENU, PRODUCT_UNAVAILABLE, FEATURE_DISABLED
 
 **Transaction Required?**  
-No
+No.
 
 **Idempotency Required?**  
-No
+No.
 
-**Realtime Impact?**  
+**Realtime Impact:**  
 None.
 
 ### `GET /api/v1/customer/offers`
 
 **Purpose:**  
-Return active public offers.
+List or return the authorized Public Customer representation required by this route.
 
 **Authentication:**  
-Public or token-bound as stated.
+Public/token-bound as stated.
 
 **Scope:**  
 Public
@@ -5228,68 +5446,46 @@ Public
 Public
 
 **Feature:**  
-`onlineMenu` for non-QR context; `qrOrdering` for validated QR context
+`onlineMenu` non-QR / `qrOrdering` QR
 
 **Path Parameters:**
 
-```json
-{}
-```
+None.
 
 **Query Parameters:**
 
-```json
-{
-  "page": 1,
-  "pageSize": 25,
-  "search": "optional",
-  "sortBy": "optional",
-  "sortOrder": "asc | desc",
-  "from": "optional ISO date",
-  "to": "optional ISO date"
-}
+```ts
+type QueryParameters = { contextToken: string };
 ```
 
-**Request Body:**
+**Request DTO:**  
+Empty body (`{}`).
 
-```json
-{}
-```
+**Response DTO:**  
+`ApiSuccess<PublicOfferDto[]>`
 
-**Response:**
+**Success Status:**  
+200
 
-```json
-{
-  "success": true,
-  "data": [],
-  "meta": {
-    "page": 1,
-    "pageSize": 25,
-    "total": 0,
-    "totalPages": 0
-  }
-}
-```
-
-**Important Validation:**  
-Validate authentication, scope, permission, feature, and tenant isolation server-side.
+**Important Validation / Machine-readable Errors:**  
+PUBLIC_CONTEXT_INVALID, FEATURE_DISABLED
 
 **Transaction Required?**  
-No
+No.
 
 **Idempotency Required?**  
-No
+No.
 
-**Realtime Impact?**  
+**Realtime Impact:**  
 None.
 
 ### `GET /api/v1/customer/offers/{offerId}`
 
 **Purpose:**  
-Return public-safe offer details.
+Return the authorized Public Customer representation.
 
 **Authentication:**  
-Public or token-bound as stated.
+Public/token-bound as stated.
 
 **Scope:**  
 Public
@@ -5298,56 +5494,48 @@ Public
 Public
 
 **Feature:**  
-`onlineMenu` for non-QR context; `qrOrdering` for validated QR context
+`onlineMenu` non-QR / `qrOrdering` QR
 
 **Path Parameters:**
 
-```json
-{
-  "offerId": "Opaque offerId identifier"
-}
+```ts
+type PathParameters = { offerId: string };
 ```
 
 **Query Parameters:**
 
-```json
-{}
+```ts
+type QueryParameters = { contextToken: string };
 ```
 
-**Request Body:**
+**Request DTO:**  
+Empty body (`{}`).
 
-```json
-{}
-```
+**Response DTO:**  
+`ApiSuccess<PublicOfferDto>`
 
-**Response:**
+**Success Status:**  
+200
 
-```json
-{
-  "success": true,
-  "data": "Public Customer result"
-}
-```
-
-**Important Validation:**  
-Validate authentication, scope, permission, feature, and tenant isolation server-side.
+**Important Validation / Machine-readable Errors:**  
+PUBLIC_CONTEXT_INVALID, OFFER_NOT_FOUND, OFFER_INACTIVE, FEATURE_DISABLED
 
 **Transaction Required?**  
-No
+No.
 
 **Idempotency Required?**  
-No
+No.
 
-**Realtime Impact?**  
+**Realtime Impact:**  
 None.
 
 ### `POST /api/v1/customer/orders`
 
 **Purpose:**  
-Create a public customer order through atomic checkout.
+Create an idempotent public order using server-authoritative menu pricing.
 
 **Authentication:**  
-Public or token-bound as stated.
+Public/token-bound as stated.
 
 **Scope:**  
 Public
@@ -5360,74 +5548,40 @@ Conditional by source/type
 
 **Path Parameters:**
 
-```json
-{}
-```
+None.
 
 **Query Parameters:**
 
-```json
-{}
-```
+None.
 
-**Request Body:**
+**Request DTO:**  
+`CustomerOrderRequest`
 
-```json
-{
-  "items": [
-    {
-      "productId": "id",
-      "quantity": 1,
-      "modifierSelections": [
-        "option-id"
-      ]
-    }
-  ],
-  "orderType": "TABLE | TAKEAWAY | DELIVERY",
-  "tableId": "optional",
-  "customerId": "optional",
-  "customerName": "optional",
-  "customerPhone": "optional",
-  "deliveryAddress": "optional",
-  "deliveryZoneId": "optional",
-  "couponCode": "optional",
-  "paymentMethod": "CASH | CARD | WALLET | ONLINE | MIXED",
-  "allocations": "optional",
-  "receivedAmount": "optional",
-  "notes": "optional",
-  "source": "POS | QR_MENU | ONLINE_MENU | MANUAL",
-  "deferPayment": false
-}
-```
+**Response DTO:**  
+`CustomerOrderResponse`
 
-**Response:**
+**Success Status:**  
+201
 
-```json
-{
-  "success": true,
-  "data": "Public Customer result"
-}
-```
-
-**Important Validation:**  
-Validate authentication, scope, permission, feature, and tenant isolation server-side. Load MenuItem.price server-side; never accept Product.defaultPrice or a client price as final selling price. QR_MENU + TABLE requires qrOrdering; ONLINE_MENU + TAKEAWAY requires onlineMenu + takeaway; ONLINE_MENU + DELIVERY requires onlineMenu + delivery.
+**Important Validation / Machine-readable Errors:**  
+PUBLIC_CONTEXT_INVALID, FEATURE_DISABLED, MENU_NOT_ASSIGNED, PRODUCT_NOT_IN_MENU, PRODUCT_UNAVAILABLE, INVALID_MODIFIER_SELECTION, INSUFFICIENT_STOCK, COUPON_INVALID, PAYMENT_METHOD_DISABLED, RATE_LIMITED
 
 **Transaction Required?**  
-Yes
+Yes.
 
 **Idempotency Required?**  
-Yes — Idempotency-Key or verified provider event ID
+Yes — `Idempotency-Key`; payment webhook uses verified provider event ID.
 
-**Realtime Impact?**  
-Publishes order events.
+**Realtime Impact:**  
+Publishes the applicable order lifecycle event.
 
 ### `GET /api/v1/customer/orders/{publicOrderToken}`
 
 **Purpose:**  
-Return public-safe order tracking data.
+Return the authorized Public Customer representation.
 
 **Authentication:**  
-Public or token-bound as stated.
+Public/token-bound as stated.
 
 **Scope:**  
 Public
@@ -5440,52 +5594,42 @@ Public order token
 
 **Path Parameters:**
 
-```json
-{
-  "publicOrderToken": "Opaque publicOrderToken identifier"
-}
+```ts
+type PathParameters = { publicOrderToken: string };
 ```
 
 **Query Parameters:**
 
-```json
-{}
-```
+None.
 
-**Request Body:**
+**Request DTO:**  
+Empty body (`{}`).
 
-```json
-{}
-```
+**Response DTO:**  
+`ApiSuccess<PublicOrderDto>`
 
-**Response:**
+**Success Status:**  
+200
 
-```json
-{
-  "success": true,
-  "data": "Public Customer result"
-}
-```
-
-**Important Validation:**  
-Validate authentication, scope, permission, feature, and tenant isolation server-side.
+**Important Validation / Machine-readable Errors:**  
+PUBLIC_ORDER_TOKEN_INVALID, ORDER_NOT_FOUND, RATE_LIMITED
 
 **Transaction Required?**  
-No
+No.
 
 **Idempotency Required?**  
-No
+No.
 
-**Realtime Impact?**  
+**Realtime Impact:**  
 None.
 
 ### `GET /api/v1/customer/orders/{publicOrderToken}/payment-status`
 
 **Purpose:**  
-Synchronize public payment status.
+List or return the authorized Public Customer representation required by this route.
 
 **Authentication:**  
-Public or token-bound as stated.
+Public/token-bound as stated.
 
 **Scope:**  
 Public
@@ -5498,57 +5642,33 @@ Public order token
 
 **Path Parameters:**
 
-```json
-{
-  "publicOrderToken": "Opaque publicOrderToken identifier"
-}
+```ts
+type PathParameters = { publicOrderToken: string };
 ```
 
 **Query Parameters:**
 
-```json
-{
-  "page": 1,
-  "pageSize": 25,
-  "search": "optional",
-  "sortBy": "optional",
-  "sortOrder": "asc | desc",
-  "from": "optional ISO date",
-  "to": "optional ISO date"
-}
-```
+None.
 
-**Request Body:**
+**Request DTO:**  
+Empty body (`{}`).
 
-```json
-{}
-```
+**Response DTO:**  
+`ApiSuccess<{ paymentStatus: PaymentStatus; updatedAt: string }>`
 
-**Response:**
+**Success Status:**  
+200
 
-```json
-{
-  "success": true,
-  "data": [],
-  "meta": {
-    "page": 1,
-    "pageSize": 25,
-    "total": 0,
-    "totalPages": 0
-  }
-}
-```
-
-**Important Validation:**  
-Validate authentication, scope, permission, feature, and tenant isolation server-side.
+**Important Validation / Machine-readable Errors:**  
+PUBLIC_ORDER_TOKEN_INVALID, ORDER_NOT_FOUND, RATE_LIMITED
 
 **Transaction Required?**  
-No
+No.
 
 **Idempotency Required?**  
-No
+No.
 
-**Realtime Impact?**  
+**Realtime Impact:**  
 None.
 
 ## 18. POS / Checkout Endpoints
@@ -5556,10 +5676,10 @@ None.
 ### `POST /api/v1/cafe/branches/{branchId}/checkout/quote`
 
 **Purpose:**  
-Calculate an authoritative non-persistent POS quote.
+Calculate a non-persistent server-authoritative checkout quote.
 
 **Authentication:**  
-Authenticated.
+Bearer access token.
 
 **Scope:**  
 Branch
@@ -5572,66 +5692,42 @@ pos
 
 **Path Parameters:**
 
-```json
-{
-  "branchId": "Opaque branchId identifier"
-}
+```ts
+type PathParameters = { branchId: string };
 ```
 
 **Query Parameters:**
 
-```json
-{}
-```
+None.
 
-**Request Body:**
+**Request DTO:**  
+`CheckoutQuoteRequest`
 
-```json
-{
-  "items": [
-    {
-      "productId": "id",
-      "quantity": 1,
-      "modifierSelections": [
-        "option-id"
-      ]
-    }
-  ],
-  "orderType": "TABLE | TAKEAWAY | DELIVERY",
-  "tableId": "optional",
-  "deliveryZoneId": "optional",
-  "couponCode": "optional"
-}
-```
+**Response DTO:**  
+`ApiSuccess<CheckoutQuoteDto>`
 
-**Response:**
+**Success Status:**  
+200
 
-```json
-{
-  "success": true,
-  "data": "POS / Checkout result"
-}
-```
-
-**Important Validation:**  
-Validate authentication, scope, permission, feature, and tenant isolation server-side. Validate employee branch access and resource ownership. Load MenuItem.price server-side; never accept Product.defaultPrice or a client price as final selling price.
+**Important Validation / Machine-readable Errors:**  
+AUTHENTICATION_REQUIRED, PERMISSION_DENIED, FEATURE_DISABLED, BRANCH_ACCESS_DENIED, BRANCH_LIMIT_EXCEEDED, MENU_NOT_ASSIGNED, PRODUCT_NOT_IN_MENU, PRODUCT_UNAVAILABLE, INVALID_MODIFIER_SELECTION, INSUFFICIENT_STOCK
 
 **Transaction Required?**  
-No
+No.
 
 **Idempotency Required?**  
-No
+No.
 
-**Realtime Impact?**  
-Publishes order events.
+**Realtime Impact:**  
+Publishes the applicable order lifecycle event.
 
 ### `POST /api/v1/cafe/branches/{branchId}/checkout`
 
 **Purpose:**  
-Create a POS order and related financial and inventory records atomically.
+Create the POS order, payment, stock, loyalty, coupon, cash, audit, and notification effects atomically.
 
 **Authentication:**  
-Authenticated.
+Bearer access token.
 
 **Scope:**  
 Branch
@@ -5644,80 +5740,46 @@ pos
 
 **Path Parameters:**
 
-```json
-{
-  "branchId": "Opaque branchId identifier"
-}
+```ts
+type PathParameters = { branchId: string };
 ```
 
 **Query Parameters:**
 
-```json
-{}
-```
+None.
 
-**Request Body:**
+**Request DTO:**  
+`PosCheckoutRequest`
 
-```json
-{
-  "items": [
-    {
-      "productId": "id",
-      "quantity": 1,
-      "modifierSelections": [
-        "option-id"
-      ]
-    }
-  ],
-  "orderType": "TABLE | TAKEAWAY | DELIVERY",
-  "tableId": "optional",
-  "customerId": "optional",
-  "customerName": "optional",
-  "customerPhone": "optional",
-  "deliveryAddress": "optional",
-  "deliveryZoneId": "optional",
-  "couponCode": "optional",
-  "paymentMethod": "CASH | CARD | WALLET | ONLINE | MIXED",
-  "allocations": "optional",
-  "receivedAmount": "optional",
-  "notes": "optional",
-  "source": "POS | QR_MENU | ONLINE_MENU | MANUAL",
-  "deferPayment": false
-}
-```
+**Response DTO:**  
+`CheckoutResponse`
 
-**Response:**
+**Success Status:**  
+201
 
-```json
-{
-  "success": true,
-  "data": "POS / Checkout result"
-}
-```
-
-**Important Validation:**  
-Validate authentication, scope, permission, feature, and tenant isolation server-side. Validate employee branch access and resource ownership. Load MenuItem.price server-side; never accept Product.defaultPrice or a client price as final selling price.
+**Important Validation / Machine-readable Errors:**  
+AUTHENTICATION_REQUIRED, PERMISSION_DENIED, FEATURE_DISABLED, BRANCH_ACCESS_DENIED, BRANCH_LIMIT_EXCEEDED, MENU_NOT_ASSIGNED, PRODUCT_NOT_IN_MENU, PRODUCT_UNAVAILABLE, INVALID_MODIFIER_SELECTION, INSUFFICIENT_STOCK
 
 **Transaction Required?**  
-Yes
+Yes.
 
 **Idempotency Required?**  
-Yes — Idempotency-Key or verified provider event ID
+Yes — `Idempotency-Key`; payment webhook uses verified provider event ID.
 
-**Realtime Impact?**  
-Publishes order events.
+**Realtime Impact:**  
+Publishes the applicable order lifecycle event.
 
 ## 19. Order Endpoints
 
-Order operational status and payment status are separate fields and separate state machines.
+`OrderDto.status` uses `OrderStatus`; `OrderDto.paymentStatus` uses `PaymentStatus`. Refund state never enters operational transition validation.
 
 ### `GET /api/v1/cafe/orders`
 
 **Purpose:**  
-Search orders constrained by accessible branches.
+List or return the authorized Order representation required by this route.
 
 **Authentication:**  
-Authenticated.
+Bearer access token.
 
 **Scope:**  
 Tenant/Branch
@@ -5730,64 +5792,42 @@ orders or kitchen
 
 **Path Parameters:**
 
-```json
-{}
-```
+None.
 
 **Query Parameters:**
 
-```json
-{
-  "page": 1,
-  "pageSize": 25,
-  "search": "optional",
-  "sortBy": "optional",
-  "sortOrder": "asc | desc",
-  "from": "optional ISO date",
-  "to": "optional ISO date"
-}
+```ts
+type QueryParameters = { page?: number; pageSize?: number; search?: string; branchId?: string; status?: OrderStatus; orderType?: OrderType; source?: OrderSource; paymentStatus?: PaymentStatus; customerId?: string; employeeId?: string; from?: string; to?: string };
 ```
 
-**Request Body:**
+**Request DTO:**  
+Empty body (`{}`).
 
-```json
-{}
-```
+**Response DTO:**  
+`Paginated<OrderDto>`
 
-**Response:**
+**Success Status:**  
+200
 
-```json
-{
-  "success": true,
-  "data": [],
-  "meta": {
-    "page": 1,
-    "pageSize": 25,
-    "total": 0,
-    "totalPages": 0
-  }
-}
-```
-
-**Important Validation:**  
-Validate authentication, scope, permission, feature, and tenant isolation server-side. Validate employee branch access and resource ownership.
+**Important Validation / Machine-readable Errors:**  
+AUTHENTICATION_REQUIRED, PERMISSION_DENIED, FEATURE_DISABLED, BRANCH_ACCESS_DENIED
 
 **Transaction Required?**  
-No
+No.
 
 **Idempotency Required?**  
-No
+No.
 
-**Realtime Impact?**  
+**Realtime Impact:**  
 None.
 
 ### `GET /api/v1/cafe/orders/{orderId}`
 
 **Purpose:**  
-Return an authorized order.
+Return the authorized Order representation.
 
 **Authentication:**  
-Authenticated.
+Bearer access token.
 
 **Scope:**  
 Tenant/Branch
@@ -5800,52 +5840,42 @@ orders or kitchen
 
 **Path Parameters:**
 
-```json
-{
-  "orderId": "Opaque orderId identifier"
-}
+```ts
+type PathParameters = { orderId: string };
 ```
 
 **Query Parameters:**
 
-```json
-{}
-```
+None.
 
-**Request Body:**
+**Request DTO:**  
+Empty body (`{}`).
 
-```json
-{}
-```
+**Response DTO:**  
+`ApiSuccess<OrderDto>`
 
-**Response:**
+**Success Status:**  
+200
 
-```json
-{
-  "success": true,
-  "data": "Order result"
-}
-```
-
-**Important Validation:**  
-Validate authentication, scope, permission, feature, and tenant isolation server-side. Validate employee branch access and resource ownership.
+**Important Validation / Machine-readable Errors:**  
+AUTHENTICATION_REQUIRED, PERMISSION_DENIED, FEATURE_DISABLED, BRANCH_ACCESS_DENIED
 
 **Transaction Required?**  
-No
+No.
 
 **Idempotency Required?**  
-No
+No.
 
-**Realtime Impact?**  
+**Realtime Impact:**  
 None.
 
 ### `PATCH /api/v1/cafe/orders/{orderId}/status`
 
 **Purpose:**  
-Perform an operational order-status transition.
+Validate and apply one operational OrderStatus transition.
 
 **Authentication:**  
-Authenticated.
+Bearer access token.
 
 **Scope:**  
 Branch
@@ -5858,56 +5888,42 @@ orders or kitchen
 
 **Path Parameters:**
 
-```json
-{
-  "orderId": "Opaque orderId identifier"
-}
+```ts
+type PathParameters = { orderId: string };
 ```
 
 **Query Parameters:**
 
-```json
-{}
-```
+None.
 
-**Request Body:**
+**Request DTO:**  
+`UpdateOrderStatusRequest`
 
-```json
-{
-  "status": "Allowed domain status",
-  "note": "optional string",
-  "version": "integer"
-}
-```
+**Response DTO:**  
+`ApiSuccess<OrderDto>`
 
-**Response:**
+**Success Status:**  
+200
 
-```json
-{
-  "success": true,
-  "data": "Order result"
-}
-```
-
-**Important Validation:**  
-Validate authentication, scope, permission, feature, and tenant isolation server-side. Validate employee branch access and resource ownership. Allow only NEW, ACCEPTED, PREPARING, READY, COMPLETED, CANCELLED operational transitions; payment/refund states are forbidden.
+**Important Validation / Machine-readable Errors:**  
+AUTHENTICATION_REQUIRED, PERMISSION_DENIED, FEATURE_DISABLED, BRANCH_ACCESS_DENIED, ORDER_INVALID_STATUS_TRANSITION, VERSION_CONFLICT
 
 **Transaction Required?**  
-No
+No.
 
 **Idempotency Required?**  
-No
+No.
 
-**Realtime Impact?**  
-Publishes order events.
+**Realtime Impact:**  
+Publishes the applicable order lifecycle event.
 
 ### `POST /api/v1/cafe/orders/{orderId}/cancellation`
 
 **Purpose:**  
-Cancel an order with a reason and conditional stock restoration.
+Cancel an order and restore eligible inventory atomically.
 
 **Authentication:**  
-Authenticated.
+Bearer access token.
 
 **Scope:**  
 Branch
@@ -5920,54 +5936,42 @@ orders
 
 **Path Parameters:**
 
-```json
-{
-  "orderId": "Opaque orderId identifier"
-}
+```ts
+type PathParameters = { orderId: string };
 ```
 
 **Query Parameters:**
 
-```json
-{}
-```
+None.
 
-**Request Body:**
+**Request DTO:**  
+`CancelOrderRequest`
 
-```json
-{
-  "reason": "string"
-}
-```
+**Response DTO:**  
+`CancelOrderResponse`
 
-**Response:**
+**Success Status:**  
+200
 
-```json
-{
-  "success": true,
-  "data": "Order result"
-}
-```
-
-**Important Validation:**  
-Validate authentication, scope, permission, feature, and tenant isolation server-side. Validate employee branch access and resource ownership.
+**Important Validation / Machine-readable Errors:**  
+AUTHENTICATION_REQUIRED, PERMISSION_DENIED, FEATURE_DISABLED, BRANCH_ACCESS_DENIED, ORDER_ALREADY_CANCELLED, ORDER_INVALID_STATUS_TRANSITION
 
 **Transaction Required?**  
-Yes
+Yes.
 
 **Idempotency Required?**  
-Yes — Idempotency-Key or verified provider event ID
+Yes — `Idempotency-Key`; payment webhook uses verified provider event ID.
 
-**Realtime Impact?**  
-Publishes order events.
+**Realtime Impact:**  
+Publishes the applicable order lifecycle event.
 
 ### `GET /api/v1/cafe/orders/{orderId}/print-data`
 
 **Purpose:**  
-Return normalized receipt-print data.
+Return the authorized Order representation.
 
 **Authentication:**  
-Authenticated.
+Bearer access token.
 
 **Scope:**  
 Branch
@@ -5980,57 +5984,33 @@ orders
 
 **Path Parameters:**
 
-```json
-{
-  "orderId": "Opaque orderId identifier"
-}
+```ts
+type PathParameters = { orderId: string };
 ```
 
 **Query Parameters:**
 
-```json
-{
-  "page": 1,
-  "pageSize": 25,
-  "search": "optional",
-  "sortBy": "optional",
-  "sortOrder": "asc | desc",
-  "from": "optional ISO date",
-  "to": "optional ISO date"
-}
-```
+None.
 
-**Request Body:**
+**Request DTO:**  
+Empty body (`{}`).
 
-```json
-{}
-```
+**Response DTO:**  
+`ApiSuccess<PrintDataDto>`
 
-**Response:**
+**Success Status:**  
+200
 
-```json
-{
-  "success": true,
-  "data": [],
-  "meta": {
-    "page": 1,
-    "pageSize": 25,
-    "total": 0,
-    "totalPages": 0
-  }
-}
-```
-
-**Important Validation:**  
-Validate authentication, scope, permission, feature, and tenant isolation server-side. Validate employee branch access and resource ownership.
+**Important Validation / Machine-readable Errors:**  
+AUTHENTICATION_REQUIRED, PERMISSION_DENIED, FEATURE_DISABLED, BRANCH_ACCESS_DENIED
 
 **Transaction Required?**  
-No
+No.
 
 **Idempotency Required?**  
-No
+No.
 
-**Realtime Impact?**  
+**Realtime Impact:**  
 None.
 
 ## 20. Payment Endpoints
@@ -6038,10 +6018,10 @@ None.
 ### `GET /api/v1/cafe/payments`
 
 **Purpose:**  
-Search payments within accessible branches.
+List or return the authorized Payment representation required by this route.
 
 **Authentication:**  
-Authenticated.
+Bearer access token.
 
 **Scope:**  
 Tenant/Branch
@@ -6054,64 +6034,42 @@ payments.view
 
 **Path Parameters:**
 
-```json
-{}
-```
+None.
 
 **Query Parameters:**
 
-```json
-{
-  "page": 1,
-  "pageSize": 25,
-  "search": "optional",
-  "sortBy": "optional",
-  "sortOrder": "asc | desc",
-  "from": "optional ISO date",
-  "to": "optional ISO date"
-}
+```ts
+type QueryParameters = { page?: number; pageSize?: number; search?: string; branchId?: string; method?: PaymentMethod; status?: PaymentStatus; orderId?: string; customerId?: string; employeeId?: string; from?: string; to?: string };
 ```
 
-**Request Body:**
+**Request DTO:**  
+Empty body (`{}`).
 
-```json
-{}
-```
+**Response DTO:**  
+`Paginated<PaymentDto>`
 
-**Response:**
+**Success Status:**  
+200
 
-```json
-{
-  "success": true,
-  "data": [],
-  "meta": {
-    "page": 1,
-    "pageSize": 25,
-    "total": 0,
-    "totalPages": 0
-  }
-}
-```
-
-**Important Validation:**  
-Validate authentication, scope, permission, feature, and tenant isolation server-side. Validate employee branch access and resource ownership.
+**Important Validation / Machine-readable Errors:**  
+AUTHENTICATION_REQUIRED, PERMISSION_DENIED, BRANCH_ACCESS_DENIED
 
 **Transaction Required?**  
-No
+No.
 
 **Idempotency Required?**  
-No
+No.
 
-**Realtime Impact?**  
+**Realtime Impact:**  
 None.
 
 ### `GET /api/v1/cafe/payments/{paymentId}`
 
 **Purpose:**  
-Return payment, order, refunds, and refundable balance.
+Return the authorized Payment representation.
 
 **Authentication:**  
-Authenticated.
+Bearer access token.
 
 **Scope:**  
 Branch
@@ -6124,52 +6082,42 @@ payments.view
 
 **Path Parameters:**
 
-```json
-{
-  "paymentId": "Opaque paymentId identifier"
-}
+```ts
+type PathParameters = { paymentId: string };
 ```
 
 **Query Parameters:**
 
-```json
-{}
-```
+None.
 
-**Request Body:**
+**Request DTO:**  
+Empty body (`{}`).
 
-```json
-{}
-```
+**Response DTO:**  
+`ApiSuccess<PaymentDetailsDto>`
 
-**Response:**
+**Success Status:**  
+200
 
-```json
-{
-  "success": true,
-  "data": "Payment result"
-}
-```
-
-**Important Validation:**  
-Validate authentication, scope, permission, feature, and tenant isolation server-side. Validate employee branch access and resource ownership.
+**Important Validation / Machine-readable Errors:**  
+AUTHENTICATION_REQUIRED, PERMISSION_DENIED, BRANCH_ACCESS_DENIED
 
 **Transaction Required?**  
-No
+No.
 
 **Idempotency Required?**  
-No
+No.
 
-**Realtime Impact?**  
+**Realtime Impact:**  
 None.
 
 ### `POST /api/v1/cafe/payment-intents`
 
 **Purpose:**  
-Create a provider-neutral online payment intent.
+Create a Payment resource.
 
 **Authentication:**  
-Authenticated.
+Bearer access token.
 
 **Scope:**  
 Branch
@@ -6182,53 +6130,40 @@ Conditional payment method
 
 **Path Parameters:**
 
-```json
-{}
-```
+None.
 
 **Query Parameters:**
 
-```json
-{}
-```
+None.
 
-**Request Body:**
+**Request DTO:**  
+`CreatePaymentIntentRequest`
 
-```json
-{
-  "fields": "Current Payment domain fields",
-  "version": "Required on conflicting updates when applicable"
-}
-```
+**Response DTO:**  
+`ApiSuccess<PaymentIntentDto>`
 
-**Response:**
+**Success Status:**  
+201
 
-```json
-{
-  "success": true,
-  "data": "Payment result"
-}
-```
-
-**Important Validation:**  
-Validate authentication, scope, permission, feature, and tenant isolation server-side. Validate employee branch access and resource ownership.
+**Important Validation / Machine-readable Errors:**  
+AUTHENTICATION_REQUIRED, PERMISSION_DENIED, FEATURE_DISABLED, BRANCH_ACCESS_DENIED
 
 **Transaction Required?**  
-No
+Yes.
 
 **Idempotency Required?**  
-Yes — Idempotency-Key or verified provider event ID
+Yes — `Idempotency-Key`; payment webhook uses verified provider event ID.
 
-**Realtime Impact?**  
-Publishes payment/refund events.
+**Realtime Impact:**  
+Publishes payment/refund synchronization events.
 
 ### `POST /api/v1/cafe/payment-intents/{intentId}/confirm`
 
 **Purpose:**  
-Confirm or synchronize a payment intent.
+Confirm the selected Payment operation.
 
 **Authentication:**  
-Authenticated.
+Bearer access token.
 
 **Scope:**  
 Branch
@@ -6241,52 +6176,42 @@ Conditional payment method
 
 **Path Parameters:**
 
-```json
-{
-  "intentId": "Opaque intentId identifier"
-}
+```ts
+type PathParameters = { intentId: string };
 ```
 
 **Query Parameters:**
 
-```json
-{}
-```
+None.
 
-**Request Body:**
+**Request DTO:**  
+`ConfirmPaymentIntentRequest`
 
-```json
-{}
-```
+**Response DTO:**  
+`ApiSuccess<PaymentIntentDto>`
 
-**Response:**
+**Success Status:**  
+200
 
-```json
-{
-  "success": true,
-  "data": "Payment result"
-}
-```
-
-**Important Validation:**  
-Validate authentication, scope, permission, feature, and tenant isolation server-side. Validate employee branch access and resource ownership.
+**Important Validation / Machine-readable Errors:**  
+AUTHENTICATION_REQUIRED, PERMISSION_DENIED, FEATURE_DISABLED, BRANCH_ACCESS_DENIED
 
 **Transaction Required?**  
-No
+Yes.
 
 **Idempotency Required?**  
-Yes — Idempotency-Key or verified provider event ID
+Yes — `Idempotency-Key`; payment webhook uses verified provider event ID.
 
-**Realtime Impact?**  
-Publishes payment/refund events.
+**Realtime Impact:**  
+Publishes payment/refund synchronization events.
 
 ### `GET /api/v1/cafe/payment-intents/{intentId}/status`
 
 **Purpose:**  
-Return normalized payment-intent status.
+Return the authorized Payment representation.
 
 **Authentication:**  
-Authenticated.
+Bearer access token.
 
 **Scope:**  
 Branch/Public
@@ -6299,43 +6224,33 @@ Authenticated or public payment token
 
 **Path Parameters:**
 
-```json
-{
-  "intentId": "Opaque intentId identifier"
-}
+```ts
+type PathParameters = { intentId: string };
 ```
 
 **Query Parameters:**
 
-```json
-{}
-```
+None.
 
-**Request Body:**
+**Request DTO:**  
+Empty body (`{}`).
 
-```json
-{}
-```
+**Response DTO:**  
+`ApiSuccess<PaymentIntentDto>`
 
-**Response:**
+**Success Status:**  
+200
 
-```json
-{
-  "success": true,
-  "data": "Payment result"
-}
-```
-
-**Important Validation:**  
-Validate authentication, scope, permission, feature, and tenant isolation server-side. Validate employee branch access and resource ownership.
+**Important Validation / Machine-readable Errors:**  
+AUTHENTICATION_REQUIRED, PERMISSION_DENIED, BRANCH_ACCESS_DENIED
 
 **Transaction Required?**  
-No
+No.
 
 **Idempotency Required?**  
-No
+No.
 
-**Realtime Impact?**  
+**Realtime Impact:**  
 None.
 
 ## 21. Refund Endpoints
@@ -6343,10 +6258,10 @@ None.
 ### `GET /api/v1/cafe/refunds`
 
 **Purpose:**  
-Search refunds.
+List or return the authorized Refund representation required by this route.
 
 **Authentication:**  
-Authenticated.
+Bearer access token.
 
 **Scope:**  
 Tenant/Branch
@@ -6359,64 +6274,42 @@ refunds.view
 
 **Path Parameters:**
 
-```json
-{}
-```
+None.
 
 **Query Parameters:**
 
-```json
-{
-  "page": 1,
-  "pageSize": 25,
-  "search": "optional",
-  "sortBy": "optional",
-  "sortOrder": "asc | desc",
-  "from": "optional ISO date",
-  "to": "optional ISO date"
-}
+```ts
+type QueryParameters = { page?: number; pageSize?: number; branchId?: string; paymentId?: string; orderId?: string; type?: RefundType; from?: string; to?: string };
 ```
 
-**Request Body:**
+**Request DTO:**  
+Empty body (`{}`).
 
-```json
-{}
-```
+**Response DTO:**  
+`Paginated<RefundDto>`
 
-**Response:**
+**Success Status:**  
+200
 
-```json
-{
-  "success": true,
-  "data": [],
-  "meta": {
-    "page": 1,
-    "pageSize": 25,
-    "total": 0,
-    "totalPages": 0
-  }
-}
-```
-
-**Important Validation:**  
-Validate authentication, scope, permission, feature, and tenant isolation server-side. Validate employee branch access and resource ownership.
+**Important Validation / Machine-readable Errors:**  
+AUTHENTICATION_REQUIRED, PERMISSION_DENIED, BRANCH_ACCESS_DENIED
 
 **Transaction Required?**  
-No
+No.
 
 **Idempotency Required?**  
-No
+No.
 
-**Realtime Impact?**  
+**Realtime Impact:**  
 None.
 
 ### `GET /api/v1/cafe/refunds/{refundId}`
 
 **Purpose:**  
-Return a refund.
+Return the authorized Refund representation.
 
 **Authentication:**  
-Authenticated.
+Bearer access token.
 
 **Scope:**  
 Branch
@@ -6429,52 +6322,42 @@ refunds.view
 
 **Path Parameters:**
 
-```json
-{
-  "refundId": "Opaque refundId identifier"
-}
+```ts
+type PathParameters = { refundId: string };
 ```
 
 **Query Parameters:**
 
-```json
-{}
-```
+None.
 
-**Request Body:**
+**Request DTO:**  
+Empty body (`{}`).
 
-```json
-{}
-```
+**Response DTO:**  
+`ApiSuccess<RefundDto>`
 
-**Response:**
+**Success Status:**  
+200
 
-```json
-{
-  "success": true,
-  "data": "Refund result"
-}
-```
-
-**Important Validation:**  
-Validate authentication, scope, permission, feature, and tenant isolation server-side. Validate employee branch access and resource ownership.
+**Important Validation / Machine-readable Errors:**  
+AUTHENTICATION_REQUIRED, PERMISSION_DENIED, BRANCH_ACCESS_DENIED
 
 **Transaction Required?**  
-No
+No.
 
 **Idempotency Required?**  
-No
+No.
 
-**Realtime Impact?**  
+**Realtime Impact:**  
 None.
 
 ### `POST /api/v1/cafe/payments/{paymentId}/refunds`
 
 **Purpose:**  
-Create a full or partial refund atomically.
+Create a full or partial refund and update financial state atomically.
 
 **Authentication:**  
-Authenticated.
+Bearer access token.
 
 **Scope:**  
 Branch
@@ -6487,57 +6370,44 @@ refunds.create
 
 **Path Parameters:**
 
-```json
-{
-  "paymentId": "Opaque paymentId identifier"
-}
+```ts
+type PathParameters = { paymentId: string };
 ```
 
 **Query Parameters:**
 
-```json
-{}
-```
+None.
 
-**Request Body:**
+**Request DTO:**  
+`CreateRefundRequest`
 
-```json
-{
-  "amount": 0,
-  "reason": "string"
-}
-```
+**Response DTO:**  
+`RefundResponse`
 
-**Response:**
+**Success Status:**  
+201
 
-```json
-{
-  "success": true,
-  "data": "Refund result"
-}
-```
-
-**Important Validation:**  
-Validate authentication, scope, permission, feature, and tenant isolation server-side. Validate employee branch access and resource ownership.
+**Important Validation / Machine-readable Errors:**  
+AUTHENTICATION_REQUIRED, PERMISSION_DENIED, BRANCH_ACCESS_DENIED, REFUND_AMOUNT_EXCEEDED
 
 **Transaction Required?**  
-Yes
+Yes.
 
 **Idempotency Required?**  
-Yes — Idempotency-Key or verified provider event ID
+Yes — `Idempotency-Key`; payment webhook uses verified provider event ID.
 
-**Realtime Impact?**  
-Publishes payment/refund events.
+**Realtime Impact:**  
+Publishes payment/refund synchronization events.
 
 ## 22. Cash Register Endpoints
 
 ### `GET /api/v1/cafe/branches/{branchId}/cash-register/summary`
 
 **Purpose:**  
-Return calculated cash-register totals.
+List or return the authorized Cash Register representation required by this route.
 
 **Authentication:**  
-Authenticated.
+Bearer access token.
 
 **Scope:**  
 Branch
@@ -6550,52 +6420,42 @@ pos
 
 **Path Parameters:**
 
-```json
-{
-  "branchId": "Opaque branchId identifier"
-}
+```ts
+type PathParameters = { branchId: string };
 ```
 
 **Query Parameters:**
 
-```json
-{}
-```
+None.
 
-**Request Body:**
+**Request DTO:**  
+Empty body (`{}`).
 
-```json
-{}
-```
+**Response DTO:**  
+`ApiSuccess<CashRegisterSummaryDto>`
 
-**Response:**
+**Success Status:**  
+200
 
-```json
-{
-  "success": true,
-  "data": "Cash Register result"
-}
-```
-
-**Important Validation:**  
-Validate authentication, scope, permission, feature, and tenant isolation server-side. Validate employee branch access and resource ownership.
+**Important Validation / Machine-readable Errors:**  
+AUTHENTICATION_REQUIRED, PERMISSION_DENIED, FEATURE_DISABLED, BRANCH_ACCESS_DENIED
 
 **Transaction Required?**  
-No
+No.
 
 **Idempotency Required?**  
-No
+No.
 
-**Realtime Impact?**  
+**Realtime Impact:**  
 None.
 
 ### `GET /api/v1/cafe/branches/{branchId}/cash-transactions`
 
 **Purpose:**  
-List branch cash transactions.
+List or return the authorized Cash Register representation required by this route.
 
 **Authentication:**  
-Authenticated.
+Bearer access token.
 
 **Scope:**  
 Branch
@@ -6608,66 +6468,44 @@ pos
 
 **Path Parameters:**
 
-```json
-{
-  "branchId": "Opaque branchId identifier"
-}
+```ts
+type PathParameters = { branchId: string };
 ```
 
 **Query Parameters:**
 
-```json
-{
-  "page": 1,
-  "pageSize": 25,
-  "search": "optional",
-  "sortBy": "optional",
-  "sortOrder": "asc | desc",
-  "from": "optional ISO date",
-  "to": "optional ISO date"
-}
+```ts
+type QueryParameters = { page?: number; pageSize?: number; type?: CashTransactionType; shiftId?: string; employeeId?: string; from?: string; to?: string };
 ```
 
-**Request Body:**
+**Request DTO:**  
+Empty body (`{}`).
 
-```json
-{}
-```
+**Response DTO:**  
+`Paginated<CashTransactionDto>`
 
-**Response:**
+**Success Status:**  
+200
 
-```json
-{
-  "success": true,
-  "data": [],
-  "meta": {
-    "page": 1,
-    "pageSize": 25,
-    "total": 0,
-    "totalPages": 0
-  }
-}
-```
-
-**Important Validation:**  
-Validate authentication, scope, permission, feature, and tenant isolation server-side. Validate employee branch access and resource ownership.
+**Important Validation / Machine-readable Errors:**  
+AUTHENTICATION_REQUIRED, PERMISSION_DENIED, FEATURE_DISABLED, BRANCH_ACCESS_DENIED
 
 **Transaction Required?**  
-No
+No.
 
 **Idempotency Required?**  
-No
+No.
 
-**Realtime Impact?**  
+**Realtime Impact:**  
 None.
 
 ### `POST /api/v1/cafe/branches/{branchId}/cash-transactions`
 
 **Purpose:**  
-Create an authorized manual cash movement.
+Create a Cash Register resource.
 
 **Authentication:**  
-Authenticated.
+Bearer access token.
 
 **Scope:**  
 Branch
@@ -6680,48 +6518,35 @@ pos
 
 **Path Parameters:**
 
-```json
-{
-  "branchId": "Opaque branchId identifier"
-}
+```ts
+type PathParameters = { branchId: string };
 ```
 
 **Query Parameters:**
 
-```json
-{}
+```ts
+type QueryParameters = { page?: number; pageSize?: number; type?: CashTransactionType; shiftId?: string; employeeId?: string; from?: string; to?: string };
 ```
 
-**Request Body:**
+**Request DTO:**  
+`CreateCashTransactionRequest`
 
-```json
-{
-  "type": "CASH_IN | CASH_OUT | SHIFT_ADJUSTMENT",
-  "amount": 0,
-  "note": "string",
-  "shiftId": "optional"
-}
-```
+**Response DTO:**  
+`ApiSuccess<CashTransactionDto>`
 
-**Response:**
+**Success Status:**  
+201
 
-```json
-{
-  "success": true,
-  "data": "Cash Register result"
-}
-```
-
-**Important Validation:**  
-Validate authentication, scope, permission, feature, and tenant isolation server-side. Validate employee branch access and resource ownership.
+**Important Validation / Machine-readable Errors:**  
+AUTHENTICATION_REQUIRED, PERMISSION_DENIED, FEATURE_DISABLED, BRANCH_ACCESS_DENIED, BRANCH_LIMIT_EXCEEDED
 
 **Transaction Required?**  
-No
+No.
 
 **Idempotency Required?**  
-No
+No.
 
-**Realtime Impact?**  
+**Realtime Impact:**  
 None.
 
 ## 23. Shift Endpoints
@@ -6729,10 +6554,10 @@ None.
 ### `GET /api/v1/cafe/branches/{branchId}/shifts`
 
 **Purpose:**  
-List branch shifts.
+List or return the authorized Shift representation required by this route.
 
 **Authentication:**  
-Authenticated.
+Bearer access token.
 
 **Scope:**  
 Branch
@@ -6745,66 +6570,44 @@ pos
 
 **Path Parameters:**
 
-```json
-{
-  "branchId": "Opaque branchId identifier"
-}
+```ts
+type PathParameters = { branchId: string };
 ```
 
 **Query Parameters:**
 
-```json
-{
-  "page": 1,
-  "pageSize": 25,
-  "search": "optional",
-  "sortBy": "optional",
-  "sortOrder": "asc | desc",
-  "from": "optional ISO date",
-  "to": "optional ISO date"
-}
+```ts
+type QueryParameters = { page?: number; pageSize?: number; status?: ShiftStatus; employeeId?: string; from?: string; to?: string };
 ```
 
-**Request Body:**
+**Request DTO:**  
+Empty body (`{}`).
 
-```json
-{}
-```
+**Response DTO:**  
+`Paginated<ShiftDto>`
 
-**Response:**
+**Success Status:**  
+200
 
-```json
-{
-  "success": true,
-  "data": [],
-  "meta": {
-    "page": 1,
-    "pageSize": 25,
-    "total": 0,
-    "totalPages": 0
-  }
-}
-```
-
-**Important Validation:**  
-Validate authentication, scope, permission, feature, and tenant isolation server-side. Validate employee branch access and resource ownership.
+**Important Validation / Machine-readable Errors:**  
+AUTHENTICATION_REQUIRED, PERMISSION_DENIED, FEATURE_DISABLED, BRANCH_ACCESS_DENIED
 
 **Transaction Required?**  
-No
+No.
 
 **Idempotency Required?**  
-No
+No.
 
-**Realtime Impact?**  
+**Realtime Impact:**  
 None.
 
 ### `GET /api/v1/cafe/branches/{branchId}/shifts/current`
 
 **Purpose:**  
-Return the current employee open shift.
+List or return the authorized Shift representation required by this route.
 
 **Authentication:**  
-Authenticated.
+Bearer access token.
 
 **Scope:**  
 Branch
@@ -6817,52 +6620,42 @@ pos
 
 **Path Parameters:**
 
-```json
-{
-  "branchId": "Opaque branchId identifier"
-}
+```ts
+type PathParameters = { branchId: string };
 ```
 
 **Query Parameters:**
 
-```json
-{}
-```
+None.
 
-**Request Body:**
+**Request DTO:**  
+Empty body (`{}`).
 
-```json
-{}
-```
+**Response DTO:**  
+`ApiSuccess<ShiftDto | null>`
 
-**Response:**
+**Success Status:**  
+200
 
-```json
-{
-  "success": true,
-  "data": "Shift result"
-}
-```
-
-**Important Validation:**  
-Validate authentication, scope, permission, feature, and tenant isolation server-side. Validate employee branch access and resource ownership.
+**Important Validation / Machine-readable Errors:**  
+AUTHENTICATION_REQUIRED, PERMISSION_DENIED, FEATURE_DISABLED, BRANCH_ACCESS_DENIED
 
 **Transaction Required?**  
-No
+No.
 
 **Idempotency Required?**  
-No
+No.
 
-**Realtime Impact?**  
+**Realtime Impact:**  
 None.
 
 ### `GET /api/v1/cafe/branches/{branchId}/shifts/{shiftId}`
 
 **Purpose:**  
-Return a shift and its calculated entries.
+Return the authorized Shift representation.
 
 **Authentication:**  
-Authenticated.
+Bearer access token.
 
 **Scope:**  
 Branch
@@ -6875,53 +6668,42 @@ pos
 
 **Path Parameters:**
 
-```json
-{
-  "branchId": "Opaque branchId identifier",
-  "shiftId": "Opaque shiftId identifier"
-}
+```ts
+type PathParameters = { branchId: string; shiftId: string };
 ```
 
 **Query Parameters:**
 
-```json
-{}
-```
+None.
 
-**Request Body:**
+**Request DTO:**  
+Empty body (`{}`).
 
-```json
-{}
-```
+**Response DTO:**  
+`ApiSuccess<ShiftDetailsDto>`
 
-**Response:**
+**Success Status:**  
+200
 
-```json
-{
-  "success": true,
-  "data": "Shift result"
-}
-```
-
-**Important Validation:**  
-Validate authentication, scope, permission, feature, and tenant isolation server-side. Validate employee branch access and resource ownership.
+**Important Validation / Machine-readable Errors:**  
+AUTHENTICATION_REQUIRED, PERMISSION_DENIED, FEATURE_DISABLED, BRANCH_ACCESS_DENIED
 
 **Transaction Required?**  
-No
+No.
 
 **Idempotency Required?**  
-No
+No.
 
-**Realtime Impact?**  
+**Realtime Impact:**  
 None.
 
 ### `POST /api/v1/cafe/branches/{branchId}/shifts`
 
 **Purpose:**  
-Open a shift.
+Create a Shift resource.
 
 **Authentication:**  
-Authenticated.
+Bearer access token.
 
 **Scope:**  
 Branch
@@ -6934,54 +6716,44 @@ pos
 
 **Path Parameters:**
 
-```json
-{
-  "branchId": "Opaque branchId identifier"
-}
+```ts
+type PathParameters = { branchId: string };
 ```
 
 **Query Parameters:**
 
-```json
-{}
+```ts
+type QueryParameters = { page?: number; pageSize?: number; status?: ShiftStatus; employeeId?: string; from?: string; to?: string };
 ```
 
-**Request Body:**
+**Request DTO:**  
+`OpenShiftRequest`
 
-```json
-{
-  "openingCash": 0
-}
-```
+**Response DTO:**  
+`ApiSuccess<ShiftDto>`
 
-**Response:**
+**Success Status:**  
+201
 
-```json
-{
-  "success": true,
-  "data": "Shift result"
-}
-```
-
-**Important Validation:**  
-Validate authentication, scope, permission, feature, and tenant isolation server-side. Validate employee branch access and resource ownership.
+**Important Validation / Machine-readable Errors:**  
+AUTHENTICATION_REQUIRED, PERMISSION_DENIED, FEATURE_DISABLED, BRANCH_ACCESS_DENIED, BRANCH_LIMIT_EXCEEDED, SHIFT_ALREADY_OPEN
 
 **Transaction Required?**  
-Yes
+Yes.
 
 **Idempotency Required?**  
-Yes — Idempotency-Key or verified provider event ID
+Yes — `Idempotency-Key`; payment webhook uses verified provider event ID.
 
-**Realtime Impact?**  
-Publishes shift events.
+**Realtime Impact:**  
+Publishes applicable shift events.
 
 ### `POST /api/v1/cafe/branches/{branchId}/shifts/{shiftId}/close`
 
 **Purpose:**  
-Close a shift using server-calculated expected cash.
+Close the selected Shift resource using server-calculated totals.
 
 **Authentication:**  
-Authenticated.
+Bearer access token.
 
 **Scope:**  
 Branch
@@ -6994,58 +6766,44 @@ pos
 
 **Path Parameters:**
 
-```json
-{
-  "branchId": "Opaque branchId identifier",
-  "shiftId": "Opaque shiftId identifier"
-}
+```ts
+type PathParameters = { branchId: string; shiftId: string };
 ```
 
 **Query Parameters:**
 
-```json
-{}
-```
+None.
 
-**Request Body:**
+**Request DTO:**  
+`CloseShiftRequest`
 
-```json
-{
-  "actualCash": 0,
-  "note": "optional"
-}
-```
+**Response DTO:**  
+`CloseShiftResponse`
 
-**Response:**
+**Success Status:**  
+200
 
-```json
-{
-  "success": true,
-  "data": "Shift result"
-}
-```
-
-**Important Validation:**  
-Validate authentication, scope, permission, feature, and tenant isolation server-side. Validate employee branch access and resource ownership.
+**Important Validation / Machine-readable Errors:**  
+AUTHENTICATION_REQUIRED, PERMISSION_DENIED, FEATURE_DISABLED, BRANCH_ACCESS_DENIED, BRANCH_LIMIT_EXCEEDED, SHIFT_ALREADY_CLOSED
 
 **Transaction Required?**  
-Yes
+Yes.
 
 **Idempotency Required?**  
-Yes — Idempotency-Key or verified provider event ID
+Yes — `Idempotency-Key`; payment webhook uses verified provider event ID.
 
-**Realtime Impact?**  
-Publishes shift events.
+**Realtime Impact:**  
+Publishes applicable shift events.
 
 ## 24. Expense Endpoints
 
 ### `GET /api/v1/cafe/branches/{branchId}/expenses`
 
 **Purpose:**  
-List branch expenses.
+List or return the authorized Expense representation required by this route.
 
 **Authentication:**  
-Authenticated.
+Bearer access token.
 
 **Scope:**  
 Branch
@@ -7058,66 +6816,44 @@ expenses
 
 **Path Parameters:**
 
-```json
-{
-  "branchId": "Opaque branchId identifier"
-}
+```ts
+type PathParameters = { branchId: string };
 ```
 
 **Query Parameters:**
 
-```json
-{
-  "page": 1,
-  "pageSize": 25,
-  "search": "optional",
-  "sortBy": "optional",
-  "sortOrder": "asc | desc",
-  "from": "optional ISO date",
-  "to": "optional ISO date"
-}
+```ts
+type QueryParameters = { page?: number; pageSize?: number; search?: string; category?: string; paymentMethod?: PaymentAllocationMethod; employeeId?: string; from?: string; to?: string };
 ```
 
-**Request Body:**
+**Request DTO:**  
+Empty body (`{}`).
 
-```json
-{}
-```
+**Response DTO:**  
+`Paginated<ExpenseDto>`
 
-**Response:**
+**Success Status:**  
+200
 
-```json
-{
-  "success": true,
-  "data": [],
-  "meta": {
-    "page": 1,
-    "pageSize": 25,
-    "total": 0,
-    "totalPages": 0
-  }
-}
-```
-
-**Important Validation:**  
-Validate authentication, scope, permission, feature, and tenant isolation server-side. Validate employee branch access and resource ownership.
+**Important Validation / Machine-readable Errors:**  
+AUTHENTICATION_REQUIRED, PERMISSION_DENIED, FEATURE_DISABLED, BRANCH_ACCESS_DENIED
 
 **Transaction Required?**  
-No
+No.
 
 **Idempotency Required?**  
-No
+No.
 
-**Realtime Impact?**  
+**Realtime Impact:**  
 None.
 
 ### `POST /api/v1/cafe/branches/{branchId}/expenses`
 
 **Purpose:**  
-Create an expense and associated cash movement.
+Create a Expense resource.
 
 **Authentication:**  
-Authenticated.
+Bearer access token.
 
 **Scope:**  
 Branch
@@ -7130,55 +6866,44 @@ expenses
 
 **Path Parameters:**
 
-```json
-{
-  "branchId": "Opaque branchId identifier"
-}
+```ts
+type PathParameters = { branchId: string };
 ```
 
 **Query Parameters:**
 
-```json
-{}
+```ts
+type QueryParameters = { page?: number; pageSize?: number; search?: string; category?: string; paymentMethod?: PaymentAllocationMethod; employeeId?: string; from?: string; to?: string };
 ```
 
-**Request Body:**
+**Request DTO:**  
+`CreateExpenseRequest`
 
-```json
-{
-  "fields": "Current Expense domain fields",
-  "version": "Required on conflicting updates when applicable"
-}
-```
+**Response DTO:**  
+`ApiSuccess<ExpenseDto>`
 
-**Response:**
+**Success Status:**  
+201
 
-```json
-{
-  "success": true,
-  "data": "Expense result"
-}
-```
-
-**Important Validation:**  
-Validate authentication, scope, permission, feature, and tenant isolation server-side. Validate employee branch access and resource ownership.
+**Important Validation / Machine-readable Errors:**  
+AUTHENTICATION_REQUIRED, PERMISSION_DENIED, FEATURE_DISABLED, BRANCH_ACCESS_DENIED, BRANCH_LIMIT_EXCEEDED
 
 **Transaction Required?**  
-Yes
+Yes.
 
 **Idempotency Required?**  
-No
+No.
 
-**Realtime Impact?**  
+**Realtime Impact:**  
 None.
 
 ### `GET /api/v1/cafe/branches/{branchId}/expenses/{expenseId}`
 
 **Purpose:**  
-Return an expense.
+Return the authorized Expense representation.
 
 **Authentication:**  
-Authenticated.
+Bearer access token.
 
 **Scope:**  
 Branch
@@ -7191,53 +6916,42 @@ expenses
 
 **Path Parameters:**
 
-```json
-{
-  "branchId": "Opaque branchId identifier",
-  "expenseId": "Opaque expenseId identifier"
-}
+```ts
+type PathParameters = { branchId: string; expenseId: string };
 ```
 
 **Query Parameters:**
 
-```json
-{}
-```
+None.
 
-**Request Body:**
+**Request DTO:**  
+Empty body (`{}`).
 
-```json
-{}
-```
+**Response DTO:**  
+`ApiSuccess<ExpenseDto>`
 
-**Response:**
+**Success Status:**  
+200
 
-```json
-{
-  "success": true,
-  "data": "Expense result"
-}
-```
-
-**Important Validation:**  
-Validate authentication, scope, permission, feature, and tenant isolation server-side. Validate employee branch access and resource ownership.
+**Important Validation / Machine-readable Errors:**  
+AUTHENTICATION_REQUIRED, PERMISSION_DENIED, FEATURE_DISABLED, BRANCH_ACCESS_DENIED
 
 **Transaction Required?**  
-No
+No.
 
 **Idempotency Required?**  
-No
+No.
 
-**Realtime Impact?**  
+**Realtime Impact:**  
 None.
 
 ### `PATCH /api/v1/cafe/branches/{branchId}/expenses/{expenseId}`
 
 **Purpose:**  
-Update an expense and associated cash movement.
+Partially update the selected Expense resource.
 
 **Authentication:**  
-Authenticated.
+Bearer access token.
 
 **Scope:**  
 Branch
@@ -7250,56 +6964,42 @@ expenses
 
 **Path Parameters:**
 
-```json
-{
-  "branchId": "Opaque branchId identifier",
-  "expenseId": "Opaque expenseId identifier"
-}
+```ts
+type PathParameters = { branchId: string; expenseId: string };
 ```
 
 **Query Parameters:**
 
-```json
-{}
-```
+None.
 
-**Request Body:**
+**Request DTO:**  
+`UpdateExpenseRequest`
 
-```json
-{
-  "fields": "Current Expense domain fields",
-  "version": "Required on conflicting updates when applicable"
-}
-```
+**Response DTO:**  
+`ApiSuccess<ExpenseDto>`
 
-**Response:**
+**Success Status:**  
+200
 
-```json
-{
-  "success": true,
-  "data": "Expense result"
-}
-```
-
-**Important Validation:**  
-Validate authentication, scope, permission, feature, and tenant isolation server-side. Validate employee branch access and resource ownership.
+**Important Validation / Machine-readable Errors:**  
+AUTHENTICATION_REQUIRED, PERMISSION_DENIED, FEATURE_DISABLED, BRANCH_ACCESS_DENIED, VERSION_CONFLICT
 
 **Transaction Required?**  
-Yes
+Yes.
 
 **Idempotency Required?**  
-No
+No.
 
-**Realtime Impact?**  
+**Realtime Impact:**  
 None.
 
 ### `DELETE /api/v1/cafe/branches/{branchId}/expenses/{expenseId}`
 
 **Purpose:**  
-Delete an expense and reverse its cash effect.
+Delete or revoke the selected Expense resource.
 
 **Authentication:**  
-Authenticated.
+Bearer access token.
 
 **Scope:**  
 Branch
@@ -7312,44 +7012,33 @@ expenses
 
 **Path Parameters:**
 
-```json
-{
-  "branchId": "Opaque branchId identifier",
-  "expenseId": "Opaque expenseId identifier"
-}
+```ts
+type PathParameters = { branchId: string; expenseId: string };
 ```
 
 **Query Parameters:**
 
-```json
-{}
-```
+None.
 
-**Request Body:**
+**Request DTO:**  
+Empty body (`{}`).
 
-```json
-{}
-```
+**Response DTO:**  
+Empty response body.
 
-**Response:**
+**Success Status:**  
+204
 
-```json
-{
-  "success": true,
-  "data": "Expense result"
-}
-```
-
-**Important Validation:**  
-Validate authentication, scope, permission, feature, and tenant isolation server-side. Validate employee branch access and resource ownership.
+**Important Validation / Machine-readable Errors:**  
+AUTHENTICATION_REQUIRED, PERMISSION_DENIED, FEATURE_DISABLED, BRANCH_ACCESS_DENIED
 
 **Transaction Required?**  
-Yes
+Yes.
 
 **Idempotency Required?**  
-No
+No.
 
-**Realtime Impact?**  
+**Realtime Impact:**  
 None.
 
 ## 25. Inventory Endpoints
@@ -7357,10 +7046,10 @@ None.
 ### `GET /api/v1/cafe/branches/{branchId}/inventory`
 
 **Purpose:**  
-List branch inventory.
+List or return the authorized Inventory representation required by this route.
 
 **Authentication:**  
-Authenticated.
+Bearer access token.
 
 **Scope:**  
 Branch
@@ -7373,66 +7062,44 @@ inventory
 
 **Path Parameters:**
 
-```json
-{
-  "branchId": "Opaque branchId identifier"
-}
+```ts
+type PathParameters = { branchId: string };
 ```
 
 **Query Parameters:**
 
-```json
-{
-  "page": 1,
-  "pageSize": 25,
-  "search": "optional",
-  "sortBy": "optional",
-  "sortOrder": "asc | desc",
-  "from": "optional ISO date",
-  "to": "optional ISO date"
-}
+```ts
+type QueryParameters = { page?: number; pageSize?: number; search?: string; active?: boolean; lowStock?: boolean };
 ```
 
-**Request Body:**
+**Request DTO:**  
+Empty body (`{}`).
 
-```json
-{}
-```
+**Response DTO:**  
+`Paginated<InventoryItemDto>`
 
-**Response:**
+**Success Status:**  
+200
 
-```json
-{
-  "success": true,
-  "data": [],
-  "meta": {
-    "page": 1,
-    "pageSize": 25,
-    "total": 0,
-    "totalPages": 0
-  }
-}
-```
-
-**Important Validation:**  
-Validate authentication, scope, permission, feature, and tenant isolation server-side. Validate employee branch access and resource ownership.
+**Important Validation / Machine-readable Errors:**  
+AUTHENTICATION_REQUIRED, PERMISSION_DENIED, FEATURE_DISABLED, BRANCH_ACCESS_DENIED
 
 **Transaction Required?**  
-No
+No.
 
 **Idempotency Required?**  
-No
+No.
 
-**Realtime Impact?**  
+**Realtime Impact:**  
 None.
 
 ### `POST /api/v1/cafe/branches/{branchId}/inventory`
 
 **Purpose:**  
-Create an inventory item with opening values.
+Create a Inventory resource.
 
 **Authentication:**  
-Authenticated.
+Bearer access token.
 
 **Scope:**  
 Branch
@@ -7445,55 +7112,44 @@ inventory
 
 **Path Parameters:**
 
-```json
-{
-  "branchId": "Opaque branchId identifier"
-}
+```ts
+type PathParameters = { branchId: string };
 ```
 
 **Query Parameters:**
 
-```json
-{}
+```ts
+type QueryParameters = { page?: number; pageSize?: number; search?: string; active?: boolean; lowStock?: boolean };
 ```
 
-**Request Body:**
+**Request DTO:**  
+`CreateInventoryItemRequest`
 
-```json
-{
-  "fields": "Current Inventory domain fields",
-  "version": "Required on conflicting updates when applicable"
-}
-```
+**Response DTO:**  
+`ApiSuccess<InventoryItemDto>`
 
-**Response:**
+**Success Status:**  
+201
 
-```json
-{
-  "success": true,
-  "data": "Inventory result"
-}
-```
-
-**Important Validation:**  
-Validate authentication, scope, permission, feature, and tenant isolation server-side. Validate employee branch access and resource ownership.
+**Important Validation / Machine-readable Errors:**  
+AUTHENTICATION_REQUIRED, PERMISSION_DENIED, FEATURE_DISABLED, BRANCH_ACCESS_DENIED, BRANCH_LIMIT_EXCEEDED
 
 **Transaction Required?**  
-No
+No.
 
 **Idempotency Required?**  
-No
+No.
 
-**Realtime Impact?**  
-Publishes inventory events when quantities change.
+**Realtime Impact:**  
+Publishes inventory change events when stock changes.
 
 ### `GET /api/v1/cafe/branches/{branchId}/inventory/{inventoryItemId}`
 
 **Purpose:**  
-Return an inventory item.
+Return the authorized Inventory representation.
 
 **Authentication:**  
-Authenticated.
+Bearer access token.
 
 **Scope:**  
 Branch
@@ -7506,53 +7162,42 @@ inventory
 
 **Path Parameters:**
 
-```json
-{
-  "branchId": "Opaque branchId identifier",
-  "inventoryItemId": "Opaque inventoryItemId identifier"
-}
+```ts
+type PathParameters = { branchId: string; inventoryItemId: string };
 ```
 
 **Query Parameters:**
 
-```json
-{}
-```
+None.
 
-**Request Body:**
+**Request DTO:**  
+Empty body (`{}`).
 
-```json
-{}
-```
+**Response DTO:**  
+`ApiSuccess<InventoryItemDto>`
 
-**Response:**
+**Success Status:**  
+200
 
-```json
-{
-  "success": true,
-  "data": "Inventory result"
-}
-```
-
-**Important Validation:**  
-Validate authentication, scope, permission, feature, and tenant isolation server-side. Validate employee branch access and resource ownership.
+**Important Validation / Machine-readable Errors:**  
+AUTHENTICATION_REQUIRED, PERMISSION_DENIED, FEATURE_DISABLED, BRANCH_ACCESS_DENIED
 
 **Transaction Required?**  
-No
+No.
 
 **Idempotency Required?**  
-No
+No.
 
-**Realtime Impact?**  
+**Realtime Impact:**  
 None.
 
 ### `PATCH /api/v1/cafe/branches/{branchId}/inventory/{inventoryItemId}`
 
 **Purpose:**  
-Update or deactivate an inventory item.
+Partially update the selected Inventory resource.
 
 **Authentication:**  
-Authenticated.
+Bearer access token.
 
 **Scope:**  
 Branch
@@ -7565,58 +7210,44 @@ inventory
 
 **Path Parameters:**
 
-```json
-{
-  "branchId": "Opaque branchId identifier",
-  "inventoryItemId": "Opaque inventoryItemId identifier"
-}
+```ts
+type PathParameters = { branchId: string; inventoryItemId: string };
 ```
 
 **Query Parameters:**
 
-```json
-{}
-```
+None.
 
-**Request Body:**
+**Request DTO:**  
+`UpdateInventoryItemRequest`
 
-```json
-{
-  "fields": "Current Inventory domain fields",
-  "version": "Required on conflicting updates when applicable"
-}
-```
+**Response DTO:**  
+`ApiSuccess<InventoryItemDto>`
 
-**Response:**
+**Success Status:**  
+200
 
-```json
-{
-  "success": true,
-  "data": "Inventory result"
-}
-```
-
-**Important Validation:**  
-Validate authentication, scope, permission, feature, and tenant isolation server-side. Validate employee branch access and resource ownership.
+**Important Validation / Machine-readable Errors:**  
+AUTHENTICATION_REQUIRED, PERMISSION_DENIED, FEATURE_DISABLED, BRANCH_ACCESS_DENIED, VERSION_CONFLICT
 
 **Transaction Required?**  
-No
+No.
 
 **Idempotency Required?**  
-No
+No.
 
-**Realtime Impact?**  
-Publishes inventory events when quantities change.
+**Realtime Impact:**  
+Publishes inventory change events when stock changes.
 
 ## 26. Stock Movement Endpoints
 
 ### `GET /api/v1/cafe/branches/{branchId}/stock-movements`
 
 **Purpose:**  
-Search immutable stock movements.
+List or return the authorized Stock Movement representation required by this route.
 
 **Authentication:**  
-Authenticated.
+Bearer access token.
 
 **Scope:**  
 Branch
@@ -7629,57 +7260,35 @@ inventory
 
 **Path Parameters:**
 
-```json
-{
-  "branchId": "Opaque branchId identifier"
-}
+```ts
+type PathParameters = { branchId: string };
 ```
 
 **Query Parameters:**
 
-```json
-{
-  "page": 1,
-  "pageSize": 25,
-  "search": "optional",
-  "sortBy": "optional",
-  "sortOrder": "asc | desc",
-  "from": "optional ISO date",
-  "to": "optional ISO date"
-}
+```ts
+type QueryParameters = { page?: number; pageSize?: number; inventoryItemId?: string; type?: StockMovementType; from?: string; to?: string };
 ```
 
-**Request Body:**
+**Request DTO:**  
+Empty body (`{}`).
 
-```json
-{}
-```
+**Response DTO:**  
+`Paginated<StockMovementDto>`
 
-**Response:**
+**Success Status:**  
+200
 
-```json
-{
-  "success": true,
-  "data": [],
-  "meta": {
-    "page": 1,
-    "pageSize": 25,
-    "total": 0,
-    "totalPages": 0
-  }
-}
-```
-
-**Important Validation:**  
-Validate authentication, scope, permission, feature, and tenant isolation server-side. Validate employee branch access and resource ownership.
+**Important Validation / Machine-readable Errors:**  
+AUTHENTICATION_REQUIRED, PERMISSION_DENIED, FEATURE_DISABLED, BRANCH_ACCESS_DENIED
 
 **Transaction Required?**  
-No
+No.
 
 **Idempotency Required?**  
-No
+No.
 
-**Realtime Impact?**  
+**Realtime Impact:**  
 None.
 
 ## 27. Stock Count Endpoints
@@ -7687,10 +7296,10 @@ None.
 ### `GET /api/v1/cafe/branches/{branchId}/stock-counts`
 
 **Purpose:**  
-List stock counts.
+List or return the authorized Stock Count representation required by this route.
 
 **Authentication:**  
-Authenticated.
+Bearer access token.
 
 **Scope:**  
 Branch
@@ -7703,66 +7312,44 @@ inventory
 
 **Path Parameters:**
 
-```json
-{
-  "branchId": "Opaque branchId identifier"
-}
+```ts
+type PathParameters = { branchId: string };
 ```
 
 **Query Parameters:**
 
-```json
-{
-  "page": 1,
-  "pageSize": 25,
-  "search": "optional",
-  "sortBy": "optional",
-  "sortOrder": "asc | desc",
-  "from": "optional ISO date",
-  "to": "optional ISO date"
-}
+```ts
+type QueryParameters = { page?: number; pageSize?: number; status?: StockCountStatus; from?: string; to?: string };
 ```
 
-**Request Body:**
+**Request DTO:**  
+Empty body (`{}`).
 
-```json
-{}
-```
+**Response DTO:**  
+`Paginated<StockCountDto>`
 
-**Response:**
+**Success Status:**  
+200
 
-```json
-{
-  "success": true,
-  "data": [],
-  "meta": {
-    "page": 1,
-    "pageSize": 25,
-    "total": 0,
-    "totalPages": 0
-  }
-}
-```
-
-**Important Validation:**  
-Validate authentication, scope, permission, feature, and tenant isolation server-side. Validate employee branch access and resource ownership.
+**Important Validation / Machine-readable Errors:**  
+AUTHENTICATION_REQUIRED, PERMISSION_DENIED, FEATURE_DISABLED, BRANCH_ACCESS_DENIED
 
 **Transaction Required?**  
-No
+No.
 
 **Idempotency Required?**  
-No
+No.
 
-**Realtime Impact?**  
+**Realtime Impact:**  
 None.
 
 ### `POST /api/v1/cafe/branches/{branchId}/stock-counts`
 
 **Purpose:**  
-Create a draft stock count.
+Create a Stock Count resource.
 
 **Authentication:**  
-Authenticated.
+Bearer access token.
 
 **Scope:**  
 Branch
@@ -7775,55 +7362,44 @@ inventory
 
 **Path Parameters:**
 
-```json
-{
-  "branchId": "Opaque branchId identifier"
-}
+```ts
+type PathParameters = { branchId: string };
 ```
 
 **Query Parameters:**
 
-```json
-{}
+```ts
+type QueryParameters = { page?: number; pageSize?: number; status?: StockCountStatus; from?: string; to?: string };
 ```
 
-**Request Body:**
+**Request DTO:**  
+`CreateStockCountRequest`
 
-```json
-{
-  "fields": "Current Stock Count domain fields",
-  "version": "Required on conflicting updates when applicable"
-}
-```
+**Response DTO:**  
+`ApiSuccess<StockCountDto>`
 
-**Response:**
+**Success Status:**  
+201
 
-```json
-{
-  "success": true,
-  "data": "Stock Count result"
-}
-```
-
-**Important Validation:**  
-Validate authentication, scope, permission, feature, and tenant isolation server-side. Validate employee branch access and resource ownership.
+**Important Validation / Machine-readable Errors:**  
+AUTHENTICATION_REQUIRED, PERMISSION_DENIED, FEATURE_DISABLED, BRANCH_ACCESS_DENIED, BRANCH_LIMIT_EXCEEDED
 
 **Transaction Required?**  
-No
+No.
 
 **Idempotency Required?**  
-No
+No.
 
-**Realtime Impact?**  
-Publishes inventory events when quantities change.
+**Realtime Impact:**  
+Publishes inventory change events when stock changes.
 
 ### `GET /api/v1/cafe/branches/{branchId}/stock-counts/{stockCountId}`
 
 **Purpose:**  
-Return a stock count.
+Return the authorized Stock Count representation.
 
 **Authentication:**  
-Authenticated.
+Bearer access token.
 
 **Scope:**  
 Branch
@@ -7836,53 +7412,42 @@ inventory
 
 **Path Parameters:**
 
-```json
-{
-  "branchId": "Opaque branchId identifier",
-  "stockCountId": "Opaque stockCountId identifier"
-}
+```ts
+type PathParameters = { branchId: string; stockCountId: string };
 ```
 
 **Query Parameters:**
 
-```json
-{}
-```
+None.
 
-**Request Body:**
+**Request DTO:**  
+Empty body (`{}`).
 
-```json
-{}
-```
+**Response DTO:**  
+`ApiSuccess<StockCountDto>`
 
-**Response:**
+**Success Status:**  
+200
 
-```json
-{
-  "success": true,
-  "data": "Stock Count result"
-}
-```
-
-**Important Validation:**  
-Validate authentication, scope, permission, feature, and tenant isolation server-side. Validate employee branch access and resource ownership.
+**Important Validation / Machine-readable Errors:**  
+AUTHENTICATION_REQUIRED, PERMISSION_DENIED, FEATURE_DISABLED, BRANCH_ACCESS_DENIED
 
 **Transaction Required?**  
-No
+No.
 
 **Idempotency Required?**  
-No
+No.
 
-**Realtime Impact?**  
+**Realtime Impact:**  
 None.
 
 ### `POST /api/v1/cafe/branches/{branchId}/stock-counts/{stockCountId}/confirm`
 
 **Purpose:**  
-Confirm a stock count and apply inventory adjustments.
+Confirm a stock count and create its adjustment movements.
 
 **Authentication:**  
-Authenticated.
+Bearer access token.
 
 **Scope:**  
 Branch
@@ -7895,55 +7460,44 @@ inventory
 
 **Path Parameters:**
 
-```json
-{
-  "branchId": "Opaque branchId identifier",
-  "stockCountId": "Opaque stockCountId identifier"
-}
+```ts
+type PathParameters = { branchId: string; stockCountId: string };
 ```
 
 **Query Parameters:**
 
-```json
-{}
-```
+None.
 
-**Request Body:**
+**Request DTO:**  
+`ConfirmStockCountRequest`
 
-```json
-{}
-```
+**Response DTO:**  
+`ConfirmStockCountResponse`
 
-**Response:**
+**Success Status:**  
+200
 
-```json
-{
-  "success": true,
-  "data": "Stock Count result"
-}
-```
-
-**Important Validation:**  
-Validate authentication, scope, permission, feature, and tenant isolation server-side. Validate employee branch access and resource ownership.
+**Important Validation / Machine-readable Errors:**  
+AUTHENTICATION_REQUIRED, PERMISSION_DENIED, FEATURE_DISABLED, BRANCH_ACCESS_DENIED, BRANCH_LIMIT_EXCEEDED, STOCK_COUNT_ALREADY_CONFIRMED
 
 **Transaction Required?**  
-Yes
+Yes.
 
 **Idempotency Required?**  
-Yes — Idempotency-Key or verified provider event ID
+Yes — `Idempotency-Key`; payment webhook uses verified provider event ID.
 
-**Realtime Impact?**  
-Publishes inventory events when quantities change.
+**Realtime Impact:**  
+Publishes inventory change events when stock changes.
 
 ## 28. Waste Endpoints
 
 ### `GET /api/v1/cafe/branches/{branchId}/waste`
 
 **Purpose:**  
-List recorded waste.
+List or return the authorized Waste representation required by this route.
 
 **Authentication:**  
-Authenticated.
+Bearer access token.
 
 **Scope:**  
 Branch
@@ -7956,66 +7510,44 @@ inventory
 
 **Path Parameters:**
 
-```json
-{
-  "branchId": "Opaque branchId identifier"
-}
+```ts
+type PathParameters = { branchId: string };
 ```
 
 **Query Parameters:**
 
-```json
-{
-  "page": 1,
-  "pageSize": 25,
-  "search": "optional",
-  "sortBy": "optional",
-  "sortOrder": "asc | desc",
-  "from": "optional ISO date",
-  "to": "optional ISO date"
-}
+```ts
+type QueryParameters = { page?: number; pageSize?: number; inventoryItemId?: string; from?: string; to?: string };
 ```
 
-**Request Body:**
+**Request DTO:**  
+Empty body (`{}`).
 
-```json
-{}
-```
+**Response DTO:**  
+`Paginated<WasteDto>`
 
-**Response:**
+**Success Status:**  
+200
 
-```json
-{
-  "success": true,
-  "data": [],
-  "meta": {
-    "page": 1,
-    "pageSize": 25,
-    "total": 0,
-    "totalPages": 0
-  }
-}
-```
-
-**Important Validation:**  
-Validate authentication, scope, permission, feature, and tenant isolation server-side. Validate employee branch access and resource ownership.
+**Important Validation / Machine-readable Errors:**  
+AUTHENTICATION_REQUIRED, PERMISSION_DENIED, FEATURE_DISABLED, BRANCH_ACCESS_DENIED
 
 **Transaction Required?**  
-No
+No.
 
 **Idempotency Required?**  
-No
+No.
 
-**Realtime Impact?**  
+**Realtime Impact:**  
 None.
 
 ### `POST /api/v1/cafe/branches/{branchId}/waste`
 
 **Purpose:**  
-Record waste and decrement stock atomically.
+Create a Waste resource.
 
 **Authentication:**  
-Authenticated.
+Bearer access token.
 
 **Scope:**  
 Branch
@@ -8028,57 +7560,46 @@ inventory
 
 **Path Parameters:**
 
-```json
-{
-  "branchId": "Opaque branchId identifier"
-}
+```ts
+type PathParameters = { branchId: string };
 ```
 
 **Query Parameters:**
 
-```json
-{}
+```ts
+type QueryParameters = { page?: number; pageSize?: number; inventoryItemId?: string; from?: string; to?: string };
 ```
 
-**Request Body:**
+**Request DTO:**  
+`CreateWasteRequest`
 
-```json
-{
-  "fields": "Current Waste domain fields",
-  "version": "Required on conflicting updates when applicable"
-}
-```
+**Response DTO:**  
+`CreateWasteResponse`
 
-**Response:**
+**Success Status:**  
+201
 
-```json
-{
-  "success": true,
-  "data": "Waste result"
-}
-```
-
-**Important Validation:**  
-Validate authentication, scope, permission, feature, and tenant isolation server-side. Validate employee branch access and resource ownership.
+**Important Validation / Machine-readable Errors:**  
+AUTHENTICATION_REQUIRED, PERMISSION_DENIED, FEATURE_DISABLED, BRANCH_ACCESS_DENIED, BRANCH_LIMIT_EXCEEDED
 
 **Transaction Required?**  
-Yes
+Yes.
 
 **Idempotency Required?**  
-Yes — Idempotency-Key or verified provider event ID
+Yes — `Idempotency-Key`; payment webhook uses verified provider event ID.
 
-**Realtime Impact?**  
-Publishes inventory events when quantities change.
+**Realtime Impact:**  
+Publishes inventory change events when stock changes.
 
 ## 29. Supplier Endpoints
 
 ### `GET /api/v1/cafe/suppliers`
 
 **Purpose:**  
-List tenant suppliers.
+List or return the authorized Supplier representation required by this route.
 
 **Authentication:**  
-Authenticated.
+Bearer access token.
 
 **Scope:**  
 Tenant
@@ -8091,64 +7612,42 @@ suppliers
 
 **Path Parameters:**
 
-```json
-{}
-```
+None.
 
 **Query Parameters:**
 
-```json
-{
-  "page": 1,
-  "pageSize": 25,
-  "search": "optional",
-  "sortBy": "optional",
-  "sortOrder": "asc | desc",
-  "from": "optional ISO date",
-  "to": "optional ISO date"
-}
+```ts
+type QueryParameters = { page?: number; pageSize?: number; search?: string; active?: boolean };
 ```
 
-**Request Body:**
+**Request DTO:**  
+Empty body (`{}`).
 
-```json
-{}
-```
+**Response DTO:**  
+`Paginated<SupplierDto>`
 
-**Response:**
+**Success Status:**  
+200
 
-```json
-{
-  "success": true,
-  "data": [],
-  "meta": {
-    "page": 1,
-    "pageSize": 25,
-    "total": 0,
-    "totalPages": 0
-  }
-}
-```
-
-**Important Validation:**  
-Validate authentication, scope, permission, feature, and tenant isolation server-side.
+**Important Validation / Machine-readable Errors:**  
+AUTHENTICATION_REQUIRED, PERMISSION_DENIED, FEATURE_DISABLED
 
 **Transaction Required?**  
-No
+No.
 
 **Idempotency Required?**  
-No
+No.
 
-**Realtime Impact?**  
+**Realtime Impact:**  
 None.
 
 ### `POST /api/v1/cafe/suppliers`
 
 **Purpose:**  
-Create a supplier.
+Create a Supplier resource.
 
 **Authentication:**  
-Authenticated.
+Bearer access token.
 
 **Scope:**  
 Tenant
@@ -8161,53 +7660,42 @@ suppliers
 
 **Path Parameters:**
 
-```json
-{}
-```
+None.
 
 **Query Parameters:**
 
-```json
-{}
+```ts
+type QueryParameters = { page?: number; pageSize?: number; search?: string; active?: boolean };
 ```
 
-**Request Body:**
+**Request DTO:**  
+`CreateSupplierRequest`
 
-```json
-{
-  "fields": "Current Supplier domain fields",
-  "version": "Required on conflicting updates when applicable"
-}
-```
+**Response DTO:**  
+ApiSuccess<SupplierDto>
 
-**Response:**
+**Success Status:**  
+201
 
-```json
-{
-  "success": true,
-  "data": "Supplier result"
-}
-```
-
-**Important Validation:**  
-Validate authentication, scope, permission, feature, and tenant isolation server-side.
+**Important Validation / Machine-readable Errors:**  
+AUTHENTICATION_REQUIRED, PERMISSION_DENIED, FEATURE_DISABLED
 
 **Transaction Required?**  
-No
+No.
 
 **Idempotency Required?**  
-No
+No.
 
-**Realtime Impact?**  
+**Realtime Impact:**  
 None.
 
 ### `GET /api/v1/cafe/suppliers/{supplierId}`
 
 **Purpose:**  
-Return a supplier.
+Return the authorized Supplier representation.
 
 **Authentication:**  
-Authenticated.
+Bearer access token.
 
 **Scope:**  
 Tenant
@@ -8220,52 +7708,42 @@ suppliers
 
 **Path Parameters:**
 
-```json
-{
-  "supplierId": "Opaque supplierId identifier"
-}
+```ts
+type PathParameters = { supplierId: string };
 ```
 
 **Query Parameters:**
 
-```json
-{}
-```
+None.
 
-**Request Body:**
+**Request DTO:**  
+Empty body (`{}`).
 
-```json
-{}
-```
+**Response DTO:**  
+ApiSuccess<SupplierDto>
 
-**Response:**
+**Success Status:**  
+200
 
-```json
-{
-  "success": true,
-  "data": "Supplier result"
-}
-```
-
-**Important Validation:**  
-Validate authentication, scope, permission, feature, and tenant isolation server-side.
+**Important Validation / Machine-readable Errors:**  
+AUTHENTICATION_REQUIRED, PERMISSION_DENIED, FEATURE_DISABLED
 
 **Transaction Required?**  
-No
+No.
 
 **Idempotency Required?**  
-No
+No.
 
-**Realtime Impact?**  
+**Realtime Impact:**  
 None.
 
 ### `PATCH /api/v1/cafe/suppliers/{supplierId}`
 
 **Purpose:**  
-Update a supplier.
+Partially update the selected Supplier resource.
 
 **Authentication:**  
-Authenticated.
+Bearer access token.
 
 **Scope:**  
 Tenant
@@ -8278,55 +7756,42 @@ suppliers
 
 **Path Parameters:**
 
-```json
-{
-  "supplierId": "Opaque supplierId identifier"
-}
+```ts
+type PathParameters = { supplierId: string };
 ```
 
 **Query Parameters:**
 
-```json
-{}
-```
+None.
 
-**Request Body:**
+**Request DTO:**  
+`UpdateSupplierRequest`
 
-```json
-{
-  "fields": "Current Supplier domain fields",
-  "version": "Required on conflicting updates when applicable"
-}
-```
+**Response DTO:**  
+ApiSuccess<SupplierDto>
 
-**Response:**
+**Success Status:**  
+200
 
-```json
-{
-  "success": true,
-  "data": "Supplier result"
-}
-```
-
-**Important Validation:**  
-Validate authentication, scope, permission, feature, and tenant isolation server-side.
+**Important Validation / Machine-readable Errors:**  
+AUTHENTICATION_REQUIRED, PERMISSION_DENIED, FEATURE_DISABLED, VERSION_CONFLICT
 
 **Transaction Required?**  
-No
+No.
 
 **Idempotency Required?**  
-No
+No.
 
-**Realtime Impact?**  
+**Realtime Impact:**  
 None.
 
 ### `PATCH /api/v1/cafe/suppliers/{supplierId}/status`
 
 **Purpose:**  
-Activate or deactivate a supplier.
+Partially update the selected Supplier resource.
 
 **Authentication:**  
-Authenticated.
+Bearer access token.
 
 **Scope:**  
 Tenant
@@ -8339,47 +7804,33 @@ suppliers
 
 **Path Parameters:**
 
-```json
-{
-  "supplierId": "Opaque supplierId identifier"
-}
+```ts
+type PathParameters = { supplierId: string };
 ```
 
 **Query Parameters:**
 
-```json
-{}
-```
+None.
 
-**Request Body:**
+**Request DTO:**  
+`SupplierStatusRequest`
 
-```json
-{
-  "status": "Allowed domain status",
-  "note": "optional string",
-  "version": "integer"
-}
-```
+**Response DTO:**  
+ApiSuccess<SupplierDto>
 
-**Response:**
+**Success Status:**  
+200
 
-```json
-{
-  "success": true,
-  "data": "Supplier result"
-}
-```
-
-**Important Validation:**  
-Validate authentication, scope, permission, feature, and tenant isolation server-side.
+**Important Validation / Machine-readable Errors:**  
+AUTHENTICATION_REQUIRED, PERMISSION_DENIED, FEATURE_DISABLED, VERSION_CONFLICT
 
 **Transaction Required?**  
-No
+No.
 
 **Idempotency Required?**  
-No
+No.
 
-**Realtime Impact?**  
+**Realtime Impact:**  
 None.
 
 ## 30. Purchase Endpoints
@@ -8387,10 +7838,10 @@ None.
 ### `GET /api/v1/cafe/branches/{branchId}/purchases`
 
 **Purpose:**  
-List purchase invoices.
+List or return the authorized Purchase representation required by this route.
 
 **Authentication:**  
-Authenticated.
+Bearer access token.
 
 **Scope:**  
 Branch
@@ -8403,66 +7854,44 @@ purchases
 
 **Path Parameters:**
 
-```json
-{
-  "branchId": "Opaque branchId identifier"
-}
+```ts
+type PathParameters = { branchId: string };
 ```
 
 **Query Parameters:**
 
-```json
-{
-  "page": 1,
-  "pageSize": 25,
-  "search": "optional",
-  "sortBy": "optional",
-  "sortOrder": "asc | desc",
-  "from": "optional ISO date",
-  "to": "optional ISO date"
-}
+```ts
+type QueryParameters = { page?: number; pageSize?: number; search?: string; supplierId?: string; status?: PurchaseStatus; from?: string; to?: string };
 ```
 
-**Request Body:**
+**Request DTO:**  
+Empty body (`{}`).
 
-```json
-{}
-```
+**Response DTO:**  
+`Paginated<PurchaseDto>`
 
-**Response:**
+**Success Status:**  
+200
 
-```json
-{
-  "success": true,
-  "data": [],
-  "meta": {
-    "page": 1,
-    "pageSize": 25,
-    "total": 0,
-    "totalPages": 0
-  }
-}
-```
-
-**Important Validation:**  
-Validate authentication, scope, permission, feature, and tenant isolation server-side. Validate employee branch access and resource ownership.
+**Important Validation / Machine-readable Errors:**  
+AUTHENTICATION_REQUIRED, PERMISSION_DENIED, FEATURE_DISABLED, BRANCH_ACCESS_DENIED
 
 **Transaction Required?**  
-No
+No.
 
 **Idempotency Required?**  
-No
+No.
 
-**Realtime Impact?**  
+**Realtime Impact:**  
 None.
 
 ### `POST /api/v1/cafe/branches/{branchId}/purchases`
 
 **Purpose:**  
-Create a purchase invoice.
+Create a Purchase resource.
 
 **Authentication:**  
-Authenticated.
+Bearer access token.
 
 **Scope:**  
 Branch
@@ -8475,55 +7904,44 @@ purchases
 
 **Path Parameters:**
 
-```json
-{
-  "branchId": "Opaque branchId identifier"
-}
+```ts
+type PathParameters = { branchId: string };
 ```
 
 **Query Parameters:**
 
-```json
-{}
+```ts
+type QueryParameters = { page?: number; pageSize?: number; search?: string; supplierId?: string; status?: PurchaseStatus; from?: string; to?: string };
 ```
 
-**Request Body:**
+**Request DTO:**  
+`CreatePurchaseRequest`
 
-```json
-{
-  "fields": "Current Purchase domain fields",
-  "version": "Required on conflicting updates when applicable"
-}
-```
+**Response DTO:**  
+`ApiSuccess<PurchaseDto>`
 
-**Response:**
+**Success Status:**  
+201
 
-```json
-{
-  "success": true,
-  "data": "Purchase result"
-}
-```
-
-**Important Validation:**  
-Validate authentication, scope, permission, feature, and tenant isolation server-side. Validate employee branch access and resource ownership.
+**Important Validation / Machine-readable Errors:**  
+AUTHENTICATION_REQUIRED, PERMISSION_DENIED, FEATURE_DISABLED, BRANCH_ACCESS_DENIED, BRANCH_LIMIT_EXCEEDED
 
 **Transaction Required?**  
-No
+No.
 
 **Idempotency Required?**  
-No
+No.
 
-**Realtime Impact?**  
-Publishes inventory events when quantities change.
+**Realtime Impact:**  
+Publishes inventory change events when stock changes.
 
 ### `GET /api/v1/cafe/branches/{branchId}/purchases/{purchaseId}`
 
 **Purpose:**  
-Return a purchase invoice.
+Return the authorized Purchase representation.
 
 **Authentication:**  
-Authenticated.
+Bearer access token.
 
 **Scope:**  
 Branch
@@ -8536,53 +7954,42 @@ purchases
 
 **Path Parameters:**
 
-```json
-{
-  "branchId": "Opaque branchId identifier",
-  "purchaseId": "Opaque purchaseId identifier"
-}
+```ts
+type PathParameters = { branchId: string; purchaseId: string };
 ```
 
 **Query Parameters:**
 
-```json
-{}
-```
+None.
 
-**Request Body:**
+**Request DTO:**  
+Empty body (`{}`).
 
-```json
-{}
-```
+**Response DTO:**  
+`ApiSuccess<PurchaseDto>`
 
-**Response:**
+**Success Status:**  
+200
 
-```json
-{
-  "success": true,
-  "data": "Purchase result"
-}
-```
-
-**Important Validation:**  
-Validate authentication, scope, permission, feature, and tenant isolation server-side. Validate employee branch access and resource ownership.
+**Important Validation / Machine-readable Errors:**  
+AUTHENTICATION_REQUIRED, PERMISSION_DENIED, FEATURE_DISABLED, BRANCH_ACCESS_DENIED
 
 **Transaction Required?**  
-No
+No.
 
 **Idempotency Required?**  
-No
+No.
 
-**Realtime Impact?**  
+**Realtime Impact:**  
 None.
 
 ### `PATCH /api/v1/cafe/branches/{branchId}/purchases/{purchaseId}`
 
 **Purpose:**  
-Update an unreceived purchase.
+Partially update the selected Purchase resource.
 
 **Authentication:**  
-Authenticated.
+Bearer access token.
 
 **Scope:**  
 Branch
@@ -8595,56 +8002,42 @@ purchases
 
 **Path Parameters:**
 
-```json
-{
-  "branchId": "Opaque branchId identifier",
-  "purchaseId": "Opaque purchaseId identifier"
-}
+```ts
+type PathParameters = { branchId: string; purchaseId: string };
 ```
 
 **Query Parameters:**
 
-```json
-{}
-```
+None.
 
-**Request Body:**
+**Request DTO:**  
+`UpdatePurchaseRequest`
 
-```json
-{
-  "fields": "Current Purchase domain fields",
-  "version": "Required on conflicting updates when applicable"
-}
-```
+**Response DTO:**  
+`ApiSuccess<PurchaseDto>`
 
-**Response:**
+**Success Status:**  
+200
 
-```json
-{
-  "success": true,
-  "data": "Purchase result"
-}
-```
-
-**Important Validation:**  
-Validate authentication, scope, permission, feature, and tenant isolation server-side. Validate employee branch access and resource ownership.
+**Important Validation / Machine-readable Errors:**  
+AUTHENTICATION_REQUIRED, PERMISSION_DENIED, FEATURE_DISABLED, BRANCH_ACCESS_DENIED, VERSION_CONFLICT
 
 **Transaction Required?**  
-No
+No.
 
 **Idempotency Required?**  
-No
+No.
 
-**Realtime Impact?**  
-Publishes inventory events when quantities change.
+**Realtime Impact:**  
+Publishes inventory change events when stock changes.
 
 ### `POST /api/v1/cafe/branches/{branchId}/purchases/{purchaseId}/receive`
 
 **Purpose:**  
-Receive a purchase and update stock and average costs.
+Receive a purchase and update quantities and weighted average costs.
 
 **Authentication:**  
-Authenticated.
+Bearer access token.
 
 **Scope:**  
 Branch
@@ -8657,57 +8050,44 @@ purchases
 
 **Path Parameters:**
 
-```json
-{
-  "branchId": "Opaque branchId identifier",
-  "purchaseId": "Opaque purchaseId identifier"
-}
+```ts
+type PathParameters = { branchId: string; purchaseId: string };
 ```
 
 **Query Parameters:**
 
-```json
-{}
-```
+None.
 
-**Request Body:**
+**Request DTO:**  
+`ReceivePurchaseRequest`
 
-```json
-{}
-```
+**Response DTO:**  
+`ReceivePurchaseResponse`
 
-**Response:**
+**Success Status:**  
+200
 
-```json
-{
-  "success": true,
-  "data": "Purchase result"
-}
-```
-
-**Important Validation:**  
-Validate authentication, scope, permission, feature, and tenant isolation server-side. Validate employee branch access and resource ownership.
+**Important Validation / Machine-readable Errors:**  
+AUTHENTICATION_REQUIRED, PERMISSION_DENIED, FEATURE_DISABLED, BRANCH_ACCESS_DENIED, BRANCH_LIMIT_EXCEEDED, PURCHASE_ALREADY_RECEIVED
 
 **Transaction Required?**  
-Yes
+Yes.
 
 **Idempotency Required?**  
-Yes — Idempotency-Key or verified provider event ID
+Yes — `Idempotency-Key`; payment webhook uses verified provider event ID.
 
-**Realtime Impact?**  
-Publishes inventory events when quantities change.
+**Realtime Impact:**  
+Publishes inventory change events when stock changes.
 
 ## 31. Customer Endpoints
-
-Basic customer analytics are part of Customer Details and require only `customers.view`.
 
 ### `GET /api/v1/cafe/customers`
 
 **Purpose:**  
-Search customers.
+List or return the authorized Customer representation required by this route.
 
 **Authentication:**  
-Authenticated.
+Bearer access token.
 
 **Scope:**  
 Tenant
@@ -8720,64 +8100,42 @@ customers.view
 
 **Path Parameters:**
 
-```json
-{}
-```
+None.
 
 **Query Parameters:**
 
-```json
-{
-  "page": 1,
-  "pageSize": 25,
-  "search": "optional",
-  "sortBy": "optional",
-  "sortOrder": "asc | desc",
-  "from": "optional ISO date",
-  "to": "optional ISO date"
-}
+```ts
+type QueryParameters = { page?: number; pageSize?: number; search?: string; active?: boolean };
 ```
 
-**Request Body:**
+**Request DTO:**  
+Empty body (`{}`).
 
-```json
-{}
-```
+**Response DTO:**  
+`Paginated<CustomerDto>`
 
-**Response:**
+**Success Status:**  
+200
 
-```json
-{
-  "success": true,
-  "data": [],
-  "meta": {
-    "page": 1,
-    "pageSize": 25,
-    "total": 0,
-    "totalPages": 0
-  }
-}
-```
-
-**Important Validation:**  
-Validate authentication, scope, permission, feature, and tenant isolation server-side.
+**Important Validation / Machine-readable Errors:**  
+AUTHENTICATION_REQUIRED, PERMISSION_DENIED
 
 **Transaction Required?**  
-No
+No.
 
 **Idempotency Required?**  
-No
+No.
 
-**Realtime Impact?**  
+**Realtime Impact:**  
 None.
 
 ### `POST /api/v1/cafe/customers`
 
 **Purpose:**  
-Create a customer.
+Create a Customer resource.
 
 **Authentication:**  
-Authenticated.
+Bearer access token.
 
 **Scope:**  
 Tenant
@@ -8790,53 +8148,42 @@ customers.manage
 
 **Path Parameters:**
 
-```json
-{}
-```
+None.
 
 **Query Parameters:**
 
-```json
-{}
+```ts
+type QueryParameters = { page?: number; pageSize?: number; search?: string; active?: boolean };
 ```
 
-**Request Body:**
+**Request DTO:**  
+`CreateCustomerRequest`
 
-```json
-{
-  "fields": "Current Customer domain fields",
-  "version": "Required on conflicting updates when applicable"
-}
-```
+**Response DTO:**  
+`ApiSuccess<CustomerDto>`
 
-**Response:**
+**Success Status:**  
+201
 
-```json
-{
-  "success": true,
-  "data": "Customer result"
-}
-```
-
-**Important Validation:**  
-Validate authentication, scope, permission, feature, and tenant isolation server-side.
+**Important Validation / Machine-readable Errors:**  
+AUTHENTICATION_REQUIRED, PERMISSION_DENIED
 
 **Transaction Required?**  
-No
+No.
 
 **Idempotency Required?**  
-No
+No.
 
-**Realtime Impact?**  
+**Realtime Impact:**  
 None.
 
 ### `GET /api/v1/cafe/customers/{customerId}`
 
 **Purpose:**  
-Return customer details.
+Return the authorized Customer representation.
 
 **Authentication:**  
-Authenticated.
+Bearer access token.
 
 **Scope:**  
 Tenant
@@ -8849,52 +8196,42 @@ customers.view
 
 **Path Parameters:**
 
-```json
-{
-  "customerId": "Opaque customerId identifier"
-}
+```ts
+type PathParameters = { customerId: string };
 ```
 
 **Query Parameters:**
 
-```json
-{}
-```
+None.
 
-**Request Body:**
+**Request DTO:**  
+Empty body (`{}`).
 
-```json
-{}
-```
+**Response DTO:**  
+`ApiSuccess<CustomerDto>`
 
-**Response:**
+**Success Status:**  
+200
 
-```json
-{
-  "success": true,
-  "data": "Customer result"
-}
-```
-
-**Important Validation:**  
-Validate authentication, scope, permission, feature, and tenant isolation server-side.
+**Important Validation / Machine-readable Errors:**  
+AUTHENTICATION_REQUIRED, PERMISSION_DENIED
 
 **Transaction Required?**  
-No
+No.
 
 **Idempotency Required?**  
-No
+No.
 
-**Realtime Impact?**  
+**Realtime Impact:**  
 None.
 
 ### `PATCH /api/v1/cafe/customers/{customerId}`
 
 **Purpose:**  
-Update a customer.
+Partially update the selected Customer resource.
 
 **Authentication:**  
-Authenticated.
+Bearer access token.
 
 **Scope:**  
 Tenant
@@ -8907,55 +8244,42 @@ customers.manage
 
 **Path Parameters:**
 
-```json
-{
-  "customerId": "Opaque customerId identifier"
-}
+```ts
+type PathParameters = { customerId: string };
 ```
 
 **Query Parameters:**
 
-```json
-{}
-```
+None.
 
-**Request Body:**
+**Request DTO:**  
+`UpdateCustomerRequest`
 
-```json
-{
-  "fields": "Current Customer domain fields",
-  "version": "Required on conflicting updates when applicable"
-}
-```
+**Response DTO:**  
+`ApiSuccess<CustomerDto>`
 
-**Response:**
+**Success Status:**  
+200
 
-```json
-{
-  "success": true,
-  "data": "Customer result"
-}
-```
-
-**Important Validation:**  
-Validate authentication, scope, permission, feature, and tenant isolation server-side.
+**Important Validation / Machine-readable Errors:**  
+AUTHENTICATION_REQUIRED, PERMISSION_DENIED, VERSION_CONFLICT
 
 **Transaction Required?**  
-No
+No.
 
 **Idempotency Required?**  
-No
+No.
 
-**Realtime Impact?**  
+**Realtime Impact:**  
 None.
 
 ### `GET /api/v1/cafe/customers/{customerId}/analytics`
 
 **Purpose:**  
-Return basic customer-detail analytics without requiring reports.
+Return the authorized Customer representation.
 
 **Authentication:**  
-Authenticated.
+Bearer access token.
 
 **Scope:**  
 Tenant
@@ -8968,57 +8292,33 @@ customers.view
 
 **Path Parameters:**
 
-```json
-{
-  "customerId": "Opaque customerId identifier"
-}
+```ts
+type PathParameters = { customerId: string };
 ```
 
 **Query Parameters:**
 
-```json
-{
-  "page": 1,
-  "pageSize": 25,
-  "search": "optional",
-  "sortBy": "optional",
-  "sortOrder": "asc | desc",
-  "from": "optional ISO date",
-  "to": "optional ISO date"
-}
-```
+None.
 
-**Request Body:**
+**Request DTO:**  
+Empty body (`{}`).
 
-```json
-{}
-```
+**Response DTO:**  
+`ApiSuccess<CustomerAnalyticsDto>`
 
-**Response:**
+**Success Status:**  
+200
 
-```json
-{
-  "success": true,
-  "data": [],
-  "meta": {
-    "page": 1,
-    "pageSize": 25,
-    "total": 0,
-    "totalPages": 0
-  }
-}
-```
-
-**Important Validation:**  
-Validate authentication, scope, permission, feature, and tenant isolation server-side.
+**Important Validation / Machine-readable Errors:**  
+AUTHENTICATION_REQUIRED, PERMISSION_DENIED
 
 **Transaction Required?**  
-No
+No.
 
 **Idempotency Required?**  
-No
+No.
 
-**Realtime Impact?**  
+**Realtime Impact:**  
 None.
 
 ## 32. Customer Address Endpoints
@@ -9026,10 +8326,10 @@ None.
 ### `GET /api/v1/cafe/customers/{customerId}/addresses`
 
 **Purpose:**  
-List customer addresses.
+List or return the authorized Customer Address representation required by this route.
 
 **Authentication:**  
-Authenticated.
+Bearer access token.
 
 **Scope:**  
 Tenant
@@ -9042,66 +8342,42 @@ delivery
 
 **Path Parameters:**
 
-```json
-{
-  "customerId": "Opaque customerId identifier"
-}
+```ts
+type PathParameters = { customerId: string };
 ```
 
 **Query Parameters:**
 
-```json
-{
-  "page": 1,
-  "pageSize": 25,
-  "search": "optional",
-  "sortBy": "optional",
-  "sortOrder": "asc | desc",
-  "from": "optional ISO date",
-  "to": "optional ISO date"
-}
-```
+None.
 
-**Request Body:**
+**Request DTO:**  
+Empty body (`{}`).
 
-```json
-{}
-```
+**Response DTO:**  
+`ApiSuccess<CustomerAddressDto[]>`
 
-**Response:**
+**Success Status:**  
+200
 
-```json
-{
-  "success": true,
-  "data": [],
-  "meta": {
-    "page": 1,
-    "pageSize": 25,
-    "total": 0,
-    "totalPages": 0
-  }
-}
-```
-
-**Important Validation:**  
-Validate authentication, scope, permission, feature, and tenant isolation server-side.
+**Important Validation / Machine-readable Errors:**  
+AUTHENTICATION_REQUIRED, PERMISSION_DENIED, FEATURE_DISABLED
 
 **Transaction Required?**  
-No
+No.
 
 **Idempotency Required?**  
-No
+No.
 
-**Realtime Impact?**  
+**Realtime Impact:**  
 None.
 
 ### `POST /api/v1/cafe/customers/{customerId}/addresses`
 
 **Purpose:**  
-Create a customer address.
+Create a Customer Address resource.
 
 **Authentication:**  
-Authenticated.
+Bearer access token.
 
 **Scope:**  
 Tenant
@@ -9114,55 +8390,42 @@ delivery
 
 **Path Parameters:**
 
-```json
-{
-  "customerId": "Opaque customerId identifier"
-}
+```ts
+type PathParameters = { customerId: string };
 ```
 
 **Query Parameters:**
 
-```json
-{}
-```
+None.
 
-**Request Body:**
+**Request DTO:**  
+`CreateCustomerAddressRequest`
 
-```json
-{
-  "fields": "Current Customer Address domain fields",
-  "version": "Required on conflicting updates when applicable"
-}
-```
+**Response DTO:**  
+`ApiSuccess<CustomerAddressDto>`
 
-**Response:**
+**Success Status:**  
+201
 
-```json
-{
-  "success": true,
-  "data": "Customer Address result"
-}
-```
-
-**Important Validation:**  
-Validate authentication, scope, permission, feature, and tenant isolation server-side.
+**Important Validation / Machine-readable Errors:**  
+AUTHENTICATION_REQUIRED, PERMISSION_DENIED, FEATURE_DISABLED
 
 **Transaction Required?**  
-No
+Yes.
 
 **Idempotency Required?**  
-No
+No.
 
-**Realtime Impact?**  
+**Realtime Impact:**  
 None.
 
 ### `PATCH /api/v1/cafe/customers/{customerId}/addresses/{addressId}`
 
 **Purpose:**  
-Update an address or make it the default.
+Partially update the selected Customer Address resource.
 
 **Authentication:**  
-Authenticated.
+Bearer access token.
 
 **Scope:**  
 Tenant
@@ -9175,56 +8438,42 @@ delivery
 
 **Path Parameters:**
 
-```json
-{
-  "customerId": "Opaque customerId identifier",
-  "addressId": "Opaque addressId identifier"
-}
+```ts
+type PathParameters = { customerId: string; addressId: string };
 ```
 
 **Query Parameters:**
 
-```json
-{}
-```
+None.
 
-**Request Body:**
+**Request DTO:**  
+`UpdateCustomerAddressRequest`
 
-```json
-{
-  "fields": "Current Customer Address domain fields",
-  "version": "Required on conflicting updates when applicable"
-}
-```
+**Response DTO:**  
+`ApiSuccess<CustomerAddressDto>`
 
-**Response:**
+**Success Status:**  
+200
 
-```json
-{
-  "success": true,
-  "data": "Customer Address result"
-}
-```
-
-**Important Validation:**  
-Validate authentication, scope, permission, feature, and tenant isolation server-side.
+**Important Validation / Machine-readable Errors:**  
+AUTHENTICATION_REQUIRED, PERMISSION_DENIED, FEATURE_DISABLED, VERSION_CONFLICT
 
 **Transaction Required?**  
-No
+Yes.
 
 **Idempotency Required?**  
-No
+No.
 
-**Realtime Impact?**  
+**Realtime Impact:**  
 None.
 
 ### `DELETE /api/v1/cafe/customers/{customerId}/addresses/{addressId}`
 
 **Purpose:**  
-Delete a customer address.
+Delete or revoke the selected Customer Address resource.
 
 **Authentication:**  
-Authenticated.
+Bearer access token.
 
 **Scope:**  
 Tenant
@@ -9237,44 +8486,33 @@ delivery
 
 **Path Parameters:**
 
-```json
-{
-  "customerId": "Opaque customerId identifier",
-  "addressId": "Opaque addressId identifier"
-}
+```ts
+type PathParameters = { customerId: string; addressId: string };
 ```
 
 **Query Parameters:**
 
-```json
-{}
-```
+None.
 
-**Request Body:**
+**Request DTO:**  
+Empty body (`{}`).
 
-```json
-{}
-```
+**Response DTO:**  
+Empty response body.
 
-**Response:**
+**Success Status:**  
+204
 
-```json
-{
-  "success": true,
-  "data": "Customer Address result"
-}
-```
-
-**Important Validation:**  
-Validate authentication, scope, permission, feature, and tenant isolation server-side.
+**Important Validation / Machine-readable Errors:**  
+AUTHENTICATION_REQUIRED, PERMISSION_DENIED, FEATURE_DISABLED
 
 **Transaction Required?**  
-No
+Yes.
 
 **Idempotency Required?**  
-No
+No.
 
-**Realtime Impact?**  
+**Realtime Impact:**  
 None.
 
 ## 33. Loyalty Endpoints
@@ -9282,10 +8520,10 @@ None.
 ### `GET /api/v1/cafe/loyalty/settings`
 
 **Purpose:**  
-Return loyalty settings.
+List or return the authorized Loyalty representation required by this route.
 
 **Authentication:**  
-Authenticated.
+Bearer access token.
 
 **Scope:**  
 Tenant
@@ -9298,64 +8536,40 @@ loyalty
 
 **Path Parameters:**
 
-```json
-{}
-```
+None.
 
 **Query Parameters:**
 
-```json
-{
-  "page": 1,
-  "pageSize": 25,
-  "search": "optional",
-  "sortBy": "optional",
-  "sortOrder": "asc | desc",
-  "from": "optional ISO date",
-  "to": "optional ISO date"
-}
-```
+None.
 
-**Request Body:**
+**Request DTO:**  
+Empty body (`{}`).
 
-```json
-{}
-```
+**Response DTO:**  
+`ApiSuccess<LoyaltySettingsDto>`
 
-**Response:**
+**Success Status:**  
+200
 
-```json
-{
-  "success": true,
-  "data": [],
-  "meta": {
-    "page": 1,
-    "pageSize": 25,
-    "total": 0,
-    "totalPages": 0
-  }
-}
-```
-
-**Important Validation:**  
-Validate authentication, scope, permission, feature, and tenant isolation server-side.
+**Important Validation / Machine-readable Errors:**  
+AUTHENTICATION_REQUIRED, PERMISSION_DENIED, FEATURE_DISABLED
 
 **Transaction Required?**  
-No
+No.
 
 **Idempotency Required?**  
-No
+No.
 
-**Realtime Impact?**  
+**Realtime Impact:**  
 None.
 
 ### `PUT /api/v1/cafe/loyalty/settings`
 
 **Purpose:**  
-Replace loyalty settings.
+Replace or assign the selected Loyalty configuration.
 
 **Authentication:**  
-Authenticated.
+Bearer access token.
 
 **Scope:**  
 Tenant
@@ -9368,53 +8582,40 @@ loyalty
 
 **Path Parameters:**
 
-```json
-{}
-```
+None.
 
 **Query Parameters:**
 
-```json
-{}
-```
+None.
 
-**Request Body:**
+**Request DTO:**  
+`UpdateLoyaltySettingsRequest`
 
-```json
-{
-  "fields": "Current Loyalty domain fields",
-  "version": "Required on conflicting updates when applicable"
-}
-```
+**Response DTO:**  
+`ApiSuccess<LoyaltySettingsDto>`
 
-**Response:**
+**Success Status:**  
+200
 
-```json
-{
-  "success": true,
-  "data": "Loyalty result"
-}
-```
-
-**Important Validation:**  
-Validate authentication, scope, permission, feature, and tenant isolation server-side.
+**Important Validation / Machine-readable Errors:**  
+AUTHENTICATION_REQUIRED, PERMISSION_DENIED, FEATURE_DISABLED, VERSION_CONFLICT
 
 **Transaction Required?**  
-No
+No.
 
 **Idempotency Required?**  
-No
+No.
 
-**Realtime Impact?**  
+**Realtime Impact:**  
 None.
 
 ### `GET /api/v1/cafe/customers/{customerId}/loyalty/balance`
 
 **Purpose:**  
-Return a customer loyalty balance.
+List or return the authorized Loyalty representation required by this route.
 
 **Authentication:**  
-Authenticated.
+Bearer access token.
 
 **Scope:**  
 Tenant
@@ -9427,66 +8628,42 @@ loyalty
 
 **Path Parameters:**
 
-```json
-{
-  "customerId": "Opaque customerId identifier"
-}
+```ts
+type PathParameters = { customerId: string };
 ```
 
 **Query Parameters:**
 
-```json
-{
-  "page": 1,
-  "pageSize": 25,
-  "search": "optional",
-  "sortBy": "optional",
-  "sortOrder": "asc | desc",
-  "from": "optional ISO date",
-  "to": "optional ISO date"
-}
-```
+None.
 
-**Request Body:**
+**Request DTO:**  
+Empty body (`{}`).
 
-```json
-{}
-```
+**Response DTO:**  
+`ApiSuccess<LoyaltyBalanceDto>`
 
-**Response:**
+**Success Status:**  
+200
 
-```json
-{
-  "success": true,
-  "data": [],
-  "meta": {
-    "page": 1,
-    "pageSize": 25,
-    "total": 0,
-    "totalPages": 0
-  }
-}
-```
-
-**Important Validation:**  
-Validate authentication, scope, permission, feature, and tenant isolation server-side.
+**Important Validation / Machine-readable Errors:**  
+AUTHENTICATION_REQUIRED, PERMISSION_DENIED, FEATURE_DISABLED
 
 **Transaction Required?**  
-No
+No.
 
 **Idempotency Required?**  
-No
+No.
 
-**Realtime Impact?**  
+**Realtime Impact:**  
 None.
 
 ### `GET /api/v1/cafe/customers/{customerId}/loyalty/transactions`
 
 **Purpose:**  
-List customer loyalty transactions.
+List or return the authorized Loyalty representation required by this route.
 
 **Authentication:**  
-Authenticated.
+Bearer access token.
 
 **Scope:**  
 Tenant
@@ -9499,66 +8676,44 @@ loyalty
 
 **Path Parameters:**
 
-```json
-{
-  "customerId": "Opaque customerId identifier"
-}
+```ts
+type PathParameters = { customerId: string };
 ```
 
 **Query Parameters:**
 
-```json
-{
-  "page": 1,
-  "pageSize": 25,
-  "search": "optional",
-  "sortBy": "optional",
-  "sortOrder": "asc | desc",
-  "from": "optional ISO date",
-  "to": "optional ISO date"
-}
+```ts
+type QueryParameters = { page?: number; pageSize?: number; type?: LoyaltyTransactionType; from?: string; to?: string };
 ```
 
-**Request Body:**
+**Request DTO:**  
+Empty body (`{}`).
 
-```json
-{}
-```
+**Response DTO:**  
+`Paginated<LoyaltyTransactionDto>`
 
-**Response:**
+**Success Status:**  
+200
 
-```json
-{
-  "success": true,
-  "data": [],
-  "meta": {
-    "page": 1,
-    "pageSize": 25,
-    "total": 0,
-    "totalPages": 0
-  }
-}
-```
-
-**Important Validation:**  
-Validate authentication, scope, permission, feature, and tenant isolation server-side.
+**Important Validation / Machine-readable Errors:**  
+AUTHENTICATION_REQUIRED, PERMISSION_DENIED, FEATURE_DISABLED
 
 **Transaction Required?**  
-No
+No.
 
 **Idempotency Required?**  
-No
+No.
 
-**Realtime Impact?**  
+**Realtime Impact:**  
 None.
 
 ### `POST /api/v1/cafe/customers/{customerId}/loyalty/adjustments`
 
 **Purpose:**  
-Create an auditable manual loyalty adjustment.
+Create a Loyalty resource.
 
 **Authentication:**  
-Authenticated.
+Bearer access token.
 
 **Scope:**  
 Tenant
@@ -9571,46 +8726,33 @@ loyalty
 
 **Path Parameters:**
 
-```json
-{
-  "customerId": "Opaque customerId identifier"
-}
+```ts
+type PathParameters = { customerId: string };
 ```
 
 **Query Parameters:**
 
-```json
-{}
-```
+None.
 
-**Request Body:**
+**Request DTO:**  
+`LoyaltyAdjustmentRequest`
 
-```json
-{
-  "points": 0,
-  "reason": "string"
-}
-```
+**Response DTO:**  
+`ApiSuccess<LoyaltyTransactionDto>`
 
-**Response:**
+**Success Status:**  
+201
 
-```json
-{
-  "success": true,
-  "data": "Loyalty result"
-}
-```
-
-**Important Validation:**  
-Validate authentication, scope, permission, feature, and tenant isolation server-side.
+**Important Validation / Machine-readable Errors:**  
+AUTHENTICATION_REQUIRED, PERMISSION_DENIED, FEATURE_DISABLED
 
 **Transaction Required?**  
-No
+Yes.
 
 **Idempotency Required?**  
-No
+No.
 
-**Realtime Impact?**  
+**Realtime Impact:**  
 None.
 
 ## 34. Coupon Endpoints
@@ -9618,10 +8760,10 @@ None.
 ### `GET /api/v1/cafe/coupons`
 
 **Purpose:**  
-List coupons.
+List or return the authorized Coupon representation required by this route.
 
 **Authentication:**  
-Authenticated.
+Bearer access token.
 
 **Scope:**  
 Tenant
@@ -9634,64 +8776,42 @@ loyalty
 
 **Path Parameters:**
 
-```json
-{}
-```
+None.
 
 **Query Parameters:**
 
-```json
-{
-  "page": 1,
-  "pageSize": 25,
-  "search": "optional",
-  "sortBy": "optional",
-  "sortOrder": "asc | desc",
-  "from": "optional ISO date",
-  "to": "optional ISO date"
-}
+```ts
+type QueryParameters = { page?: number; pageSize?: number; search?: string; type?: CouponType; active?: boolean };
 ```
 
-**Request Body:**
+**Request DTO:**  
+Empty body (`{}`).
 
-```json
-{}
-```
+**Response DTO:**  
+`Paginated<CouponDto>`
 
-**Response:**
+**Success Status:**  
+200
 
-```json
-{
-  "success": true,
-  "data": [],
-  "meta": {
-    "page": 1,
-    "pageSize": 25,
-    "total": 0,
-    "totalPages": 0
-  }
-}
-```
-
-**Important Validation:**  
-Validate authentication, scope, permission, feature, and tenant isolation server-side.
+**Important Validation / Machine-readable Errors:**  
+AUTHENTICATION_REQUIRED, PERMISSION_DENIED, FEATURE_DISABLED
 
 **Transaction Required?**  
-No
+No.
 
 **Idempotency Required?**  
-No
+No.
 
-**Realtime Impact?**  
+**Realtime Impact:**  
 None.
 
 ### `POST /api/v1/cafe/coupons`
 
 **Purpose:**  
-Create a coupon.
+Create a Coupon resource.
 
 **Authentication:**  
-Authenticated.
+Bearer access token.
 
 **Scope:**  
 Tenant
@@ -9704,53 +8824,42 @@ loyalty
 
 **Path Parameters:**
 
-```json
-{}
-```
+None.
 
 **Query Parameters:**
 
-```json
-{}
+```ts
+type QueryParameters = { page?: number; pageSize?: number; search?: string; type?: CouponType; active?: boolean };
 ```
 
-**Request Body:**
+**Request DTO:**  
+`CreateCouponRequest`
 
-```json
-{
-  "fields": "Current Coupon domain fields",
-  "version": "Required on conflicting updates when applicable"
-}
-```
+**Response DTO:**  
+`ApiSuccess<CouponDto>`
 
-**Response:**
+**Success Status:**  
+201
 
-```json
-{
-  "success": true,
-  "data": "Coupon result"
-}
-```
-
-**Important Validation:**  
-Validate authentication, scope, permission, feature, and tenant isolation server-side.
+**Important Validation / Machine-readable Errors:**  
+AUTHENTICATION_REQUIRED, PERMISSION_DENIED, FEATURE_DISABLED
 
 **Transaction Required?**  
-No
+No.
 
 **Idempotency Required?**  
-No
+No.
 
-**Realtime Impact?**  
+**Realtime Impact:**  
 None.
 
 ### `GET /api/v1/cafe/coupons/{couponId}`
 
 **Purpose:**  
-Return a coupon.
+Return the authorized Coupon representation.
 
 **Authentication:**  
-Authenticated.
+Bearer access token.
 
 **Scope:**  
 Tenant
@@ -9763,52 +8872,42 @@ loyalty
 
 **Path Parameters:**
 
-```json
-{
-  "couponId": "Opaque couponId identifier"
-}
+```ts
+type PathParameters = { couponId: string };
 ```
 
 **Query Parameters:**
 
-```json
-{}
-```
+None.
 
-**Request Body:**
+**Request DTO:**  
+Empty body (`{}`).
 
-```json
-{}
-```
+**Response DTO:**  
+`ApiSuccess<CouponDto>`
 
-**Response:**
+**Success Status:**  
+200
 
-```json
-{
-  "success": true,
-  "data": "Coupon result"
-}
-```
-
-**Important Validation:**  
-Validate authentication, scope, permission, feature, and tenant isolation server-side.
+**Important Validation / Machine-readable Errors:**  
+AUTHENTICATION_REQUIRED, PERMISSION_DENIED, FEATURE_DISABLED
 
 **Transaction Required?**  
-No
+No.
 
 **Idempotency Required?**  
-No
+No.
 
-**Realtime Impact?**  
+**Realtime Impact:**  
 None.
 
 ### `PATCH /api/v1/cafe/coupons/{couponId}`
 
 **Purpose:**  
-Update a coupon.
+Partially update the selected Coupon resource.
 
 **Authentication:**  
-Authenticated.
+Bearer access token.
 
 **Scope:**  
 Tenant
@@ -9821,55 +8920,42 @@ loyalty
 
 **Path Parameters:**
 
-```json
-{
-  "couponId": "Opaque couponId identifier"
-}
+```ts
+type PathParameters = { couponId: string };
 ```
 
 **Query Parameters:**
 
-```json
-{}
-```
+None.
 
-**Request Body:**
+**Request DTO:**  
+`UpdateCouponRequest`
 
-```json
-{
-  "fields": "Current Coupon domain fields",
-  "version": "Required on conflicting updates when applicable"
-}
-```
+**Response DTO:**  
+`ApiSuccess<CouponDto>`
 
-**Response:**
+**Success Status:**  
+200
 
-```json
-{
-  "success": true,
-  "data": "Coupon result"
-}
-```
-
-**Important Validation:**  
-Validate authentication, scope, permission, feature, and tenant isolation server-side.
+**Important Validation / Machine-readable Errors:**  
+AUTHENTICATION_REQUIRED, PERMISSION_DENIED, FEATURE_DISABLED, VERSION_CONFLICT
 
 **Transaction Required?**  
-No
+No.
 
 **Idempotency Required?**  
-No
+No.
 
-**Realtime Impact?**  
+**Realtime Impact:**  
 None.
 
 ### `DELETE /api/v1/cafe/coupons/{couponId}`
 
 **Purpose:**  
-Delete an unused coupon.
+Delete or revoke the selected Coupon resource.
 
 **Authentication:**  
-Authenticated.
+Bearer access token.
 
 **Scope:**  
 Tenant
@@ -9882,52 +8968,42 @@ loyalty
 
 **Path Parameters:**
 
-```json
-{
-  "couponId": "Opaque couponId identifier"
-}
+```ts
+type PathParameters = { couponId: string };
 ```
 
 **Query Parameters:**
 
-```json
-{}
-```
+None.
 
-**Request Body:**
+**Request DTO:**  
+Empty body (`{}`).
 
-```json
-{}
-```
+**Response DTO:**  
+Empty response body.
 
-**Response:**
+**Success Status:**  
+204
 
-```json
-{
-  "success": true,
-  "data": "Coupon result"
-}
-```
-
-**Important Validation:**  
-Validate authentication, scope, permission, feature, and tenant isolation server-side.
+**Important Validation / Machine-readable Errors:**  
+AUTHENTICATION_REQUIRED, PERMISSION_DENIED, FEATURE_DISABLED
 
 **Transaction Required?**  
-No
+No.
 
 **Idempotency Required?**  
-No
+No.
 
-**Realtime Impact?**  
+**Realtime Impact:**  
 None.
 
 ### `POST /api/v1/cafe/coupons/validate`
 
 **Purpose:**  
-Validate a coupon for a provisional cart.
+Validate the supplied Coupon against the provisional cart.
 
 **Authentication:**  
-Authenticated.
+Bearer access token.
 
 **Scope:**  
 Tenant/Branch
@@ -9940,51 +9016,31 @@ loyalty
 
 **Path Parameters:**
 
-```json
-{}
-```
+None.
 
 **Query Parameters:**
 
-```json
-{}
-```
+None.
 
-**Request Body:**
+**Request DTO:**  
+`CouponValidateRequest`
 
-```json
-{
-  "code": "string",
-  "items": [
-    {
-      "productId": "id",
-      "quantity": 1
-    }
-  ],
-  "subtotal": 0,
-  "customerId": "optional"
-}
-```
+**Response DTO:**  
+`CouponValidateResponse`
 
-**Response:**
+**Success Status:**  
+200
 
-```json
-{
-  "success": true,
-  "data": "Coupon result"
-}
-```
-
-**Important Validation:**  
-Validate authentication, scope, permission, feature, and tenant isolation server-side. Validate employee branch access and resource ownership.
+**Important Validation / Machine-readable Errors:**  
+AUTHENTICATION_REQUIRED, PERMISSION_DENIED, FEATURE_DISABLED, BRANCH_ACCESS_DENIED
 
 **Transaction Required?**  
-No
+No.
 
 **Idempotency Required?**  
-No
+No.
 
-**Realtime Impact?**  
+**Realtime Impact:**  
 None.
 
 ## 35. Offer Endpoints
@@ -9992,10 +9048,10 @@ None.
 ### `GET /api/v1/cafe/offers`
 
 **Purpose:**  
-List tenant offers.
+List or return the authorized Offer representation required by this route.
 
 **Authentication:**  
-Authenticated.
+Bearer access token.
 
 **Scope:**  
 Tenant
@@ -10008,64 +9064,42 @@ onlineMenu
 
 **Path Parameters:**
 
-```json
-{}
-```
+None.
 
 **Query Parameters:**
 
-```json
-{
-  "page": 1,
-  "pageSize": 25,
-  "search": "optional",
-  "sortBy": "optional",
-  "sortOrder": "asc | desc",
-  "from": "optional ISO date",
-  "to": "optional ISO date"
-}
+```ts
+type QueryParameters = { page?: number; pageSize?: number; search?: string; isActive?: boolean };
 ```
 
-**Request Body:**
+**Request DTO:**  
+Empty body (`{}`).
 
-```json
-{}
-```
+**Response DTO:**  
+`Paginated<OfferDto>`
 
-**Response:**
+**Success Status:**  
+200
 
-```json
-{
-  "success": true,
-  "data": [],
-  "meta": {
-    "page": 1,
-    "pageSize": 25,
-    "total": 0,
-    "totalPages": 0
-  }
-}
-```
-
-**Important Validation:**  
-Validate authentication, scope, permission, feature, and tenant isolation server-side.
+**Important Validation / Machine-readable Errors:**  
+AUTHENTICATION_REQUIRED, PERMISSION_DENIED, FEATURE_DISABLED
 
 **Transaction Required?**  
-No
+No.
 
 **Idempotency Required?**  
-No
+No.
 
-**Realtime Impact?**  
+**Realtime Impact:**  
 None.
 
 ### `POST /api/v1/cafe/offers`
 
 **Purpose:**  
-Create an offer.
+Create a Offer resource.
 
 **Authentication:**  
-Authenticated.
+Bearer access token.
 
 **Scope:**  
 Tenant
@@ -10078,53 +9112,42 @@ onlineMenu
 
 **Path Parameters:**
 
-```json
-{}
-```
+None.
 
 **Query Parameters:**
 
-```json
-{}
+```ts
+type QueryParameters = { page?: number; pageSize?: number; search?: string; isActive?: boolean };
 ```
 
-**Request Body:**
+**Request DTO:**  
+`CreateOfferRequest`
 
-```json
-{
-  "fields": "Current Offer domain fields",
-  "version": "Required on conflicting updates when applicable"
-}
-```
+**Response DTO:**  
+`ApiSuccess<OfferDto>`
 
-**Response:**
+**Success Status:**  
+201
 
-```json
-{
-  "success": true,
-  "data": "Offer result"
-}
-```
-
-**Important Validation:**  
-Validate authentication, scope, permission, feature, and tenant isolation server-side.
+**Important Validation / Machine-readable Errors:**  
+AUTHENTICATION_REQUIRED, PERMISSION_DENIED, FEATURE_DISABLED
 
 **Transaction Required?**  
-No
+No.
 
 **Idempotency Required?**  
-No
+No.
 
-**Realtime Impact?**  
+**Realtime Impact:**  
 None.
 
 ### `GET /api/v1/cafe/offers/{offerId}`
 
 **Purpose:**  
-Return an offer.
+Return the authorized Offer representation.
 
 **Authentication:**  
-Authenticated.
+Bearer access token.
 
 **Scope:**  
 Tenant
@@ -10137,52 +9160,42 @@ onlineMenu
 
 **Path Parameters:**
 
-```json
-{
-  "offerId": "Opaque offerId identifier"
-}
+```ts
+type PathParameters = { offerId: string };
 ```
 
 **Query Parameters:**
 
-```json
-{}
-```
+None.
 
-**Request Body:**
+**Request DTO:**  
+Empty body (`{}`).
 
-```json
-{}
-```
+**Response DTO:**  
+`ApiSuccess<OfferDto>`
 
-**Response:**
+**Success Status:**  
+200
 
-```json
-{
-  "success": true,
-  "data": "Offer result"
-}
-```
-
-**Important Validation:**  
-Validate authentication, scope, permission, feature, and tenant isolation server-side.
+**Important Validation / Machine-readable Errors:**  
+AUTHENTICATION_REQUIRED, PERMISSION_DENIED, FEATURE_DISABLED
 
 **Transaction Required?**  
-No
+No.
 
 **Idempotency Required?**  
-No
+No.
 
-**Realtime Impact?**  
+**Realtime Impact:**  
 None.
 
 ### `PATCH /api/v1/cafe/offers/{offerId}`
 
 **Purpose:**  
-Update an offer.
+Partially update the selected Offer resource.
 
 **Authentication:**  
-Authenticated.
+Bearer access token.
 
 **Scope:**  
 Tenant
@@ -10195,55 +9208,42 @@ onlineMenu
 
 **Path Parameters:**
 
-```json
-{
-  "offerId": "Opaque offerId identifier"
-}
+```ts
+type PathParameters = { offerId: string };
 ```
 
 **Query Parameters:**
 
-```json
-{}
-```
+None.
 
-**Request Body:**
+**Request DTO:**  
+`UpdateOfferRequest`
 
-```json
-{
-  "fields": "Current Offer domain fields",
-  "version": "Required on conflicting updates when applicable"
-}
-```
+**Response DTO:**  
+`ApiSuccess<OfferDto>`
 
-**Response:**
+**Success Status:**  
+200
 
-```json
-{
-  "success": true,
-  "data": "Offer result"
-}
-```
-
-**Important Validation:**  
-Validate authentication, scope, permission, feature, and tenant isolation server-side.
+**Important Validation / Machine-readable Errors:**  
+AUTHENTICATION_REQUIRED, PERMISSION_DENIED, FEATURE_DISABLED, VERSION_CONFLICT
 
 **Transaction Required?**  
-No
+No.
 
 **Idempotency Required?**  
-No
+No.
 
-**Realtime Impact?**  
+**Realtime Impact:**  
 None.
 
 ### `DELETE /api/v1/cafe/offers/{offerId}`
 
 **Purpose:**  
-Delete an offer.
+Delete or revoke the selected Offer resource.
 
 **Authentication:**  
-Authenticated.
+Bearer access token.
 
 **Scope:**  
 Tenant
@@ -10256,43 +9256,33 @@ onlineMenu
 
 **Path Parameters:**
 
-```json
-{
-  "offerId": "Opaque offerId identifier"
-}
+```ts
+type PathParameters = { offerId: string };
 ```
 
 **Query Parameters:**
 
-```json
-{}
-```
+None.
 
-**Request Body:**
+**Request DTO:**  
+Empty body (`{}`).
 
-```json
-{}
-```
+**Response DTO:**  
+Empty response body.
 
-**Response:**
+**Success Status:**  
+204
 
-```json
-{
-  "success": true,
-  "data": "Offer result"
-}
-```
-
-**Important Validation:**  
-Validate authentication, scope, permission, feature, and tenant isolation server-side.
+**Important Validation / Machine-readable Errors:**  
+AUTHENTICATION_REQUIRED, PERMISSION_DENIED, FEATURE_DISABLED
 
 **Transaction Required?**  
-No
+No.
 
 **Idempotency Required?**  
-No
+No.
 
-**Realtime Impact?**  
+**Realtime Impact:**  
 None.
 
 ## 36. Delivery Zone Endpoints
@@ -10300,10 +9290,10 @@ None.
 ### `GET /api/v1/cafe/branches/{branchId}/delivery-zones`
 
 **Purpose:**  
-List branch delivery zones.
+List or return the authorized Delivery Zone representation required by this route.
 
 **Authentication:**  
-Authenticated.
+Bearer access token.
 
 **Scope:**  
 Branch
@@ -10316,66 +9306,44 @@ delivery
 
 **Path Parameters:**
 
-```json
-{
-  "branchId": "Opaque branchId identifier"
-}
+```ts
+type PathParameters = { branchId: string };
 ```
 
 **Query Parameters:**
 
-```json
-{
-  "page": 1,
-  "pageSize": 25,
-  "search": "optional",
-  "sortBy": "optional",
-  "sortOrder": "asc | desc",
-  "from": "optional ISO date",
-  "to": "optional ISO date"
-}
+```ts
+type QueryParameters = { active?: boolean };
 ```
 
-**Request Body:**
+**Request DTO:**  
+Empty body (`{}`).
 
-```json
-{}
-```
+**Response DTO:**  
+`ApiSuccess<DeliveryZoneDto[]>`
 
-**Response:**
+**Success Status:**  
+200
 
-```json
-{
-  "success": true,
-  "data": [],
-  "meta": {
-    "page": 1,
-    "pageSize": 25,
-    "total": 0,
-    "totalPages": 0
-  }
-}
-```
-
-**Important Validation:**  
-Validate authentication, scope, permission, feature, and tenant isolation server-side. Validate employee branch access and resource ownership.
+**Important Validation / Machine-readable Errors:**  
+AUTHENTICATION_REQUIRED, PERMISSION_DENIED, FEATURE_DISABLED, BRANCH_ACCESS_DENIED
 
 **Transaction Required?**  
-No
+No.
 
 **Idempotency Required?**  
-No
+No.
 
-**Realtime Impact?**  
+**Realtime Impact:**  
 None.
 
 ### `POST /api/v1/cafe/branches/{branchId}/delivery-zones`
 
 **Purpose:**  
-Create a delivery zone.
+Create a Delivery Zone resource.
 
 **Authentication:**  
-Authenticated.
+Bearer access token.
 
 **Scope:**  
 Branch
@@ -10388,55 +9356,44 @@ delivery
 
 **Path Parameters:**
 
-```json
-{
-  "branchId": "Opaque branchId identifier"
-}
+```ts
+type PathParameters = { branchId: string };
 ```
 
 **Query Parameters:**
 
-```json
-{}
+```ts
+type QueryParameters = { active?: boolean };
 ```
 
-**Request Body:**
+**Request DTO:**  
+`CreateDeliveryZoneRequest`
 
-```json
-{
-  "fields": "Current Delivery Zone domain fields",
-  "version": "Required on conflicting updates when applicable"
-}
-```
+**Response DTO:**  
+`ApiSuccess<DeliveryZoneDto>`
 
-**Response:**
+**Success Status:**  
+201
 
-```json
-{
-  "success": true,
-  "data": "Delivery Zone result"
-}
-```
-
-**Important Validation:**  
-Validate authentication, scope, permission, feature, and tenant isolation server-side. Validate employee branch access and resource ownership.
+**Important Validation / Machine-readable Errors:**  
+AUTHENTICATION_REQUIRED, PERMISSION_DENIED, FEATURE_DISABLED, BRANCH_ACCESS_DENIED, BRANCH_LIMIT_EXCEEDED
 
 **Transaction Required?**  
-No
+No.
 
 **Idempotency Required?**  
-No
+No.
 
-**Realtime Impact?**  
+**Realtime Impact:**  
 None.
 
 ### `PATCH /api/v1/cafe/branches/{branchId}/delivery-zones/{zoneId}`
 
 **Purpose:**  
-Update a delivery zone.
+Partially update the selected Delivery Zone resource.
 
 **Authentication:**  
-Authenticated.
+Bearer access token.
 
 **Scope:**  
 Branch
@@ -10449,56 +9406,42 @@ delivery
 
 **Path Parameters:**
 
-```json
-{
-  "branchId": "Opaque branchId identifier",
-  "zoneId": "Opaque zoneId identifier"
-}
+```ts
+type PathParameters = { branchId: string; zoneId: string };
 ```
 
 **Query Parameters:**
 
-```json
-{}
-```
+None.
 
-**Request Body:**
+**Request DTO:**  
+`UpdateDeliveryZoneRequest`
 
-```json
-{
-  "fields": "Current Delivery Zone domain fields",
-  "version": "Required on conflicting updates when applicable"
-}
-```
+**Response DTO:**  
+`ApiSuccess<DeliveryZoneDto>`
 
-**Response:**
+**Success Status:**  
+200
 
-```json
-{
-  "success": true,
-  "data": "Delivery Zone result"
-}
-```
-
-**Important Validation:**  
-Validate authentication, scope, permission, feature, and tenant isolation server-side. Validate employee branch access and resource ownership.
+**Important Validation / Machine-readable Errors:**  
+AUTHENTICATION_REQUIRED, PERMISSION_DENIED, FEATURE_DISABLED, BRANCH_ACCESS_DENIED, VERSION_CONFLICT
 
 **Transaction Required?**  
-No
+No.
 
 **Idempotency Required?**  
-No
+No.
 
-**Realtime Impact?**  
+**Realtime Impact:**  
 None.
 
 ### `DELETE /api/v1/cafe/branches/{branchId}/delivery-zones/{zoneId}`
 
 **Purpose:**  
-Delete a delivery zone.
+Delete or revoke the selected Delivery Zone resource.
 
 **Authentication:**  
-Authenticated.
+Bearer access token.
 
 **Scope:**  
 Branch
@@ -10511,44 +9454,33 @@ delivery
 
 **Path Parameters:**
 
-```json
-{
-  "branchId": "Opaque branchId identifier",
-  "zoneId": "Opaque zoneId identifier"
-}
+```ts
+type PathParameters = { branchId: string; zoneId: string };
 ```
 
 **Query Parameters:**
 
-```json
-{}
-```
+None.
 
-**Request Body:**
+**Request DTO:**  
+Empty body (`{}`).
 
-```json
-{}
-```
+**Response DTO:**  
+Empty response body.
 
-**Response:**
+**Success Status:**  
+204
 
-```json
-{
-  "success": true,
-  "data": "Delivery Zone result"
-}
-```
-
-**Important Validation:**  
-Validate authentication, scope, permission, feature, and tenant isolation server-side. Validate employee branch access and resource ownership.
+**Important Validation / Machine-readable Errors:**  
+AUTHENTICATION_REQUIRED, PERMISSION_DENIED, FEATURE_DISABLED, BRANCH_ACCESS_DENIED
 
 **Transaction Required?**  
-No
+No.
 
 **Idempotency Required?**  
-No
+No.
 
-**Realtime Impact?**  
+**Realtime Impact:**  
 None.
 
 ## 37. Waiter Request Endpoints
@@ -10556,10 +9488,10 @@ None.
 ### `POST /api/v1/customer/waiter-requests`
 
 **Purpose:**  
-Create a public waiter or bill request.
+Create a Waiter Request resource.
 
 **Authentication:**  
-Public or token-bound as stated.
+Public/token-bound as stated.
 
 **Scope:**  
 Public
@@ -10572,54 +9504,42 @@ qrOrdering
 
 **Path Parameters:**
 
-```json
-{}
-```
+None.
 
 **Query Parameters:**
 
-```json
-{}
+```ts
+type QueryParameters = { page?: number; pageSize?: number; status?: WaiterRequestStatus; type?: WaiterRequestType; tableId?: string; from?: string; to?: string };
 ```
 
-**Request Body:**
+**Request DTO:**  
+`CreateWaiterRequest`
 
-```json
-{
-  "type": "WAITER | BILL | TISSUES | HELP | OTHER",
-  "note": "optional",
-  "publicContextToken": "required for public request"
-}
-```
+**Response DTO:**  
+`ApiSuccess<WaiterRequestDto>`
 
-**Response:**
+**Success Status:**  
+201
 
-```json
-{
-  "success": true,
-  "data": "Waiter Request result"
-}
-```
-
-**Important Validation:**  
-Validate authentication, scope, permission, feature, and tenant isolation server-side.
+**Important Validation / Machine-readable Errors:**  
+PUBLIC_CONTEXT_INVALID, QR_TOKEN_INVALID, TABLE_NOT_FOUND, WAITER_REQUESTS_DISABLED, FEATURE_DISABLED, RATE_LIMITED
 
 **Transaction Required?**  
-No
+No.
 
 **Idempotency Required?**  
-No
+No.
 
-**Realtime Impact?**  
-Publishes waiter request events.
+**Realtime Impact:**  
+Publishes applicable waiter request events.
 
 ### `GET /api/v1/cafe/branches/{branchId}/waiter-requests`
 
 **Purpose:**  
-List branch waiter requests.
+List or return the authorized Waiter Request representation required by this route.
 
 **Authentication:**  
-Authenticated.
+Bearer access token.
 
 **Scope:**  
 Branch
@@ -10632,66 +9552,44 @@ qrOrdering
 
 **Path Parameters:**
 
-```json
-{
-  "branchId": "Opaque branchId identifier"
-}
+```ts
+type PathParameters = { branchId: string };
 ```
 
 **Query Parameters:**
 
-```json
-{
-  "page": 1,
-  "pageSize": 25,
-  "search": "optional",
-  "sortBy": "optional",
-  "sortOrder": "asc | desc",
-  "from": "optional ISO date",
-  "to": "optional ISO date"
-}
+```ts
+type QueryParameters = { page?: number; pageSize?: number; status?: WaiterRequestStatus; type?: WaiterRequestType; tableId?: string; from?: string; to?: string };
 ```
 
-**Request Body:**
+**Request DTO:**  
+Empty body (`{}`).
 
-```json
-{}
-```
+**Response DTO:**  
+`Paginated<WaiterRequestDto>`
 
-**Response:**
+**Success Status:**  
+200
 
-```json
-{
-  "success": true,
-  "data": [],
-  "meta": {
-    "page": 1,
-    "pageSize": 25,
-    "total": 0,
-    "totalPages": 0
-  }
-}
-```
-
-**Important Validation:**  
-Validate authentication, scope, permission, feature, and tenant isolation server-side. Validate employee branch access and resource ownership.
+**Important Validation / Machine-readable Errors:**  
+AUTHENTICATION_REQUIRED, PERMISSION_DENIED, FEATURE_DISABLED, BRANCH_ACCESS_DENIED
 
 **Transaction Required?**  
-No
+No.
 
 **Idempotency Required?**  
-No
+No.
 
-**Realtime Impact?**  
+**Realtime Impact:**  
 None.
 
 ### `PATCH /api/v1/cafe/branches/{branchId}/waiter-requests/{requestId}/status`
 
 **Purpose:**  
-Accept or complete a waiter request.
+Partially update the selected Waiter Request resource.
 
 **Authentication:**  
-Authenticated.
+Bearer access token.
 
 **Scope:**  
 Branch
@@ -10704,63 +9602,48 @@ qrOrdering
 
 **Path Parameters:**
 
-```json
-{
-  "branchId": "Opaque branchId identifier",
-  "requestId": "Opaque requestId identifier"
-}
+```ts
+type PathParameters = { branchId: string; requestId: string };
 ```
 
 **Query Parameters:**
 
-```json
-{}
-```
+None.
 
-**Request Body:**
+**Request DTO:**  
+`UpdateWaiterRequestStatusRequest`
 
-```json
-{
-  "status": "Allowed domain status",
-  "note": "optional string",
-  "version": "integer"
-}
-```
+**Response DTO:**  
+`ApiSuccess<WaiterRequestDto>`
 
-**Response:**
+**Success Status:**  
+200
 
-```json
-{
-  "success": true,
-  "data": "Waiter Request result"
-}
-```
-
-**Important Validation:**  
-Validate authentication, scope, permission, feature, and tenant isolation server-side. Validate employee branch access and resource ownership.
+**Important Validation / Machine-readable Errors:**  
+AUTHENTICATION_REQUIRED, PERMISSION_DENIED, FEATURE_DISABLED, BRANCH_ACCESS_DENIED, VERSION_CONFLICT
 
 **Transaction Required?**  
-No
+No.
 
 **Idempotency Required?**  
-No
+No.
 
-**Realtime Impact?**  
-Publishes waiter request events.
+**Realtime Impact:**  
+Publishes applicable waiter request events.
 
 ## 38. Kitchen API Usage
 
-Kitchen consumes the existing Orders API with branch/status filters and updates operational status through the same order-status endpoint. A separate Kitchen Order resource would duplicate order state, create synchronization conflicts, and break the single order lifecycle. Kitchen authorization uses `kitchen.view` and `kitchen.update`.
+Kitchen consumes `GET /api/v1/cafe/orders` with branch/status filters and `PATCH /api/v1/cafe/orders/{orderId}/status`. A second Kitchen Order resource would duplicate the operational order state machine.
 
 ## 39. Notification Endpoints
 
 ### `GET /api/v1/cafe/notifications`
 
 **Purpose:**  
-List notifications visible to the current employee.
+List or return the authorized Notification representation required by this route.
 
 **Authentication:**  
-Authenticated.
+Bearer access token.
 
 **Scope:**  
 Tenant/Branch
@@ -10773,64 +9656,42 @@ notifications.view
 
 **Path Parameters:**
 
-```json
-{}
-```
+None.
 
 **Query Parameters:**
 
-```json
-{
-  "page": 1,
-  "pageSize": 25,
-  "search": "optional",
-  "sortBy": "optional",
-  "sortOrder": "asc | desc",
-  "from": "optional ISO date",
-  "to": "optional ISO date"
-}
+```ts
+type QueryParameters = { page?: number; pageSize?: number; read?: boolean; type?: NotificationType; branchId?: string };
 ```
 
-**Request Body:**
+**Request DTO:**  
+Empty body (`{}`).
 
-```json
-{}
-```
+**Response DTO:**  
+`Paginated<NotificationDto>`
 
-**Response:**
+**Success Status:**  
+200
 
-```json
-{
-  "success": true,
-  "data": [],
-  "meta": {
-    "page": 1,
-    "pageSize": 25,
-    "total": 0,
-    "totalPages": 0
-  }
-}
-```
-
-**Important Validation:**  
-Validate authentication, scope, permission, feature, and tenant isolation server-side. Validate employee branch access and resource ownership. Read operations may affect only notifications visible to the current employee.
+**Important Validation / Machine-readable Errors:**  
+AUTHENTICATION_REQUIRED, PERMISSION_DENIED, BRANCH_ACCESS_DENIED
 
 **Transaction Required?**  
-No
+No.
 
 **Idempotency Required?**  
-No
+No.
 
-**Realtime Impact?**  
+**Realtime Impact:**  
 None.
 
 ### `GET /api/v1/cafe/notifications/unread-count`
 
 **Purpose:**  
-Return the current employee unread count.
+List or return the authorized Notification representation required by this route.
 
 **Authentication:**  
-Authenticated.
+Bearer access token.
 
 **Scope:**  
 Tenant/Branch
@@ -10843,50 +9704,40 @@ notifications.view
 
 **Path Parameters:**
 
-```json
-{}
-```
+None.
 
 **Query Parameters:**
 
-```json
-{}
-```
+None.
 
-**Request Body:**
+**Request DTO:**  
+Empty body (`{}`).
 
-```json
-{}
-```
+**Response DTO:**  
+`ApiSuccess<UnreadCountDto>`
 
-**Response:**
+**Success Status:**  
+200
 
-```json
-{
-  "success": true,
-  "data": "Notification result"
-}
-```
-
-**Important Validation:**  
-Validate authentication, scope, permission, feature, and tenant isolation server-side. Validate employee branch access and resource ownership. Read operations may affect only notifications visible to the current employee.
+**Important Validation / Machine-readable Errors:**  
+AUTHENTICATION_REQUIRED, PERMISSION_DENIED, BRANCH_ACCESS_DENIED
 
 **Transaction Required?**  
-No
+No.
 
 **Idempotency Required?**  
-No
+No.
 
-**Realtime Impact?**  
+**Realtime Impact:**  
 None.
 
 ### `PATCH /api/v1/cafe/notifications/{notificationId}/read`
 
 **Purpose:**  
-Mark one current-employee notification as read.
+Partially update the selected Notification resource.
 
 **Authentication:**  
-Authenticated.
+Bearer access token.
 
 **Scope:**  
 Tenant/Branch
@@ -10899,54 +9750,42 @@ notifications.view
 
 **Path Parameters:**
 
-```json
-{
-  "notificationId": "Opaque notificationId identifier"
-}
+```ts
+type PathParameters = { notificationId: string };
 ```
 
 **Query Parameters:**
 
-```json
-{}
-```
+None.
 
-**Request Body:**
+**Request DTO:**  
+`MarkNotificationReadRequest`
 
-```json
-{
-  "read": true
-}
-```
+**Response DTO:**  
+`ApiSuccess<NotificationDto>`
 
-**Response:**
+**Success Status:**  
+200
 
-```json
-{
-  "success": true,
-  "data": "Notification result"
-}
-```
-
-**Important Validation:**  
-Validate authentication, scope, permission, feature, and tenant isolation server-side. Validate employee branch access and resource ownership. Read operations may affect only notifications visible to the current employee.
+**Important Validation / Machine-readable Errors:**  
+AUTHENTICATION_REQUIRED, PERMISSION_DENIED, BRANCH_ACCESS_DENIED, VERSION_CONFLICT
 
 **Transaction Required?**  
-No
+No.
 
 **Idempotency Required?**  
-No
+No.
 
-**Realtime Impact?**  
-Publishes notification events.
+**Realtime Impact:**  
+Publishes applicable notification events.
 
 ### `POST /api/v1/cafe/notifications/mark-all-read`
 
 **Purpose:**  
-Mark all current-employee notifications as read.
+Mark all notifications visible to the current employee as read.
 
 **Authentication:**  
-Authenticated.
+Bearer access token.
 
 **Scope:**  
 Tenant/Branch
@@ -10959,52 +9798,42 @@ notifications.view
 
 **Path Parameters:**
 
-```json
-{}
-```
+None.
 
 **Query Parameters:**
 
-```json
-{}
-```
+None.
 
-**Request Body:**
+**Request DTO:**  
+Empty body (`{}`).
 
-```json
-{}
-```
+**Response DTO:**  
+`ApiSuccess<MarkAllNotificationsReadDto>`
 
-**Response:**
+**Success Status:**  
+200
 
-```json
-{
-  "success": true,
-  "data": "Notification result"
-}
-```
-
-**Important Validation:**  
-Validate authentication, scope, permission, feature, and tenant isolation server-side. Validate employee branch access and resource ownership. Read operations may affect only notifications visible to the current employee.
+**Important Validation / Machine-readable Errors:**  
+AUTHENTICATION_REQUIRED, PERMISSION_DENIED, BRANCH_ACCESS_DENIED
 
 **Transaction Required?**  
-No
+No.
 
 **Idempotency Required?**  
-No
+No.
 
-**Realtime Impact?**  
-Publishes notification events.
+**Realtime Impact:**  
+Publishes applicable notification events.
 
 ## 40. Audit Log Endpoints
 
 ### `GET /api/v1/platform/audit-log`
 
 **Purpose:**  
-Search Platform audit events.
+List or return the authorized Audit Log representation required by this route.
 
 **Authentication:**  
-Authenticated.
+Bearer access token.
 
 **Scope:**  
 Platform
@@ -11017,64 +9846,42 @@ Platform operator
 
 **Path Parameters:**
 
-```json
-{}
-```
+None.
 
 **Query Parameters:**
 
-```json
-{
-  "page": 1,
-  "pageSize": 25,
-  "search": "optional",
-  "sortBy": "optional",
-  "sortOrder": "asc | desc",
-  "from": "optional ISO date",
-  "to": "optional ISO date"
-}
+```ts
+type QueryParameters = { page?: number; pageSize?: number; search?: string; tenantId?: string; userId?: string; action?: string; from?: string; to?: string };
 ```
 
-**Request Body:**
+**Request DTO:**  
+Empty body (`{}`).
 
-```json
-{}
-```
+**Response DTO:**  
+`Paginated<AuditEntryDto>`
 
-**Response:**
+**Success Status:**  
+200
 
-```json
-{
-  "success": true,
-  "data": [],
-  "meta": {
-    "page": 1,
-    "pageSize": 25,
-    "total": 0,
-    "totalPages": 0
-  }
-}
-```
-
-**Important Validation:**  
-Validate authentication, scope, permission, feature, and tenant isolation server-side.
+**Important Validation / Machine-readable Errors:**  
+AUTHENTICATION_REQUIRED, PERMISSION_DENIED
 
 **Transaction Required?**  
-No
+No.
 
 **Idempotency Required?**  
-No
+No.
 
-**Realtime Impact?**  
+**Realtime Impact:**  
 None.
 
 ### `GET /api/v1/cafe/audit-log`
 
 **Purpose:**  
-Search tenant operational audit events.
+List or return the authorized Audit Log representation required by this route.
 
 **Authentication:**  
-Authenticated.
+Bearer access token.
 
 **Scope:**  
 Tenant
@@ -11087,55 +9894,33 @@ audit.view
 
 **Path Parameters:**
 
-```json
-{}
-```
+None.
 
 **Query Parameters:**
 
-```json
-{
-  "page": 1,
-  "pageSize": 25,
-  "search": "optional",
-  "sortBy": "optional",
-  "sortOrder": "asc | desc",
-  "from": "optional ISO date",
-  "to": "optional ISO date"
-}
+```ts
+type QueryParameters = { page?: number; pageSize?: number; search?: string; branchId?: string; userId?: string; module?: string; action?: string; entityType?: string; entityId?: string; from?: string; to?: string };
 ```
 
-**Request Body:**
+**Request DTO:**  
+Empty body (`{}`).
 
-```json
-{}
-```
+**Response DTO:**  
+`Paginated<AuditEntryDto>`
 
-**Response:**
+**Success Status:**  
+200
 
-```json
-{
-  "success": true,
-  "data": [],
-  "meta": {
-    "page": 1,
-    "pageSize": 25,
-    "total": 0,
-    "totalPages": 0
-  }
-}
-```
-
-**Important Validation:**  
-Validate authentication, scope, permission, feature, and tenant isolation server-side.
+**Important Validation / Machine-readable Errors:**  
+AUTHENTICATION_REQUIRED, PERMISSION_DENIED
 
 **Transaction Required?**  
-No
+No.
 
 **Idempotency Required?**  
-No
+No.
 
-**Realtime Impact?**  
+**Realtime Impact:**  
 None.
 
 ## 41. Employee Endpoints
@@ -11143,10 +9928,10 @@ None.
 ### `GET /api/v1/cafe/employees`
 
 **Purpose:**  
-List employees.
+List or return the authorized Employee representation required by this route.
 
 **Authentication:**  
-Authenticated.
+Bearer access token.
 
 **Scope:**  
 Tenant
@@ -11159,64 +9944,42 @@ employees
 
 **Path Parameters:**
 
-```json
-{}
-```
+None.
 
 **Query Parameters:**
 
-```json
-{
-  "page": 1,
-  "pageSize": 25,
-  "search": "optional",
-  "sortBy": "optional",
-  "sortOrder": "asc | desc",
-  "from": "optional ISO date",
-  "to": "optional ISO date"
-}
+```ts
+type QueryParameters = { page?: number; pageSize?: number; search?: string; status?: EmployeeStatus; roleId?: string; branchId?: string };
 ```
 
-**Request Body:**
+**Request DTO:**  
+Empty body (`{}`).
 
-```json
-{}
-```
+**Response DTO:**  
+`Paginated<CafeEmployeeDto>`
 
-**Response:**
+**Success Status:**  
+200
 
-```json
-{
-  "success": true,
-  "data": [],
-  "meta": {
-    "page": 1,
-    "pageSize": 25,
-    "total": 0,
-    "totalPages": 0
-  }
-}
-```
-
-**Important Validation:**  
-Validate authentication, scope, permission, feature, and tenant isolation server-side.
+**Important Validation / Machine-readable Errors:**  
+AUTHENTICATION_REQUIRED, PERMISSION_DENIED, FEATURE_DISABLED
 
 **Transaction Required?**  
-No
+No.
 
 **Idempotency Required?**  
-No
+No.
 
-**Realtime Impact?**  
+**Realtime Impact:**  
 None.
 
 ### `POST /api/v1/cafe/employees`
 
 **Purpose:**  
-Create an employee and credential.
+Create a Employee resource.
 
 **Authentication:**  
-Authenticated.
+Bearer access token.
 
 **Scope:**  
 Tenant
@@ -11229,53 +9992,42 @@ employees
 
 **Path Parameters:**
 
-```json
-{}
-```
+None.
 
 **Query Parameters:**
 
-```json
-{}
+```ts
+type QueryParameters = { page?: number; pageSize?: number; search?: string; status?: EmployeeStatus; roleId?: string; branchId?: string };
 ```
 
-**Request Body:**
+**Request DTO:**  
+`CreateEmployeeRequest`
 
-```json
-{
-  "fields": "Current Employee domain fields",
-  "version": "Required on conflicting updates when applicable"
-}
-```
+**Response DTO:**  
+`Paginated<CafeEmployeeDto>`
 
-**Response:**
+**Success Status:**  
+201
 
-```json
-{
-  "success": true,
-  "data": "Employee result"
-}
-```
-
-**Important Validation:**  
-Validate authentication, scope, permission, feature, and tenant isolation server-side.
+**Important Validation / Machine-readable Errors:**  
+AUTHENTICATION_REQUIRED, PERMISSION_DENIED, FEATURE_DISABLED
 
 **Transaction Required?**  
-No
+No.
 
 **Idempotency Required?**  
-No
+No.
 
-**Realtime Impact?**  
+**Realtime Impact:**  
 None.
 
 ### `GET /api/v1/cafe/employees/{employeeId}`
 
 **Purpose:**  
-Return an employee.
+Return the authorized Employee representation.
 
 **Authentication:**  
-Authenticated.
+Bearer access token.
 
 **Scope:**  
 Tenant
@@ -11288,52 +10040,42 @@ employees
 
 **Path Parameters:**
 
-```json
-{
-  "employeeId": "Opaque employeeId identifier"
-}
+```ts
+type PathParameters = { employeeId: string };
 ```
 
 **Query Parameters:**
 
-```json
-{}
-```
+None.
 
-**Request Body:**
+**Request DTO:**  
+Empty body (`{}`).
 
-```json
-{}
-```
+**Response DTO:**  
+`ApiSuccess<CafeEmployeeDto>`
 
-**Response:**
+**Success Status:**  
+200
 
-```json
-{
-  "success": true,
-  "data": "Employee result"
-}
-```
-
-**Important Validation:**  
-Validate authentication, scope, permission, feature, and tenant isolation server-side.
+**Important Validation / Machine-readable Errors:**  
+AUTHENTICATION_REQUIRED, PERMISSION_DENIED, FEATURE_DISABLED
 
 **Transaction Required?**  
-No
+No.
 
 **Idempotency Required?**  
-No
+No.
 
-**Realtime Impact?**  
+**Realtime Impact:**  
 None.
 
 ### `PATCH /api/v1/cafe/employees/{employeeId}`
 
 **Purpose:**  
-Update employee identity and login fields.
+Partially update the selected Employee resource.
 
 **Authentication:**  
-Authenticated.
+Bearer access token.
 
 **Scope:**  
 Tenant
@@ -11346,55 +10088,42 @@ employees
 
 **Path Parameters:**
 
-```json
-{
-  "employeeId": "Opaque employeeId identifier"
-}
+```ts
+type PathParameters = { employeeId: string };
 ```
 
 **Query Parameters:**
 
-```json
-{}
-```
+None.
 
-**Request Body:**
+**Request DTO:**  
+`UpdateEmployeeRequest`
 
-```json
-{
-  "fields": "Current Employee domain fields",
-  "version": "Required on conflicting updates when applicable"
-}
-```
+**Response DTO:**  
+`ApiSuccess<CafeEmployeeDto>`
 
-**Response:**
+**Success Status:**  
+200
 
-```json
-{
-  "success": true,
-  "data": "Employee result"
-}
-```
-
-**Important Validation:**  
-Validate authentication, scope, permission, feature, and tenant isolation server-side.
+**Important Validation / Machine-readable Errors:**  
+AUTHENTICATION_REQUIRED, PERMISSION_DENIED, FEATURE_DISABLED, VERSION_CONFLICT
 
 **Transaction Required?**  
-No
+No.
 
 **Idempotency Required?**  
-No
+No.
 
-**Realtime Impact?**  
+**Realtime Impact:**  
 None.
 
 ### `PATCH /api/v1/cafe/employees/{employeeId}/status`
 
 **Purpose:**  
-Suspend or activate an employee.
+Partially update the selected Employee resource.
 
 **Authentication:**  
-Authenticated.
+Bearer access token.
 
 **Scope:**  
 Tenant
@@ -11407,56 +10136,42 @@ employees
 
 **Path Parameters:**
 
-```json
-{
-  "employeeId": "Opaque employeeId identifier"
-}
+```ts
+type PathParameters = { employeeId: string };
 ```
 
 **Query Parameters:**
 
-```json
-{}
-```
+None.
 
-**Request Body:**
+**Request DTO:**  
+`EmployeeStatusRequest`
 
-```json
-{
-  "status": "Allowed domain status",
-  "note": "optional string",
-  "version": "integer"
-}
-```
+**Response DTO:**  
+`ApiSuccess<CafeEmployeeDto>`
 
-**Response:**
+**Success Status:**  
+200
 
-```json
-{
-  "success": true,
-  "data": "Employee result"
-}
-```
-
-**Important Validation:**  
-Validate authentication, scope, permission, feature, and tenant isolation server-side.
+**Important Validation / Machine-readable Errors:**  
+AUTHENTICATION_REQUIRED, PERMISSION_DENIED, FEATURE_DISABLED, VERSION_CONFLICT
 
 **Transaction Required?**  
-No
+No.
 
 **Idempotency Required?**  
-No
+No.
 
-**Realtime Impact?**  
+**Realtime Impact:**  
 None.
 
 ### `PUT /api/v1/cafe/employees/{employeeId}/role`
 
 **Purpose:**  
-Assign an existing tenant role.
+Replace or assign the selected Employee configuration.
 
 **Authentication:**  
-Authenticated.
+Bearer access token.
 
 **Scope:**  
 Tenant
@@ -11469,54 +10184,42 @@ employees
 
 **Path Parameters:**
 
-```json
-{
-  "employeeId": "Opaque employeeId identifier"
-}
+```ts
+type PathParameters = { employeeId: string };
 ```
 
 **Query Parameters:**
 
-```json
-{}
-```
+None.
 
-**Request Body:**
+**Request DTO:**  
+`EmployeeRoleRequest`
 
-```json
-{
-  "roleId": "id"
-}
-```
+**Response DTO:**  
+`ApiSuccess<CafeEmployeeDto>`
 
-**Response:**
+**Success Status:**  
+200
 
-```json
-{
-  "success": true,
-  "data": "Employee result"
-}
-```
-
-**Important Validation:**  
-Validate authentication, scope, permission, feature, and tenant isolation server-side.
+**Important Validation / Machine-readable Errors:**  
+AUTHENTICATION_REQUIRED, PERMISSION_DENIED, FEATURE_DISABLED, VERSION_CONFLICT
 
 **Transaction Required?**  
-No
+No.
 
 **Idempotency Required?**  
-No
+No.
 
-**Realtime Impact?**  
+**Realtime Impact:**  
 None.
 
 ### `PUT /api/v1/cafe/employees/{employeeId}/branch-access`
 
 **Purpose:**  
-Replace employee branch access.
+Replace or assign the selected Employee configuration.
 
 **Authentication:**  
-Authenticated.
+Bearer access token.
 
 **Scope:**  
 Tenant
@@ -11529,47 +10232,33 @@ employees
 
 **Path Parameters:**
 
-```json
-{
-  "employeeId": "Opaque employeeId identifier"
-}
+```ts
+type PathParameters = { employeeId: string };
 ```
 
 **Query Parameters:**
 
-```json
-{}
-```
+None.
 
-**Request Body:**
+**Request DTO:**  
+`EmployeeBranchAccessRequest`
 
-```json
-{
-  "branchIds": [
-    "id"
-  ]
-}
-```
+**Response DTO:**  
+`ApiSuccess<CafeEmployeeDto>`
 
-**Response:**
+**Success Status:**  
+200
 
-```json
-{
-  "success": true,
-  "data": "Employee result"
-}
-```
-
-**Important Validation:**  
-Validate authentication, scope, permission, feature, and tenant isolation server-side.
+**Important Validation / Machine-readable Errors:**  
+AUTHENTICATION_REQUIRED, PERMISSION_DENIED, FEATURE_DISABLED, VERSION_CONFLICT
 
 **Transaction Required?**  
-No
+No.
 
 **Idempotency Required?**  
-No
+No.
 
-**Realtime Impact?**  
+**Realtime Impact:**  
 None.
 
 ## 42. Role Endpoints
@@ -11577,10 +10266,10 @@ None.
 ### `GET /api/v1/cafe/roles`
 
 **Purpose:**  
-List tenant roles.
+List or return the authorized Role representation required by this route.
 
 **Authentication:**  
-Authenticated.
+Bearer access token.
 
 **Scope:**  
 Tenant
@@ -11593,64 +10282,42 @@ employees
 
 **Path Parameters:**
 
-```json
-{}
-```
+None.
 
 **Query Parameters:**
 
-```json
-{
-  "page": 1,
-  "pageSize": 25,
-  "search": "optional",
-  "sortBy": "optional",
-  "sortOrder": "asc | desc",
-  "from": "optional ISO date",
-  "to": "optional ISO date"
-}
+```ts
+type QueryParameters = { page?: number; pageSize?: number; search?: string; systemRole?: boolean };
 ```
 
-**Request Body:**
+**Request DTO:**  
+Empty body (`{}`).
 
-```json
-{}
-```
+**Response DTO:**  
+`Paginated<CafeRoleDto>`
 
-**Response:**
+**Success Status:**  
+200
 
-```json
-{
-  "success": true,
-  "data": [],
-  "meta": {
-    "page": 1,
-    "pageSize": 25,
-    "total": 0,
-    "totalPages": 0
-  }
-}
-```
-
-**Important Validation:**  
-Validate authentication, scope, permission, feature, and tenant isolation server-side.
+**Important Validation / Machine-readable Errors:**  
+AUTHENTICATION_REQUIRED, PERMISSION_DENIED, FEATURE_DISABLED
 
 **Transaction Required?**  
-No
+No.
 
 **Idempotency Required?**  
-No
+No.
 
-**Realtime Impact?**  
+**Realtime Impact:**  
 None.
 
 ### `POST /api/v1/cafe/roles`
 
 **Purpose:**  
-Create a role.
+Create a Role resource.
 
 **Authentication:**  
-Authenticated.
+Bearer access token.
 
 **Scope:**  
 Tenant
@@ -11663,53 +10330,42 @@ employees
 
 **Path Parameters:**
 
-```json
-{}
-```
+None.
 
 **Query Parameters:**
 
-```json
-{}
+```ts
+type QueryParameters = { page?: number; pageSize?: number; search?: string; systemRole?: boolean };
 ```
 
-**Request Body:**
+**Request DTO:**  
+`CreateRoleRequest`
 
-```json
-{
-  "fields": "Current Role domain fields",
-  "version": "Required on conflicting updates when applicable"
-}
-```
+**Response DTO:**  
+`Paginated<CafeRoleDto>`
 
-**Response:**
+**Success Status:**  
+201
 
-```json
-{
-  "success": true,
-  "data": "Role result"
-}
-```
-
-**Important Validation:**  
-Validate authentication, scope, permission, feature, and tenant isolation server-side.
+**Important Validation / Machine-readable Errors:**  
+AUTHENTICATION_REQUIRED, PERMISSION_DENIED, FEATURE_DISABLED
 
 **Transaction Required?**  
-No
+No.
 
 **Idempotency Required?**  
-No
+No.
 
-**Realtime Impact?**  
+**Realtime Impact:**  
 None.
 
 ### `GET /api/v1/cafe/roles/{roleId}`
 
 **Purpose:**  
-Return a role.
+Return the authorized Role representation.
 
 **Authentication:**  
-Authenticated.
+Bearer access token.
 
 **Scope:**  
 Tenant
@@ -11722,52 +10378,42 @@ employees
 
 **Path Parameters:**
 
-```json
-{
-  "roleId": "Opaque roleId identifier"
-}
+```ts
+type PathParameters = { roleId: string };
 ```
 
 **Query Parameters:**
 
-```json
-{}
-```
+None.
 
-**Request Body:**
+**Request DTO:**  
+Empty body (`{}`).
 
-```json
-{}
-```
+**Response DTO:**  
+`ApiSuccess<CafeRoleDto>`
 
-**Response:**
+**Success Status:**  
+200
 
-```json
-{
-  "success": true,
-  "data": "Role result"
-}
-```
-
-**Important Validation:**  
-Validate authentication, scope, permission, feature, and tenant isolation server-side.
+**Important Validation / Machine-readable Errors:**  
+AUTHENTICATION_REQUIRED, PERMISSION_DENIED, FEATURE_DISABLED
 
 **Transaction Required?**  
-No
+No.
 
 **Idempotency Required?**  
-No
+No.
 
-**Realtime Impact?**  
+**Realtime Impact:**  
 None.
 
 ### `PATCH /api/v1/cafe/roles/{roleId}`
 
 **Purpose:**  
-Update role name and permissions.
+Partially update the selected Role resource.
 
 **Authentication:**  
-Authenticated.
+Bearer access token.
 
 **Scope:**  
 Tenant
@@ -11780,55 +10426,42 @@ employees
 
 **Path Parameters:**
 
-```json
-{
-  "roleId": "Opaque roleId identifier"
-}
+```ts
+type PathParameters = { roleId: string };
 ```
 
 **Query Parameters:**
 
-```json
-{}
-```
+None.
 
-**Request Body:**
+**Request DTO:**  
+`UpdateRoleRequest`
 
-```json
-{
-  "fields": "Current Role domain fields",
-  "version": "Required on conflicting updates when applicable"
-}
-```
+**Response DTO:**  
+`ApiSuccess<CafeRoleDto>`
 
-**Response:**
+**Success Status:**  
+200
 
-```json
-{
-  "success": true,
-  "data": "Role result"
-}
-```
-
-**Important Validation:**  
-Validate authentication, scope, permission, feature, and tenant isolation server-side.
+**Important Validation / Machine-readable Errors:**  
+AUTHENTICATION_REQUIRED, PERMISSION_DENIED, FEATURE_DISABLED, VERSION_CONFLICT
 
 **Transaction Required?**  
-No
+No.
 
 **Idempotency Required?**  
-No
+No.
 
-**Realtime Impact?**  
+**Realtime Impact:**  
 None.
 
 ### `POST /api/v1/cafe/roles/{roleId}/duplicate`
 
 **Purpose:**  
-Duplicate a tenant role.
+Duplicate the selected Role resource.
 
 **Authentication:**  
-Authenticated.
+Bearer access token.
 
 **Scope:**  
 Tenant
@@ -11841,52 +10474,42 @@ employees
 
 **Path Parameters:**
 
-```json
-{
-  "roleId": "Opaque roleId identifier"
-}
+```ts
+type PathParameters = { roleId: string };
 ```
 
 **Query Parameters:**
 
-```json
-{}
-```
+None.
 
-**Request Body:**
+**Request DTO:**  
+`DuplicateRoleRequest`
 
-```json
-{}
-```
+**Response DTO:**  
+`ApiSuccess<CafeRoleDto>`
 
-**Response:**
+**Success Status:**  
+201
 
-```json
-{
-  "success": true,
-  "data": "Role result"
-}
-```
-
-**Important Validation:**  
-Validate authentication, scope, permission, feature, and tenant isolation server-side.
+**Important Validation / Machine-readable Errors:**  
+AUTHENTICATION_REQUIRED, PERMISSION_DENIED, FEATURE_DISABLED
 
 **Transaction Required?**  
-No
+No.
 
 **Idempotency Required?**  
-No
+No.
 
-**Realtime Impact?**  
+**Realtime Impact:**  
 None.
 
 ### `DELETE /api/v1/cafe/roles/{roleId}`
 
 **Purpose:**  
-Delete an unused non-system role.
+Delete or revoke the selected Role resource.
 
 **Authentication:**  
-Authenticated.
+Bearer access token.
 
 **Scope:**  
 Tenant
@@ -11899,43 +10522,33 @@ employees
 
 **Path Parameters:**
 
-```json
-{
-  "roleId": "Opaque roleId identifier"
-}
+```ts
+type PathParameters = { roleId: string };
 ```
 
 **Query Parameters:**
 
-```json
-{}
-```
+None.
 
-**Request Body:**
+**Request DTO:**  
+Empty body (`{}`).
 
-```json
-{}
-```
+**Response DTO:**  
+Empty response body.
 
-**Response:**
+**Success Status:**  
+204
 
-```json
-{
-  "success": true,
-  "data": "Role result"
-}
-```
-
-**Important Validation:**  
-Validate authentication, scope, permission, feature, and tenant isolation server-side.
+**Important Validation / Machine-readable Errors:**  
+AUTHENTICATION_REQUIRED, PERMISSION_DENIED, FEATURE_DISABLED, ROLE_IN_USE
 
 **Transaction Required?**  
-No
+No.
 
 **Idempotency Required?**  
-No
+No.
 
-**Realtime Impact?**  
+**Realtime Impact:**  
 None.
 
 ## 43. Permission Contract
@@ -11943,10 +10556,10 @@ None.
 ### `GET /api/v1/cafe/permissions`
 
 **Purpose:**  
-Return the immutable permission catalog.
+List or return the authorized Permission representation required by this route.
 
 **Authentication:**  
-Authenticated.
+Bearer access token.
 
 **Scope:**  
 Tenant
@@ -11959,55 +10572,31 @@ employees
 
 **Path Parameters:**
 
-```json
-{}
-```
+None.
 
 **Query Parameters:**
 
-```json
-{
-  "page": 1,
-  "pageSize": 25,
-  "search": "optional",
-  "sortBy": "optional",
-  "sortOrder": "asc | desc",
-  "from": "optional ISO date",
-  "to": "optional ISO date"
-}
-```
+None.
 
-**Request Body:**
+**Request DTO:**  
+Empty body (`{}`).
 
-```json
-{}
-```
+**Response DTO:**  
+`ApiSuccess<PermissionDefinitionDto[]>`
 
-**Response:**
+**Success Status:**  
+200
 
-```json
-{
-  "success": true,
-  "data": [],
-  "meta": {
-    "page": 1,
-    "pageSize": 25,
-    "total": 0,
-    "totalPages": 0
-  }
-}
-```
-
-**Important Validation:**  
-Validate authentication, scope, permission, feature, and tenant isolation server-side.
+**Important Validation / Machine-readable Errors:**  
+AUTHENTICATION_REQUIRED, PERMISSION_DENIED, FEATURE_DISABLED
 
 **Transaction Required?**  
-No
+No.
 
 **Idempotency Required?**  
-No
+No.
 
-**Realtime Impact?**  
+**Realtime Impact:**  
 None.
 
 ## 44. Reports Endpoints
@@ -12015,10 +10604,10 @@ None.
 ### `GET /api/v1/cafe/reports/sales`
 
 **Purpose:**  
-Return sales reporting data.
+List or return the authorized Report representation required by this route.
 
 **Authentication:**  
-Authenticated.
+Bearer access token.
 
 **Scope:**  
 Tenant/Branch
@@ -12031,65 +10620,42 @@ reports
 
 **Path Parameters:**
 
-```json
-{}
-```
+None.
 
 **Query Parameters:**
 
-```json
-{
-  "from": "ISO date",
-  "to": "ISO date",
-  "branchIds": [
-    "branch-id"
-  ],
-  "orderType": "TABLE | TAKEAWAY | DELIVERY",
-  "orderSource": "POS | QR_MENU | ONLINE_MENU | MANUAL",
-  "paymentMethod": "CASH | CARD | WALLET | ONLINE | MIXED"
-}
+```ts
+type QueryParameters = { from?: string; to?: string; branchIds?: string[]; orderType?: OrderType; orderSource?: OrderSource; paymentMethod?: PaymentMethod };
 ```
 
-**Request Body:**
+**Request DTO:**  
+Empty body (`{}`).
 
-```json
-{}
-```
+**Response DTO:**  
+`ApiSuccess<SalesReportDto>`
 
-**Response:**
+**Success Status:**  
+200
 
-```json
-{
-  "success": true,
-  "data": [],
-  "meta": {
-    "page": 1,
-    "pageSize": 25,
-    "total": 0,
-    "totalPages": 0
-  }
-}
-```
-
-**Important Validation:**  
-Validate authentication, scope, permission, feature, and tenant isolation server-side. Validate employee branch access and resource ownership.
+**Important Validation / Machine-readable Errors:**  
+AUTHENTICATION_REQUIRED, PERMISSION_DENIED, FEATURE_DISABLED, BRANCH_ACCESS_DENIED
 
 **Transaction Required?**  
-No
+No.
 
 **Idempotency Required?**  
-No
+No.
 
-**Realtime Impact?**  
+**Realtime Impact:**  
 None.
 
 ### `GET /api/v1/cafe/reports/profit`
 
 **Purpose:**  
-Return profit reporting data.
+List or return the authorized Report representation required by this route.
 
 **Authentication:**  
-Authenticated.
+Bearer access token.
 
 **Scope:**  
 Tenant/Branch
@@ -12102,65 +10668,42 @@ reports
 
 **Path Parameters:**
 
-```json
-{}
-```
+None.
 
 **Query Parameters:**
 
-```json
-{
-  "from": "ISO date",
-  "to": "ISO date",
-  "branchIds": [
-    "branch-id"
-  ],
-  "orderType": "TABLE | TAKEAWAY | DELIVERY",
-  "orderSource": "POS | QR_MENU | ONLINE_MENU | MANUAL",
-  "paymentMethod": "CASH | CARD | WALLET | ONLINE | MIXED"
-}
+```ts
+type QueryParameters = { from?: string; to?: string; branchIds?: string[]; orderType?: OrderType; orderSource?: OrderSource; paymentMethod?: PaymentMethod };
 ```
 
-**Request Body:**
+**Request DTO:**  
+Empty body (`{}`).
 
-```json
-{}
-```
+**Response DTO:**  
+`ApiSuccess<ProfitReportDto>`
 
-**Response:**
+**Success Status:**  
+200
 
-```json
-{
-  "success": true,
-  "data": [],
-  "meta": {
-    "page": 1,
-    "pageSize": 25,
-    "total": 0,
-    "totalPages": 0
-  }
-}
-```
-
-**Important Validation:**  
-Validate authentication, scope, permission, feature, and tenant isolation server-side. Validate employee branch access and resource ownership.
+**Important Validation / Machine-readable Errors:**  
+AUTHENTICATION_REQUIRED, PERMISSION_DENIED, FEATURE_DISABLED, BRANCH_ACCESS_DENIED
 
 **Transaction Required?**  
-No
+No.
 
 **Idempotency Required?**  
-No
+No.
 
-**Realtime Impact?**  
+**Realtime Impact:**  
 None.
 
 ### `GET /api/v1/cafe/reports/products`
 
 **Purpose:**  
-Return product-performance reporting data.
+List or return the authorized Report representation required by this route.
 
 **Authentication:**  
-Authenticated.
+Bearer access token.
 
 **Scope:**  
 Tenant/Branch
@@ -12173,65 +10716,42 @@ reports
 
 **Path Parameters:**
 
-```json
-{}
-```
+None.
 
 **Query Parameters:**
 
-```json
-{
-  "from": "ISO date",
-  "to": "ISO date",
-  "branchIds": [
-    "branch-id"
-  ],
-  "orderType": "TABLE | TAKEAWAY | DELIVERY",
-  "orderSource": "POS | QR_MENU | ONLINE_MENU | MANUAL",
-  "paymentMethod": "CASH | CARD | WALLET | ONLINE | MIXED"
-}
+```ts
+type QueryParameters = { from?: string; to?: string; branchIds?: string[]; orderType?: OrderType; orderSource?: OrderSource; paymentMethod?: PaymentMethod };
 ```
 
-**Request Body:**
+**Request DTO:**  
+Empty body (`{}`).
 
-```json
-{}
-```
+**Response DTO:**  
+`ApiSuccess<ProductReportRowDto[]>`
 
-**Response:**
+**Success Status:**  
+200
 
-```json
-{
-  "success": true,
-  "data": [],
-  "meta": {
-    "page": 1,
-    "pageSize": 25,
-    "total": 0,
-    "totalPages": 0
-  }
-}
-```
-
-**Important Validation:**  
-Validate authentication, scope, permission, feature, and tenant isolation server-side. Validate employee branch access and resource ownership.
+**Important Validation / Machine-readable Errors:**  
+AUTHENTICATION_REQUIRED, PERMISSION_DENIED, FEATURE_DISABLED, BRANCH_ACCESS_DENIED
 
 **Transaction Required?**  
-No
+No.
 
 **Idempotency Required?**  
-No
+No.
 
-**Realtime Impact?**  
+**Realtime Impact:**  
 None.
 
 ### `GET /api/v1/cafe/reports/orders`
 
 **Purpose:**  
-Return order-breakdown reporting data.
+List or return the authorized Report representation required by this route.
 
 **Authentication:**  
-Authenticated.
+Bearer access token.
 
 **Scope:**  
 Tenant/Branch
@@ -12244,65 +10764,42 @@ reports
 
 **Path Parameters:**
 
-```json
-{}
-```
+None.
 
 **Query Parameters:**
 
-```json
-{
-  "from": "ISO date",
-  "to": "ISO date",
-  "branchIds": [
-    "branch-id"
-  ],
-  "orderType": "TABLE | TAKEAWAY | DELIVERY",
-  "orderSource": "POS | QR_MENU | ONLINE_MENU | MANUAL",
-  "paymentMethod": "CASH | CARD | WALLET | ONLINE | MIXED"
-}
+```ts
+type QueryParameters = { from?: string; to?: string; branchIds?: string[]; orderType?: OrderType; orderSource?: OrderSource; paymentMethod?: PaymentMethod };
 ```
 
-**Request Body:**
+**Request DTO:**  
+Empty body (`{}`).
 
-```json
-{}
-```
+**Response DTO:**  
+`ApiSuccess<OrderBreakdownReportDto>`
 
-**Response:**
+**Success Status:**  
+200
 
-```json
-{
-  "success": true,
-  "data": [],
-  "meta": {
-    "page": 1,
-    "pageSize": 25,
-    "total": 0,
-    "totalPages": 0
-  }
-}
-```
-
-**Important Validation:**  
-Validate authentication, scope, permission, feature, and tenant isolation server-side. Validate employee branch access and resource ownership.
+**Important Validation / Machine-readable Errors:**  
+AUTHENTICATION_REQUIRED, PERMISSION_DENIED, FEATURE_DISABLED, BRANCH_ACCESS_DENIED
 
 **Transaction Required?**  
-No
+No.
 
 **Idempotency Required?**  
-No
+No.
 
-**Realtime Impact?**  
+**Realtime Impact:**  
 None.
 
 ### `GET /api/v1/cafe/reports/payments`
 
 **Purpose:**  
-Return payment reporting data.
+List or return the authorized Report representation required by this route.
 
 **Authentication:**  
-Authenticated.
+Bearer access token.
 
 **Scope:**  
 Tenant/Branch
@@ -12315,65 +10812,42 @@ reports
 
 **Path Parameters:**
 
-```json
-{}
-```
+None.
 
 **Query Parameters:**
 
-```json
-{
-  "from": "ISO date",
-  "to": "ISO date",
-  "branchIds": [
-    "branch-id"
-  ],
-  "orderType": "TABLE | TAKEAWAY | DELIVERY",
-  "orderSource": "POS | QR_MENU | ONLINE_MENU | MANUAL",
-  "paymentMethod": "CASH | CARD | WALLET | ONLINE | MIXED"
-}
+```ts
+type QueryParameters = { from?: string; to?: string; branchIds?: string[]; orderType?: OrderType; orderSource?: OrderSource; paymentMethod?: PaymentMethod };
 ```
 
-**Request Body:**
+**Request DTO:**  
+Empty body (`{}`).
 
-```json
-{}
-```
+**Response DTO:**  
+`ApiSuccess<PaymentReportRowDto[]>`
 
-**Response:**
+**Success Status:**  
+200
 
-```json
-{
-  "success": true,
-  "data": [],
-  "meta": {
-    "page": 1,
-    "pageSize": 25,
-    "total": 0,
-    "totalPages": 0
-  }
-}
-```
-
-**Important Validation:**  
-Validate authentication, scope, permission, feature, and tenant isolation server-side. Validate employee branch access and resource ownership.
+**Important Validation / Machine-readable Errors:**  
+AUTHENTICATION_REQUIRED, PERMISSION_DENIED, FEATURE_DISABLED, BRANCH_ACCESS_DENIED
 
 **Transaction Required?**  
-No
+No.
 
 **Idempotency Required?**  
-No
+No.
 
-**Realtime Impact?**  
+**Realtime Impact:**  
 None.
 
 ### `GET /api/v1/cafe/reports/inventory`
 
 **Purpose:**  
-Return inventory reporting data.
+List or return the authorized Report representation required by this route.
 
 **Authentication:**  
-Authenticated.
+Bearer access token.
 
 **Scope:**  
 Tenant/Branch
@@ -12386,56 +10860,33 @@ reports
 
 **Path Parameters:**
 
-```json
-{}
-```
+None.
 
 **Query Parameters:**
 
-```json
-{
-  "from": "ISO date",
-  "to": "ISO date",
-  "branchIds": [
-    "branch-id"
-  ],
-  "orderType": "TABLE | TAKEAWAY | DELIVERY",
-  "orderSource": "POS | QR_MENU | ONLINE_MENU | MANUAL",
-  "paymentMethod": "CASH | CARD | WALLET | ONLINE | MIXED"
-}
+```ts
+type QueryParameters = { page?: number; pageSize?: number; search?: string; active?: boolean; lowStock?: boolean };
 ```
 
-**Request Body:**
+**Request DTO:**  
+Empty body (`{}`).
 
-```json
-{}
-```
+**Response DTO:**  
+`ApiSuccess<InventoryReportDto>`
 
-**Response:**
+**Success Status:**  
+200
 
-```json
-{
-  "success": true,
-  "data": [],
-  "meta": {
-    "page": 1,
-    "pageSize": 25,
-    "total": 0,
-    "totalPages": 0
-  }
-}
-```
-
-**Important Validation:**  
-Validate authentication, scope, permission, feature, and tenant isolation server-side. Validate employee branch access and resource ownership.
+**Important Validation / Machine-readable Errors:**  
+AUTHENTICATION_REQUIRED, PERMISSION_DENIED, FEATURE_DISABLED, BRANCH_ACCESS_DENIED
 
 **Transaction Required?**  
-No
+No.
 
 **Idempotency Required?**  
-No
+No.
 
-**Realtime Impact?**  
+**Realtime Impact:**  
 None.
 
 ## 45. Settings Endpoints
@@ -12443,10 +10894,10 @@ None.
 ### `GET /api/v1/cafe/settings`
 
 **Purpose:**  
-Return cafe-level settings.
+List or return the authorized Settings representation required by this route.
 
 **Authentication:**  
-Authenticated.
+Bearer access token.
 
 **Scope:**  
 Tenant
@@ -12459,64 +10910,40 @@ settings.view
 
 **Path Parameters:**
 
-```json
-{}
-```
+None.
 
 **Query Parameters:**
 
-```json
-{
-  "page": 1,
-  "pageSize": 25,
-  "search": "optional",
-  "sortBy": "optional",
-  "sortOrder": "asc | desc",
-  "from": "optional ISO date",
-  "to": "optional ISO date"
-}
-```
+None.
 
-**Request Body:**
+**Request DTO:**  
+Empty body (`{}`).
 
-```json
-{}
-```
+**Response DTO:**  
+`ApiSuccess<CafeSettingsDto>`
 
-**Response:**
+**Success Status:**  
+200
 
-```json
-{
-  "success": true,
-  "data": [],
-  "meta": {
-    "page": 1,
-    "pageSize": 25,
-    "total": 0,
-    "totalPages": 0
-  }
-}
-```
-
-**Important Validation:**  
-Validate authentication, scope, permission, feature, and tenant isolation server-side.
+**Important Validation / Machine-readable Errors:**  
+AUTHENTICATION_REQUIRED, PERMISSION_DENIED
 
 **Transaction Required?**  
-No
+No.
 
 **Idempotency Required?**  
-No
+No.
 
-**Realtime Impact?**  
+**Realtime Impact:**  
 None.
 
 ### `PUT /api/v1/cafe/settings`
 
 **Purpose:**  
-Replace editable cafe-level settings.
+Replace or assign the selected Settings configuration.
 
 **Authentication:**  
-Authenticated.
+Bearer access token.
 
 **Scope:**  
 Tenant
@@ -12529,44 +10956,31 @@ settings.edit
 
 **Path Parameters:**
 
-```json
-{}
-```
+None.
 
 **Query Parameters:**
 
-```json
-{}
-```
+None.
 
-**Request Body:**
+**Request DTO:**  
+`UpdateCafeSettingsRequest`
 
-```json
-{
-  "fields": "Current Settings domain fields",
-  "version": "Required on conflicting updates when applicable"
-}
-```
+**Response DTO:**  
+`ApiSuccess<CafeSettingsDto>`
 
-**Response:**
+**Success Status:**  
+200
 
-```json
-{
-  "success": true,
-  "data": "Settings result"
-}
-```
-
-**Important Validation:**  
-Validate authentication, scope, permission, feature, and tenant isolation server-side.
+**Important Validation / Machine-readable Errors:**  
+AUTHENTICATION_REQUIRED, PERMISSION_DENIED, VERSION_CONFLICT
 
 **Transaction Required?**  
-No
+No.
 
 **Idempotency Required?**  
-No
+No.
 
-**Realtime Impact?**  
+**Realtime Impact:**  
 None.
 
 ## 46. Menu Settings Endpoints
@@ -12574,10 +10988,10 @@ None.
 ### `GET /api/v1/cafe/menu-settings`
 
 **Purpose:**  
-Return customer-menu behavior settings.
+List or return the authorized Menu Settings representation required by this route.
 
 **Authentication:**  
-Authenticated.
+Bearer access token.
 
 **Scope:**  
 Tenant
@@ -12590,64 +11004,40 @@ settings.view
 
 **Path Parameters:**
 
-```json
-{}
-```
+None.
 
 **Query Parameters:**
 
-```json
-{
-  "page": 1,
-  "pageSize": 25,
-  "search": "optional",
-  "sortBy": "optional",
-  "sortOrder": "asc | desc",
-  "from": "optional ISO date",
-  "to": "optional ISO date"
-}
-```
+None.
 
-**Request Body:**
+**Request DTO:**  
+Empty body (`{}`).
 
-```json
-{}
-```
+**Response DTO:**  
+`ApiSuccess<MenuSettingsDto>`
 
-**Response:**
+**Success Status:**  
+200
 
-```json
-{
-  "success": true,
-  "data": [],
-  "meta": {
-    "page": 1,
-    "pageSize": 25,
-    "total": 0,
-    "totalPages": 0
-  }
-}
-```
-
-**Important Validation:**  
-Validate authentication, scope, permission, feature, and tenant isolation server-side.
+**Important Validation / Machine-readable Errors:**  
+AUTHENTICATION_REQUIRED, PERMISSION_DENIED
 
 **Transaction Required?**  
-No
+No.
 
 **Idempotency Required?**  
-No
+No.
 
-**Realtime Impact?**  
+**Realtime Impact:**  
 None.
 
 ### `PUT /api/v1/cafe/menu-settings`
 
 **Purpose:**  
-Replace customer-menu behavior settings.
+Replace or assign the selected Menu Settings configuration.
 
 **Authentication:**  
-Authenticated.
+Bearer access token.
 
 **Scope:**  
 Tenant
@@ -12660,44 +11050,31 @@ settings.edit
 
 **Path Parameters:**
 
-```json
-{}
-```
+None.
 
 **Query Parameters:**
 
-```json
-{}
-```
+None.
 
-**Request Body:**
+**Request DTO:**  
+`UpdateMenuSettingsRequest`
 
-```json
-{
-  "fields": "Current Menu Settings domain fields",
-  "version": "Required on conflicting updates when applicable"
-}
-```
+**Response DTO:**  
+`ApiSuccess<MenuSettingsDto>`
 
-**Response:**
+**Success Status:**  
+200
 
-```json
-{
-  "success": true,
-  "data": "Menu Settings result"
-}
-```
-
-**Important Validation:**  
-Validate authentication, scope, permission, feature, and tenant isolation server-side.
+**Important Validation / Machine-readable Errors:**  
+AUTHENTICATION_REQUIRED, PERMISSION_DENIED, VERSION_CONFLICT
 
 **Transaction Required?**  
-No
+No.
 
 **Idempotency Required?**  
-No
+No.
 
-**Realtime Impact?**  
+**Realtime Impact:**  
 None.
 
 ## 47. File Upload Endpoints
@@ -12705,10 +11082,10 @@ None.
 ### `POST /api/v1/cafe/assets`
 
 **Purpose:**  
-Upload a product or offer image.
+Create a File Upload resource.
 
 **Authentication:**  
-Authenticated.
+Bearer access token.
 
 **Scope:**  
 Tenant
@@ -12721,52 +11098,40 @@ Purpose-specific
 
 **Path Parameters:**
 
-```json
-{}
-```
+None.
 
 **Query Parameters:**
 
-```json
-{}
-```
+None.
 
-**Request Body:**
+**Request DTO:**  
+`CafeAssetUploadRequest`
 
-```json
-{
-  "multipart": "file, purpose, entityId?"
-}
-```
+**Response DTO:**  
+`ApiSuccess<AssetDto>`
 
-**Response:**
+**Success Status:**  
+201
 
-```json
-{
-  "success": true,
-  "data": "File Upload result"
-}
-```
-
-**Important Validation:**  
-Validate authentication, scope, permission, feature, and tenant isolation server-side.
+**Important Validation / Machine-readable Errors:**  
+AUTHENTICATION_REQUIRED, PERMISSION_DENIED, FEATURE_DISABLED
 
 **Transaction Required?**  
-No
+No.
 
 **Idempotency Required?**  
-No
+No.
 
-**Realtime Impact?**  
+**Realtime Impact:**  
 None.
 
 ### `DELETE /api/v1/cafe/assets/{assetId}`
 
 **Purpose:**  
-Delete an unreferenced uploaded asset.
+Delete or revoke the selected File Upload resource.
 
 **Authentication:**  
-Authenticated.
+Bearer access token.
 
 **Scope:**  
 Tenant
@@ -12779,43 +11144,33 @@ Purpose-specific
 
 **Path Parameters:**
 
-```json
-{
-  "assetId": "Opaque assetId identifier"
-}
+```ts
+type PathParameters = { assetId: string };
 ```
 
 **Query Parameters:**
 
-```json
-{}
-```
+None.
 
-**Request Body:**
+**Request DTO:**  
+Empty body (`{}`).
 
-```json
-{}
-```
+**Response DTO:**  
+Empty response body.
 
-**Response:**
+**Success Status:**  
+204
 
-```json
-{
-  "success": true,
-  "data": "File Upload result"
-}
-```
-
-**Important Validation:**  
-Validate authentication, scope, permission, feature, and tenant isolation server-side.
+**Important Validation / Machine-readable Errors:**  
+AUTHENTICATION_REQUIRED, PERMISSION_DENIED, FEATURE_DISABLED
 
 **Transaction Required?**  
-No
+No.
 
 **Idempotency Required?**  
-No
+No.
 
-**Realtime Impact?**  
+**Realtime Impact:**  
 None.
 
 ## 48. Payment Webhooks
@@ -12823,10 +11178,10 @@ None.
 ### `POST /api/v1/webhooks/payments/{provider}`
 
 **Purpose:**  
-Consume a provider-neutral payment webhook.
+Verify and consume a deduplicated payment-provider event.
 
 **Authentication:**  
-Authenticated.
+Public/token-bound as stated.
 
 **Scope:**  
 Public
@@ -12839,241 +11194,139 @@ Verified provider signature
 
 **Path Parameters:**
 
-```json
-{
-  "provider": "Opaque provider identifier"
-}
+```ts
+type PathParameters = { provider: string };
 ```
 
 **Query Parameters:**
 
-```json
-{}
-```
+None.
 
-**Request Body:**
+**Request DTO:**  
+`PaymentWebhookRequest`
 
-```json
-{
-  "providerPayload": "Verified provider payload"
-}
-```
+**Response DTO:**  
+`ApiSuccess<PaymentWebhookAcknowledgementDto>`
 
-**Response:**
+**Success Status:**  
+200
 
-```json
-{
-  "success": true,
-  "data": "Payment Webhook result"
-}
-```
-
-**Important Validation:**  
-Validate authentication, scope, permission, feature, and tenant isolation server-side.
+**Important Validation / Machine-readable Errors:**  
+WEBHOOK_SIGNATURE_INVALID, WEBHOOK_EVENT_INVALID, PAYMENT_INTENT_NOT_FOUND, PAYMENT_AMOUNT_MISMATCH
 
 **Transaction Required?**  
-No
+Yes.
 
 **Idempotency Required?**  
-Yes — Idempotency-Key or verified provider event ID
+Yes — `Idempotency-Key`; payment webhook uses verified provider event ID.
 
-**Realtime Impact?**  
-Publishes payment/refund events.
+**Realtime Impact:**  
+Publishes payment/refund synchronization events.
 
 ## 49. WebSocket Events
 
-| Event | Direction | Channel | Recipients | Payload summary |
+| Event | Direction | Channel | Recipients | Payload |
 |---|---|---|---|---|
-| `order.created` | Server → client | `branch:{branchId}` | POS, kitchen, authorized admins | Order ID, number, type, source, status, totals summary |
-| `order.status_changed` | Server → client | `branch:{branchId}` and `public-order:{token}` | Staff and tracking customer | Order ID/token, previous and next operational status, timestamp |
-| `order.cancelled` | Server → client | Branch/public order | Staff and tracking customer | Order reference, reason, timestamp |
-| `order.payment_status_changed` | Server → client | Branch/public order | Staff and tracking customer | Payment status only; never operational status |
-| `payment.updated` | Server → client | `branch:{branchId}` | Authorized payment viewers | Payment ID, order ID, normalized status, amount |
-| `refund.created` | Server → client | `branch:{branchId}` | Authorized payment/refund viewers | Refund ID, payment ID, amount, resulting payment status |
-| `inventory.changed` | Server → client | `branch:{branchId}` | Inventory viewers | Item ID, movement type, quantity delta, resulting quantity |
-| `inventory.low_stock` | Server → client | `branch:{branchId}` | Inventory viewers | Item ID, quantity, minimum stock |
-| `inventory.out_of_stock` | Server → client | `branch:{branchId}` | Inventory viewers | Item ID, resulting quantity |
-| `purchase.received` | Server → client | `branch:{branchId}` | Purchase/inventory viewers | Purchase ID and affected inventory IDs |
-| `stock_count.confirmed` | Server → client | `branch:{branchId}` | Inventory viewers | Count ID and adjustment summary |
-| `waiter_request.created` | Server → client | `branch:{branchId}` | Waiter-request viewers | Request ID, table, type, status |
-| `waiter_request.status_changed` | Server → client | Branch and QR context | Staff and requesting customer | Request ID and status |
-| `notification.created` | Server → client | `employee:{employeeId}` | Target employee | Notification ID, type, title, resource reference |
-| `notification.read` | Server → client | `employee:{employeeId}` | Current employee sessions | Notification ID/read count |
-| `shift.opened` | Server → client | `branch:{branchId}` | Shift/cash viewers | Shift ID, employee ID, opening timestamp |
-| `shift.closed` | Server → client | `branch:{branchId}` | Shift/cash viewers | Shift ID, expected/actual/difference summary |
-
-Clients refetch sensitive resource details through authorized HTTP endpoints. Events do not carry credentials, costs outside permission scope, or full customer records.
+| `order.created` | Server → client | `branch:{branchId}` | POS, kitchen, authorized admins | order ID/number/type/source/status/totals summary |
+| `order.status_changed` | Server → client | branch and `public-order:{token}` | Staff and tracking customer | order reference, previous/next `OrderStatus`, timestamp |
+| `order.cancelled` | Server → client | branch/public order | Staff and tracking customer | order reference, reason, timestamp |
+| `order.payment_status_changed` | Server → client | branch/public order | Staff and tracking customer | `PaymentStatus`, timestamp |
+| `payment.updated` | Server → client | branch | Payment viewers | payment ID, order ID, method, status, amount |
+| `refund.created` | Server → client | branch | Refund/payment viewers | refund ID, payment ID, amount, remaining refundable |
+| `inventory.changed` | Server → client | branch | Inventory viewers | item ID, movement type, delta, resulting quantity |
+| `inventory.low_stock` | Server → client | branch | Inventory viewers | item ID, quantity, minimum stock |
+| `inventory.out_of_stock` | Server → client | branch | Inventory viewers | item ID, quantity |
+| `purchase.received` | Server → client | branch | Purchase/inventory viewers | purchase ID, movement IDs, inventory IDs |
+| `stock_count.confirmed` | Server → client | branch | Inventory viewers | count ID and movement IDs |
+| `waiter_request.created` | Server → client | branch | Waiter-request viewers | `WaiterRequestDto` summary |
+| `waiter_request.status_changed` | Server → client | branch/QR context | Staff and requester | request ID/status/timestamps |
+| `notification.created` | Server → client | `employee:{employeeId}` | Target employee | `NotificationDto` |
+| `notification.read` | Server → client | employee | Employee sessions | notification ID and unread count |
+| `shift.opened` | Server → client | branch | Shift/cash viewers | shift ID, employee ID, openedAt |
+| `shift.closed` | Server → client | branch | Shift/cash viewers | shift ID and close summary |
 
 ## 50. Transaction Boundaries
 
-- Tenant creation plus owner credential provisioning.
-- Checkout and public customer order creation.
-- Order cancellation plus eligible inventory restoration.
-- Refund plus payment/order/cash/audit/notification updates.
-- Purchase receipt plus weighted-average inventory updates and movements.
-- Stock-count confirmation and stock movements.
-- Waste record plus stock decrement and audit.
-- Expense mutation plus associated cash movement.
-- Shift open/close and expected-cash calculation.
-- Loyalty redemption/adjustment and coupon consumption.
-- Default customer-address switching.
-- Subscription extension and effective-access updates.
+Transactions are used only where endpoint cards say Yes. Atomic groups include tenant+owner creation, subscriptions/effective access, checkout, cancellation/restoration, refund/payment/cash updates, expense/cash updates, shift lifecycle, stock confirmation, waste, purchase receipt, address default switching, loyalty adjustments, and webhook processing.
 
 ## 51. Idempotency Matrix
 
-| Operation | Required | Key scope |
-|---|---:|---|
-| POS checkout | Yes | Tenant + Branch + key |
-| Public order checkout | Yes | Public context + key |
-| Payment intent create/confirm | Yes | Tenant/intent + key |
-| Refund | Yes | Payment + key |
-| Purchase receipt | Yes | Purchase + key |
-| Stock-count confirmation | Yes | Stock count + key |
-| Waste creation | Yes | Branch + key |
-| Shift open/close | Yes | Employee + Branch + key |
-| Order cancellation | Yes | Order + key |
-| Subscription extension | Yes | Tenant + key |
-| Payment webhook | Yes | Provider + provider event ID |
-| Ordinary CRUD | No | Optimistic concurrency where applicable |
+| Endpoint class | Key scope |
+|---|---|
+| POS/public checkout | tenant/public context + branch + key |
+| Payment intent create/confirm | tenant/intent + key |
+| Refund | payment + key |
+| Purchase receipt | purchase + key |
+| Stock-count confirmation | stock count + key |
+| Waste | branch + key |
+| Shift open/close | employee + branch + key |
+| Order cancellation | order + key |
+| Subscription extension | tenant + key |
+| Payment webhook | provider + provider event ID |
 
 ## 52. Permission Matrix
 
-| Domain | Read | Write/actions |
-|---|---|---|
-| Orders | `orders.view` | `orders.create`, `orders.update`, `orders.cancel`, `orders.refund`, `orders.print` |
-| Products | `products.view` | `products.create`, `products.update`, `products.delete` |
-| Categories | `categories.view` | `categories.manage` |
-| Menus | `menus.view` | `menus.manage` |
-| Branches | `branches.view` | `branches.manage` |
-| Tables/QR | `tables.view`, `qr.view` | `tables.manage`, `qr.manage` |
-| Kitchen | `kitchen.view` | `kitchen.update` |
-| Inventory | `inventory.view` | `inventory.create`, `inventory.adjust`, `inventory.stockCount`, `inventory.waste` |
-| Purchases/Suppliers | `purchases.view`, `suppliers.view` | `purchases.create/update/receive`, `suppliers.manage` |
-| Customers/Loyalty | `customers.view`, `loyalty.view` | `customers.manage`, `loyalty.manage` |
-| Coupons/Offers | `coupons.view` | `coupons.manage` |
-| Payments/Refunds | `payments.view`, `refunds.view` | `refunds.create` |
-| Expenses/Cash/Shifts | respective `.view` keys | respective create/update/manage/open/close keys |
-| Notifications | `notifications.view` including own read state | `notifications.manage` only for future real administration |
-| Employees/Roles | `employees.view`, `roles.view` | employee and role write keys |
-| Reports/Audit/Settings | `reports.view`, `audit.view`, `settings.view` | `settings.edit` |
+Permission values are the exact `PermissionKey` enum. Each endpoint card is authoritative for its required key; backend checks do not rely on hidden frontend routes.
 
 ## 53. Feature Matrix
 
-| Feature | Protected functionality |
-|---|---|
-| `onlineMenu` | Public menu browsing, public offers, `ONLINE_MENU` order source |
-| `pos` | POS quote/checkout, cash register, shifts |
-| `orders` | Order management |
-| `tables` | Table management |
-| `qrOrdering` | Table QR, `QR_MENU + TABLE`, waiter requests |
-| `kitchen` | Kitchen access through Orders API |
-| `takeaway` | Takeaway order type |
-| `delivery` | Delivery order type, addresses, zones |
-| `inventory` | Inventory, stock counts, waste, movements |
-| `recipes` | Recipe management and checkout consumption |
-| `suppliers` | Supplier management |
-| `purchases` | Purchase management |
-| `expenses` | Expense management |
-| `loyalty` | Loyalty and coupons |
-| `employees` | Employee, role, permission administration |
-| `reports` | Dedicated reports only, not basic customer analytics |
-| `advancedReports` | Advanced report presentation/datasets only when explicitly implemented |
-
-Internal Menu and MenuItem management intentionally has no `onlineMenu` feature requirement.
+Feature values are the exact `FeatureKey` enum. Internal Menu/MenuItem endpoints are ungated. Public menu reads require `onlineMenu` for non-QR context or `qrOrdering` for validated QR context. Dedicated reports require `reports`; customer-detail analytics does not.
 
 ## 54. Branch Scope Matrix
 
-| Resource | Scope source |
-|---|---|
-| Platform resources | Platform principal |
-| Tenant catalog, menus, modifiers, suppliers, customers, roles | Authenticated tenant claim |
-| Branch operational data | `{branchId}` plus tenant ownership and employee branch access |
-| Reports | Requested branch IDs intersected with allowed branch access |
-| Public QR | Validated opaque QR token resolving Tenant + Branch + Table |
-| Public non-QR menu | Public tenant/branch slug resolved by bundled menu endpoint |
-| Public order tracking | Opaque public order token |
+Branch routes validate `{branchId}` against tenant ownership and employee access. Tenant lists/reports intersect requested branch IDs with accessible branches. Public QR context is token-derived; public tracking is public-order-token-derived.
 
 ## 55. Rate Limiting Matrix
 
-| Endpoint class | Baseline policy |
+| Class | Limit key |
 |---|---|
-| Login/password recovery | Strict per IP + login + tenant |
-| Token refresh | Per session and IP |
-| Public menu reads | CDN/cache friendly; per IP/tenant burst limit |
-| Public order/quote | Per public context, IP, and idempotency key |
-| QR resolution/waiter requests | Per token and IP |
-| Payment intents | Per tenant/customer/order |
-| Payment webhooks | Provider allowlist/signature plus event deduplication |
-| Authenticated reads | Per principal/tenant |
-| Authenticated writes | Lower per-principal limit with audit |
-| Uploads | Per tenant, file count, size, and MIME policy |
+| Login/recovery | IP + login + tenant |
+| Refresh | session + IP |
+| Public menu/QR | IP + public context |
+| Public order/payment | public context + IP + idempotency key |
+| Authenticated reads | principal + tenant |
+| Authenticated writes | principal + tenant |
+| Uploads | tenant + size/count |
+| Webhooks | provider + event ID + signature |
 
 ## 56. Backend Security Requirements
 
-- Enforce tenant isolation on every query and mutation.
-- Never trust tenant, branch, price, discount, tax, loyalty, inventory, payment status, or permission data supplied by the client.
-- Verify branch access independently of route visibility.
-- Hash passwords with a modern memory-hard algorithm and rotate refresh tokens.
-- Use secure HTTP-only cookies for refresh tokens and CSRF protection where cookie-authenticated writes apply.
-- Validate MIME type from content, file size, image dimensions, and storage ownership.
-- Verify payment webhook signatures and deduplicate events.
-- Use parameterized queries, strict DTO allowlists, output shaping, audit logs, and secret redaction.
-- Return public-safe projections for all public endpoints.
-- Prevent ID enumeration with opaque identifiers and public tokens.
-- Recalculate `MenuItem.price`, modifiers, offers, coupons, tax, service, and delivery server-side.
+- Enforce tenant isolation, permissions, features, branch access, output projection, DTO allowlists, secure password hashing, token rotation, CSRF controls, file-content validation, webhook signatures, and audit redaction.
+- Recalculate menu prices, modifiers, offers, coupon, tax, service, delivery, loyalty, payment and stock server-side.
+- Public endpoints return only public DTOs.
 
 ## 57. Backend-Only Responsibilities
 
-- Authentication, authorization, feature and branch-access enforcement.
-- Tenant isolation and public-context validation.
-- Authoritative price and total calculation.
-- Order/payment state-machine enforcement.
-- Inventory and recipe consumption/restoration.
-- Transaction boundaries, locks, idempotency, and concurrency.
-- Subscription limits and effective-feature calculation.
-- Audit creation, notification targeting, payment webhook processing, and signed asset handling.
+Authorization, scope resolution, price calculation, status transitions, inventory effects, transactions, idempotency, concurrency, subscription limits, audit creation, notification targeting, webhook normalization, and signed asset storage.
 
 ## 58. Frontend-Only Actions
 
-- Fixed Penta-K footer attribution linking to https://penta-k.com/en.
-- Frontend CSV generation where current result sizes are appropriate.
-- Dialog, popover, menu and navigation state.
-- Local date, number, currency, and label formatting.
-- Theme rendering and branding preview.
-- QR visual rendering from a server-issued opaque token.
-- Receipt rendering from server-returned print data.
+- Fixed Penta-K attribution: https://penta-k.com/en.
+- CSV generation where current datasets are suitable.
+- Dialogs, navigation, local formatting, theme rendering, and QR visual rendering from a server token.
 
-Penta-K attribution is fixed Platform attribution. There is no Tenant endpoint for disabling, editing, replacing, or removing it.
+Penta-K attribution is a fixed Platform/product constant. No Tenant, Branding, Plan, or Asset DTO contains controls to hide, edit, replace, or remove it.
 
 ## 59. P0 Implementation Order
 
-1. Authentication/session, tenant isolation, permissions, features, and branch access.
-2. Platform tenant/plan/subscription core.
-3. Tenant, branch, products, categories, internal menus and MenuItems.
-4. Bundled public menu and QR context resolution.
-5. POS/public checkout, orders, payments, refunds, and payment webhook.
-6. Employees, roles, permission catalog, and core settings.
+Authentication/scope → Platform core → Tenant/Branch/catalog/internal menus → public context/menu → checkout/orders/payments/refunds/webhook → employees/roles/settings.
 
 ## 60. P1 Implementation Order
 
-1. Modifiers, recipes, tables, QR administration, waiter requests, and notifications.
-2. Inventory, movements, counts, waste, suppliers, and purchases.
-3. Cash register, shifts, expenses, customers, loyalty, coupons, offers, and delivery zones.
-4. Reports, audit logs, uploads, branding, and realtime delivery.
+Modifiers/recipes/tables/QR → inventory/purchases → cash/shifts/expenses → customers/loyalty/offers/delivery → waiter/notifications/reports/audit/assets/realtime.
 
 ## 61. P2 Implementation Order
 
-1. Forgot-password and reset-password flows after delivery-provider selection.
-2. Active-session listing and remote session revocation.
+Password recovery delivery integration, active-session listing, and remote session revocation.
 
 ## 62. Product Decisions Still Required
 
-- Password-reset delivery channel/provider and token lifetime.
-- Concrete payment gateway providers behind the provider-neutral contract.
-- Expense binary attachment workflow; current frontend only establishes attachment metadata.
-- Whether supplier edit/deactivate and purchase edit controls will be exposed fully in the UI.
-- Whether recipe deletion remains visible or replacement with an empty recipe is preferred.
-- Whether `advancedReports` changes backend datasets or only frontend presentation.
+- Password-reset delivery provider and token lifetime.
+- Concrete payment providers and provider-specific confirmation/webhook members.
+- Expense binary attachment linkage.
+- Whether supplier/purchase editing controls remain exposed.
+- Whether recipe deletion remains visible or is represented by an empty recipe.
+- Whether `advancedReports` changes backend datasets.
 
 ## 63. Complete Master API Table
 
@@ -13282,19 +11535,15 @@ Penta-K attribution is fixed Platform attribution. There is no Tenant endpoint f
 
 ## 64. Final Endpoint Counts
 
-| Measure | Count |
-|---|---:|
-| Total | 200 |
-| GET | 89 |
-| POST | 50 |
-| PATCH | 29 |
-| PUT | 14 |
-| DELETE | 18 |
-| P0 | 87 |
-| P1 | 109 |
-| P2 | 4 |
-
-Counts grouped by Domain:
+- Total: **200**
+- GET: **89**
+- POST: **50**
+- PATCH: **29**
+- PUT: **14**
+- DELETE: **18**
+- P0: **87**
+- P1: **109**
+- P2: **4**
 
 | Domain | Count |
 |---|---:|
@@ -13342,13 +11591,5 @@ Counts grouped by Domain:
 | File Upload | 2 |
 | Payment Webhook | 1 |
 
-Previous total: **201**.  
-New total: **200**.  
-Difference: **-1**.  
-Reason: removed only `GET /api/v1/customer/context`; its non-QR responsibility is consolidated into `GET /api/v1/customer/menu`, while QR-only context remains at `GET /api/v1/customer/qr/{token}`.
+**BACKEND HANDOFF STATUS: READY FOR IMPLEMENTATION**
 
-## Final Recommendation
-
-**YES — API CONTRACT READY**
-
-The contract is ready to hand to the Backend developer. Items in section 62 are bounded integration/product choices and do not invalidate the frozen resource, authorization, pricing, scope, or state-machine contract.
