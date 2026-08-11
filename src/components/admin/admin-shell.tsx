@@ -3,166 +3,52 @@
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { createContext, useContext, useEffect, useState } from "react";
+import { LogOut, MapPin, Menu } from "lucide-react";
+import { AdminClientUnavailableState } from "@/components/access/admin-client-unavailable-state";
 import {
-  BadgePercent,
-  BookOpen,
-  Boxes,
-  ChefHat,
-  ChevronDown,
-  ClipboardList,
-  FileBarChart,
-  LayoutDashboard,
-  LogOut,
-  MapPin,
-  Menu,
-  Package,
-  PanelLeftClose,
-  PanelLeftOpen,
-  QrCode,
-  ReceiptText,
-  Settings,
-  ShoppingCart,
-  Tags,
-  TableProperties,
-  Users,
-  WalletCards,
-  X,
-} from "lucide-react";
+  FeatureUnavailableState,
+  PermissionDeniedState,
+} from "@/components/access/access-state";
+import { CafeAdminSidebar } from "@/components/layout/cafe-admin-sidebar";
+import { adminNavigationGroups } from "@/components/layout/admin-navigation";
 import { AppLogo } from "@/components/shared/app-logo";
 import { Button } from "@/components/ui/button";
-import { cn } from "@/lib/utils";
-import { useTenant } from "@/providers/tenant-provider";
-import { useAuthStore } from "@/store/auth.store";
-import { getEffectiveTenantFeatures, getRequiredFeatureForRoute } from "@/config/feature-access.config";
+import {
+  getEffectiveTenantFeatures,
+  getRequiredFeatureForRoute,
+} from "@/config/feature-access.config";
+import { getRoutePermission } from "@/config/permissions.config";
+import { isAdminClientAllowed } from "@/lib/admin-client-mode";
 import { useBranch } from "@/providers/branch-provider";
 import { useCurrentEmployee } from "@/providers/current-employee-provider";
-import { getRoutePermission } from "@/config/permissions.config";
-import { FeatureUnavailableState, PermissionDeniedState } from "@/components/access/access-state";
-
-type NavItem = { href: string; label: string; icon: typeof LayoutDashboard };
-type NavGroup = { key: string; label: string; items: NavItem[] };
+import { useTenant } from "@/providers/tenant-provider";
+import { branchService } from "@/services/branch.service";
+import { useAuthStore } from "@/store/auth.store";
 
 const AdminShellNestingContext = createContext(false);
-
-const groups: NavGroup[] = [
-  {
-    key: "home",
-    label: "الرئيسية",
-    items: [
-      { href: "/admin/dashboard", label: "لوحة التحكم", icon: LayoutDashboard },
-    ],
-  },
-  {
-    key: "sales",
-    label: "المبيعات",
-    items: [
-      { href: "/admin/pos", label: "نقطة البيع", icon: ShoppingCart },
-      { href: "/admin/orders", label: "الطلبات", icon: ClipboardList },
-      { href: "/admin/tables", label: "الطاولات", icon: TableProperties },
-      { href: "/kitchen/orders", label: "المطبخ", icon: ChefHat },
-    ],
-  },
-  {
-    key: "online",
-    label: "المنيو الإلكتروني",
-    items: [
-      {
-        href: "/admin/menu-overview",
-        label: "نظرة عامة",
-        icon: LayoutDashboard,
-      },
-      { href: "/admin/qr", label: "رموز QR", icon: QrCode },
-      {
-        href: "/admin/waiter-requests",
-        label: "طلبات الويتر",
-        icon: ReceiptText,
-      },
-      {
-        href: "/admin/delivery-zones",
-        label: "مناطق التوصيل",
-        icon: TableProperties,
-      },
-      { href: "/admin/menu-settings", label: "إعدادات المنيو", icon: Settings },
-    ],
-  },
-  {
-    key: "menu",
-    label: "إدارة المنيو",
-    items: [
-      { href: "/admin/products", label: "المنتجات", icon: Package },
-      { href: "/admin/categories", label: "الأقسام", icon: Tags },
-      { href: "/admin/addons", label: "الإضافات والخيارات", icon: Boxes },
-      { href: "/admin/recipes", label: "الوصفات", icon: ReceiptText },
-      { href: "/admin/offers", label: "العروض", icon: BadgePercent },
-      { href: "/admin/coupons", label: "الكوبونات", icon: Tags },
-    ],
-  },
-  {
-    key: "inventory",
-    label: "المخزون",
-    items: [
-      { href: "/admin/inventory", label: "المخزون", icon: Boxes },
-      {
-        href: "/admin/stock-movements",
-        label: "حركات المخزون",
-        icon: ReceiptText,
-      },
-      { href: "/admin/stock-count", label: "الجرد", icon: ClipboardList },
-      { href: "/admin/waste", label: "الهالك", icon: X },
-    ],
-  },
-  {
-    key: "purchases",
-    label: "المشتريات",
-    items: [
-      { href: "/admin/suppliers", label: "الموردون", icon: Users },
-      { href: "/admin/purchases", label: "المشتريات", icon: ReceiptText },
-    ],
-  },
-  {
-    key: "customers",
-    label: "العملاء",
-    items: [
-      { href: "/admin/customers", label: "العملاء", icon: Users },
-      { href: "/admin/loyalty", label: "نقاط الولاء", icon: BadgePercent },
-    ],
-  },
-  {
-    key: "finance",
-    label: "المالية",
-    items: [
-      { href: "/admin/payments", label: "المدفوعات", icon: WalletCards },
-      { href: "/admin/refunds", label: "الاسترجاعات", icon: ReceiptText },
-      { href: "/admin/expenses", label: "المصروفات", icon: ReceiptText },
-      { href: "/admin/cash-register", label: "الخزنة", icon: WalletCards },
-      { href: "/admin/shifts", label: "الورديات", icon: ClipboardList },
-    ],
-  },
-  {
-    key: "staff",
-    label: "الموظفون",
-    items: [
-      { href: "/admin/employees", label: "الموظفون", icon: Users },
-      { href: "/admin/roles", label: "الأدوار والصلاحيات", icon: Users },
-    ],
-  },
-  {
-    key: "management",
-    label: "الإدارة",
-    items: [
-      { href: "/admin/branches", label: "الفروع", icon: MapPin },
-      { href: "/admin/menus", label: "المنيوهات", icon: BookOpen },
-      { href: "/admin/reports", label: "التقارير", icon: FileBarChart },
-      { href: "/admin/notifications", label: "الإشعارات", icon: ReceiptText },
-      { href: "/admin/activity-log", label: "سجل النشاط", icon: ClipboardList },
-      { href: "/admin/settings", label: "الإعدادات", icon: Settings },
-    ],
-  },
+const branchRequiredRoutes = [
+  "/admin/dashboard",
+  "/admin/pos",
+  "/admin/orders",
+  "/admin/tables",
+  "/admin/qr",
+  "/admin/inventory",
+  "/admin/stock-",
+  "/admin/waste",
+  "/admin/purchases",
+  "/admin/expenses",
+  "/admin/payments",
+  "/admin/refunds",
+  "/admin/cash-register",
+  "/admin/shifts",
+  "/admin/delivery-zones",
+  "/admin/waiter-requests",
+  "/kitchen/orders",
 ];
+
 export function AdminShell({ children }: { children: React.ReactNode }) {
   const alreadyInsideShell = useContext(AdminShellNestingContext);
   if (alreadyInsideShell) return <>{children}</>;
-
   return (
     <AdminShellNestingContext.Provider value>
       <AdminShellContent>{children}</AdminShellContent>
@@ -175,6 +61,7 @@ function AdminShellContent({ children }: { children: React.ReactNode }) {
   const router = useRouter();
   const { tenant } = useTenant();
   const { branch, branches, setActiveBranch } = useBranch();
+  const singleBranchCafe = branchService.getBranches(tenant.id).length === 1;
   const { employee, role, hasPermission } = useCurrentEmployee();
   const authenticated = useAuthStore((state) => state.isAuthenticated);
   const logout = useAuthStore((state) => state.logout);
@@ -199,42 +86,39 @@ function AdminShellContent({ children }: { children: React.ReactNode }) {
     if (ready && !authenticated) router.replace("/admin/login");
   }, [authenticated, ready, router]);
   useEffect(() => {
-    const active = groups.find((group) =>
+    const active = adminNavigationGroups.find((group) =>
       group.items.some((item) => pathname === item.href),
     );
     if (active)
       setOpenGroups((current) => ({ ...current, [active.key]: true }));
     setMobileOpen(false);
   }, [pathname]);
+
+  const signOut = () => {
+    logout();
+    router.replace("/admin/login");
+  };
   if (!ready || !authenticated)
     return <main className="min-h-screen bg-background" />;
+  if (!isAdminClientAllowed(tenant.adminClientMode, "WEB"))
+    return <AdminClientUnavailableState onExit={signOut} />;
   if (!employee || !role)
     return (
-      <main dir="rtl" className="flex min-h-screen items-center justify-center bg-background p-6">
-        <div className="max-w-md rounded-2xl border bg-card p-8 text-center shadow-sm">
-          <h1 className="text-xl font-black">تعذر تحديد حساب الموظف</h1>
-          <p className="mt-3 text-sm text-muted-foreground">
-            سجّل الدخول مرة أخرى باستخدام حساب موظف تابع لهذا الكافيه.
-          </p>
-          <Button className="mt-6" onClick={() => { logout(); router.replace("/admin/login"); }}>
-            العودة لتسجيل الدخول
-          </Button>
-        </div>
-      </main>
+      <AccountState
+        title="تعذر تحديد حساب الموظف"
+        description="سجّل الدخول مرة أخرى باستخدام حساب موظف تابع لهذا الكافيه."
+        action="العودة لتسجيل الدخول"
+        onExit={signOut}
+      />
     );
   if (employee.status === "SUSPENDED")
     return (
-      <main dir="rtl" className="flex min-h-screen items-center justify-center bg-background p-6">
-        <div className="max-w-md rounded-2xl border bg-card p-8 text-center shadow-sm">
-          <h1 className="text-xl font-black">الحساب موقوف</h1>
-          <p className="mt-3 text-sm text-muted-foreground">
-            تم إيقاف هذا الحساب. يرجى التواصل مع إدارة الكافيه.
-          </p>
-          <Button className="mt-6" onClick={() => { logout(); router.replace("/admin/login"); }}>
-            تسجيل الخروج
-          </Button>
-        </div>
-      </main>
+      <AccountState
+        title="الحساب موقوف"
+        description="تم إيقاف هذا الحساب. يرجى التواصل مع إدارة الكافيه."
+        action="تسجيل الخروج"
+        onExit={signOut}
+      />
     );
   if (tenant.status === "SUSPENDED" || tenant.status === "ARCHIVED")
     return (
@@ -251,24 +135,44 @@ function AdminShellContent({ children }: { children: React.ReactNode }) {
           <p className="mt-3 text-sm text-muted-foreground">
             تواصل مع مسؤول المنصة لإعادة تفعيل حساب الكافيه.
           </p>
-          <Button
-            className="mt-6"
-            onClick={() => {
-              logout();
-              router.replace("/admin/login");
-            }}
-          >
+          <Button className="mt-6" onClick={signOut}>
             تسجيل الخروج
           </Button>
         </div>
       </main>
     );
 
-  const signOut = () => {
-    logout();
-    router.replace("/admin/login");
-  };
-  const branchSelector = (
+  const effectiveFeatures = getEffectiveTenantFeatures(tenant);
+  const requiredFeature = getRequiredFeatureForRoute(pathname);
+  const requiredPermission = getRoutePermission(pathname);
+  const requiresBranch = branchRequiredRoutes.some((route) =>
+    pathname.startsWith(route),
+  );
+  const visibleGroups = adminNavigationGroups
+    .map((group) => ({
+      ...group,
+      items: group.items.filter((item) => {
+        if (singleBranchCafe && item.href === "/admin/branches") return false;
+        const feature = getRequiredFeatureForRoute(item.href);
+        const permission = getRoutePermission(item.href);
+        return (
+          (!feature || effectiveFeatures[feature]) &&
+          (!permission || hasPermission(permission))
+        );
+      }),
+    }))
+    .filter((group) => group.items.length > 0);
+  const page =
+    requiredPermission && !hasPermission(requiredPermission) ? (
+      <PermissionDeniedState />
+    ) : requiredFeature && !effectiveFeatures[requiredFeature] ? (
+      <FeatureUnavailableState />
+    ) : !branch && requiresBranch ? (
+      <MissingBranch canManage={hasPermission("branches.manage")} />
+    ) : (
+      children
+    );
+  const branchSelector = singleBranchCafe ? null : (
     <div className="hidden items-center gap-2 border-b bg-background px-5 py-2 lg:flex">
       <span className="text-xs font-black text-primary">{tenant.name}</span>
       <span className="text-muted-foreground">·</span>
@@ -292,239 +196,44 @@ function AdminShellContent({ children }: { children: React.ReactNode }) {
             ))}
         </select>
       ) : branches.length === 1 ? (
-        <span className="rounded-lg border bg-muted/40 px-3 py-2 text-xs font-bold">{branch?.name ?? branches[0].name}</span>
+        <span className="rounded-lg border bg-muted/40 px-3 py-2 text-xs font-bold">
+          {branch?.name ?? branches[0].name}
+        </span>
       ) : hasPermission("branches.manage") ? (
         <Button asChild size="sm">
           <Link href="/admin/branches/new">إضافة أول فرع</Link>
         </Button>
-      ) : <span className="text-xs text-muted-foreground">لا توجد فروع متاحة</span>}
+      ) : (
+        <span className="text-xs text-muted-foreground">
+          لا توجد فروع متاحة
+        </span>
+      )}
     </div>
   );
-  const branchRequiredRoutes = [
-    "/admin/dashboard",
-    "/admin/pos",
-    "/admin/orders",
-    "/admin/tables",
-    "/admin/qr",
-    "/admin/inventory",
-    "/admin/stock-",
-    "/admin/waste",
-    "/admin/purchases",
-    "/admin/expenses",
-    "/admin/payments",
-    "/admin/refunds",
-    "/admin/cash-register",
-    "/admin/shifts",
-    "/admin/delivery-zones",
-    "/admin/waiter-requests",
-    "/kitchen/orders",
-  ];
-  const requiresBranch = branchRequiredRoutes.some((route) =>
-    pathname.startsWith(route),
-  );
-  const effectiveFeatures = getEffectiveTenantFeatures(tenant);
-  const requiredFeature = getRequiredFeatureForRoute(pathname);
-  const featureUnavailable = Boolean(
-    requiredFeature && !effectiveFeatures[requiredFeature],
-  );
-  const requiredPermission = getRoutePermission(pathname);
-  const permissionUnavailable = Boolean(
-    requiredPermission && !hasPermission(requiredPermission),
-  );
-  const page = permissionUnavailable ? (
-    <PermissionDeniedState />
-  ) : featureUnavailable ? (
-    <FeatureUnavailableState />
-  ) : !branch && requiresBranch ? (
-    <section
-      dir="rtl"
-      className="mx-auto flex min-h-[70vh] max-w-xl items-center px-5"
-    >
-      <div className="w-full rounded-2xl border border-dashed bg-card p-10 text-center">
-        <MapPin className="mx-auto h-10 w-10 text-muted-foreground" />
-        <h1 className="mt-4 text-xl font-black">
-          لم تتم إضافة أي فروع حتى الآن
-        </h1>
-        <p className="mt-2 text-sm text-muted-foreground">
-          أضف فرعًا أولًا لبدء استخدام هذه الصفحة.
-        </p>
-        {hasPermission("branches.manage") ? <Button asChild className="mt-6"><Link href="/admin/branches/new">إضافة فرع</Link></Button> : <p className="mt-4 text-sm font-semibold">تواصل مع مالك الحساب لإضافة الفرع.</p>}
-      </div>
-    </section>
-  ) : (
-    children
-  );
-  children = (
-    <>
-      {branchSelector}
-      {page}
-    </>
-  );
-  const visibleGroups = groups
-    .map((group) => ({
-      ...group,
-      items: group.items.filter((item) => {
-        const feature = getRequiredFeatureForRoute(item.href);
-        const permission = getRoutePermission(item.href);
-        return (!feature || effectiveFeatures[feature]) &&
-          (!permission || hasPermission(permission));
-      }),
-    }))
-    .filter((group) => group.items.length > 0);
-  const navigation = (collapsed: boolean, onNavigate?: () => void) =>
-    visibleGroups.map((group) => {
-      const open = openGroups[group.key] ?? false;
-      return (
-        <div key={group.key} className="space-y-1">
-          {!collapsed ? (
-            <button
-              type="button"
-              onClick={() =>
-                setOpenGroups((current) => ({ ...current, [group.key]: !open }))
-              }
-              className="flex w-full items-center justify-between px-3 pb-1.5 pt-3 text-sm font-bold leading-6 tracking-wide text-[var(--tenant-sidebar-foreground)] opacity-80"
-            >
-              <span>{group.label}</span>
-              <ChevronDown
-                className={cn(
-                  "h-3.5 w-3.5 transition-transform",
-                  open && "rotate-180",
-                )}
-              />
-            </button>
-          ) : null}
-          {collapsed || open
-            ? group.items.map((item) => {
-                const Icon = item.icon;
-                const active = pathname === item.href || pathname.startsWith(`${item.href}/`);
-                return (
-                  <Link
-                    key={item.href}
-                    href={item.href}
-                    onClick={onNavigate}
-                    title={collapsed ? item.label : undefined}
-                    className={cn(
-                      "group relative flex items-center rounded-lg py-2.5 text-sm font-semibold leading-6 transition-all",
-                      collapsed
-                        ? "mx-auto h-11 w-11 justify-center px-0"
-                        : "gap-3 px-3",
-                      active
-                        ? "bg-[var(--tenant-sidebar-active)] text-[var(--tenant-sidebar-active-foreground)] shadow-md"
-                        : "text-[var(--tenant-sidebar-foreground)] hover:bg-[var(--tenant-sidebar-hover)] hover:text-[var(--tenant-sidebar-foreground)]",
-                    )}
-                  >
-                    <span
-                      className={cn(
-                        "absolute inset-y-2 right-0 w-1 rounded-full bg-[var(--tenant-sidebar-active-foreground)]",
-                        !active && "opacity-0",
-                      )}
-                    />
-                    <span
-                      className={cn(
-                        "flex shrink-0 items-center justify-center rounded-md",
-                        collapsed ? "h-8 w-8" : "h-7 w-7",
-                        active
-                          ? "bg-white/15"
-                          : "bg-[var(--tenant-sidebar-hover)]",
-                      )}
-                    >
-                      <Icon className="h-4 w-4" />
-                    </span>
-                    {!collapsed ? (
-                      <span className="truncate">{item.label}</span>
-                    ) : null}
-                  </Link>
-                );
-              })
-            : null}
-        </div>
-      );
-    });
-  const sidebar = (mobile = false) => (
-    <aside
-      aria-label={tenant.name}
-      style={{
-        backgroundColor: "var(--tenant-sidebar)",
-        borderColor: "var(--tenant-border)",
-      }}
-      className={cn(
-        "flex h-full flex-col border-l p-4 shadow-2xl",
-        mobile ? "w-80 max-w-[88vw]" : desktopOpen ? "w-64" : "w-[5.5rem] px-3",
-      )}
-    >
-      <div className="mb-4 flex items-center justify-between gap-2 rounded-lg border border-[var(--tenant-border)] bg-[var(--tenant-sidebar-hover)] p-3">
-        <Link
-          href="/admin/dashboard"
-          onClick={() => mobile && setMobileOpen(false)}
-        >
-          <AppLogo
-            showText={desktopOpen || mobile}
-            size={desktopOpen || mobile ? "md" : "sm"}
-          />
-        </Link>
-        {!mobile ? (
-          <Button
-            type="button"
-            variant="ghost"
-            size="icon"
-            className="text-[var(--tenant-sidebar-foreground)] hover:bg-[var(--tenant-sidebar-hover)]"
-            onClick={() => setDesktopOpen((value) => !value)}
-            aria-label="طي الشريط الجانبي"
-          >
-            {desktopOpen ? (
-              <PanelLeftClose className="h-4 w-4" />
-            ) : (
-              <PanelLeftOpen className="h-4 w-4" />
-            )}
-          </Button>
-        ) : (
-          <Button
-            type="button"
-            variant="ghost"
-            size="icon"
-            className="text-[var(--tenant-sidebar-foreground)] hover:bg-[var(--tenant-sidebar-hover)]"
-            onClick={() => setMobileOpen(false)}
-            aria-label="إغلاق القائمة"
-          >
-            <X className="h-4 w-4" />
-          </Button>
-        )}
-      </div>
-      <nav className="min-h-0 flex-1 space-y-1 overflow-y-auto">
-        {navigation(
-          !mobile && !desktopOpen,
-          mobile ? () => setMobileOpen(false) : undefined,
-        )}
-      </nav>
-      <div className="mt-4 shrink-0 rounded-lg border border-[var(--tenant-border)] bg-[var(--tenant-sidebar-hover)] p-3">
-        {desktopOpen || mobile ? (
-          <div className="mb-3 text-[var(--tenant-sidebar-foreground)]">
-            <p className="truncate text-xs font-black">{employee.name}</p>
-            <p className="mt-1 truncate text-[11px] opacity-70">{role.name}</p>
-            <p className="mt-1 truncate text-[11px] opacity-70">{branch?.name ?? "لا يوجد فرع محدد"}</p>
-          </div>
-        ) : null}
-        <Button
-          type="button"
-          variant="outline"
-          onClick={signOut}
-          className={cn(
-            "h-10 rounded-lg border-[var(--tenant-secondary)] bg-[var(--tenant-surface)] text-xs font-bold text-[var(--tenant-text-primary)]",
-            desktopOpen || mobile
-              ? "w-full justify-start gap-2.5 px-3"
-              : "w-full justify-center px-0",
-          )}
-        >
-          <LogOut className="h-3.5 w-3.5" />
-          {desktopOpen || mobile ? "تسجيل الخروج" : null}
-        </Button>
-      </div>
-    </aside>
-  );
+  const sidebarProps = {
+    tenantName: tenant.name,
+    employeeName: employee.name,
+    roleName: role.name,
+    branchName: branch?.name,
+    singleBranch: singleBranchCafe,
+    groups: visibleGroups,
+    pathname,
+    openGroups,
+    onToggleGroup: (key: string) =>
+      setOpenGroups((current) => ({ ...current, [key]: !current[key] })),
+    onToggleCollapsed: () => setDesktopOpen((value) => !value),
+    onCloseMobile: () => setMobileOpen(false),
+    onSignOut: signOut,
+  };
+
   return (
     <div dir="rtl" lang="ar" className="min-h-screen bg-background lg:flex">
       <div className="sticky top-0 hidden h-screen shrink-0 lg:flex">
-        {sidebar()}
+        <CafeAdminSidebar
+          {...sidebarProps}
+          collapsed={!desktopOpen}
+          mobile={false}
+        />
       </div>
       <div className="min-w-0 flex-1">
         <header className="sticky top-0 z-20 flex items-center justify-between border-b bg-background/95 px-3 py-2.5 backdrop-blur lg:hidden">
@@ -558,11 +267,69 @@ function AdminShellContent({ children }: { children: React.ReactNode }) {
               onClick={() => setMobileOpen(false)}
               aria-label="إغلاق القائمة"
             />
-            <div className="absolute inset-y-0 right-0">{sidebar(true)}</div>
+            <div className="absolute inset-y-0 right-0">
+              <CafeAdminSidebar {...sidebarProps} collapsed={false} mobile />
+            </div>
           </div>
         ) : null}
-        {children}
+        {branchSelector}
+        {page}
       </div>
     </div>
+  );
+}
+
+function AccountState({
+  title,
+  description,
+  action,
+  onExit,
+}: {
+  title: string;
+  description: string;
+  action: string;
+  onExit: () => void;
+}) {
+  return (
+    <main
+      dir="rtl"
+      className="flex min-h-screen items-center justify-center bg-background p-6"
+    >
+      <div className="max-w-md rounded-2xl border bg-card p-8 text-center shadow-sm">
+        <h1 className="text-xl font-black">{title}</h1>
+        <p className="mt-3 text-sm text-muted-foreground">{description}</p>
+        <Button className="mt-6" onClick={onExit}>
+          {action}
+        </Button>
+      </div>
+    </main>
+  );
+}
+
+function MissingBranch({ canManage }: { canManage: boolean }) {
+  return (
+    <section
+      dir="rtl"
+      className="mx-auto flex min-h-[70vh] max-w-xl items-center px-5"
+    >
+      <div className="w-full rounded-2xl border border-dashed bg-card p-10 text-center">
+        <MapPin className="mx-auto h-10 w-10 text-muted-foreground" />
+        <h1 className="mt-4 text-xl font-black">
+          لم تتم إضافة أي فروع حتى الآن
+        </h1>
+        <p className="mt-2 text-sm text-muted-foreground">
+          أضف فرعًا أولًا لبدء استخدام هذه الصفحة.
+        </p>
+        {canManage ? (
+          <Button asChild className="mt-6">
+            <Link href="/admin/branches/new">إضافة فرع</Link>
+          </Button>
+        ) : (
+          <p className="mt-4 text-sm font-semibold">
+            تواصل مع مالك الحساب لإضافة الفرع.
+          </p>
+        )}
+      </div>
+    </section>
   );
 }

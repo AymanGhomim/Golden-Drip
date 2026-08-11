@@ -5,6 +5,7 @@ import type {
   OperationResource,
 } from "@/types/cafe-operations.types";
 import { branchService } from "@/services/branch.service";
+import { cloneDevelopmentFixture, developmentOperations } from "@shared/development-data";
 
 const resources: OperationResource[] = [
   "inventory",
@@ -44,37 +45,7 @@ const seed = (
   resource: OperationResource,
   tenantId: string,
 ): OperationRecord[] => {
-  if (tenantId === "tenant-golden-drip" && resource === "inventory")
-    return [
-      {
-        id: "inv-coffee",
-        tenantId,
-        name: "حبوب أرابيكا",
-        unit: "كجم",
-        quantity: 18,
-        minimumStock: 10,
-        averageCost: 280,
-        active: true,
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString(),
-      },
-    ];
-  if (tenantId === "tenant-moon-cafe" && resource === "inventory")
-    return [
-      {
-        id: "moon-inv-milk",
-        tenantId,
-        name: "حليب كامل الدسم",
-        unit: "لتر",
-        quantity: 24,
-        minimumStock: 8,
-        averageCost: 28,
-        active: true,
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString(),
-      },
-    ];
-  return [];
+  return cloneDevelopmentFixture(developmentOperations[tenantId]?.[resource] ?? []);
 };
 export const cafeOperationsRepository = {
   resources,

@@ -2,6 +2,7 @@
 
 import { create } from "zustand";
 import { persist, createJSONStorage } from "zustand/middleware";
+import type { ClientType } from "@/types/tenant.types";
 
 export type AuthUser = {
   id: string;
@@ -10,6 +11,7 @@ export type AuthUser = {
   role: "admin" | "kitchen" | "platform_super_admin";
   tenantId?: string;
   employeeId?: string;
+  clientType?: ClientType;
 };
 
 interface AuthState { user: AuthUser | null; isAuthenticated: boolean; login: (user: AuthUser) => void; logout: () => void; }
