@@ -1,4 +1,4 @@
-import { CheckCircle2, Clock3, XCircle } from "lucide-react";
+import { CheckCircle2, Clock3, Printer, XCircle } from "lucide-react";
 import { Link, useParams } from "react-router-dom";
 import {
   orderSourceLabels,
@@ -8,6 +8,7 @@ import {
   paymentStatusLabels,
 } from "@shared/presentation/order";
 import { OrderStatusBadge } from "@/components/features/orders/OrderStatusBadge";
+import { OrderReceipt } from "@/components/features/orders/OrderReceipt";
 import { Info, Page, Panel } from "@/components/shared/PageLayout";
 import {
   formatDateTime,
@@ -16,6 +17,8 @@ import {
 } from "@/features/orders/order-presentation";
 import { useAppDispatch, useAppSelector } from "@/store";
 import { orderStatusChanged } from "@/store/orders-slice";
+import type { PaymentRecord, RefundRecord } from "@contracts/cafe-operations.types";
+import { buildOrderReceiptData } from "@shared/presentation/order-receipt";
 
 export function OrderDetailsPage() {
   const { orderId } = useParams();
@@ -23,6 +26,9 @@ export function OrderDetailsPage() {
     state.orders.items.find((item) => item.id === orderId),
   );
   const session = useAppSelector((state) => state.auth.session);
+  const payments = useAppSelector((state) => state.development.operations.payments) as PaymentRecord[];
+  const refunds = useAppSelector((state) => state.development.operations.refunds) as RefundRecord[];
+  const employees = useAppSelector((state) => state.development.employees);
   const dispatch = useAppDispatch();
   if (!order)
     return (
@@ -39,6 +45,28 @@ export function OrderDetailsPage() {
     index >= 0 && index < operationalOrderSequence.length - 1
       ? operationalOrderSequence[index + 1]
       : null;
+  const orderPayments = payments.filter((payment) => payment.orderId === order.id);
+  const orderRefunds = refunds.filter((refund) => refund.orderId === order.id);
+  const paidAmount = orderPayments.reduce((sum, payment) => sum + payment.amount, 0);
+  const refundedAmount = orderRefunds.reduce((sum, refund) => sum + refund.amount, 0);
+  const cashPayment = orderPayments.find((payment) => payment.receivedAmount !== undefined || payment.changeAmount !== undefined);
+  const branch = session?.accessibleBranches.find((item) => item.id === order.branchId) ?? session?.currentBranch;
+  const cashierName = order.createdBy
+    ? employees.find((employee) => employee.id === order.createdBy)?.name ?? order.createdBy
+    : undefined;
+  const receipt = session ? buildOrderReceiptData({
+    order,
+    tenant: session.tenant,
+    branch,
+    branding: session.tenant.branding,
+    cashierName,
+    payment: {
+      paidAmount: orderPayments.length ? paidAmount : undefined,
+      refundedAmount: orderRefunds.length ? refundedAmount : undefined,
+      cashReceived: cashPayment?.receivedAmount,
+      changeAmount: cashPayment?.changeAmount,
+    },
+  }) : null;
   return (
     <Page>
       <Link
@@ -54,7 +82,15 @@ export function OrderDetailsPage() {
           </p>
           <h1 className="mt-1 text-3xl font-black">{order.orderNumber}</h1>
         </div>
-        <OrderStatusBadge status={order.status} />
+        <div className="flex items-center gap-2">
+          {session?.permissions.includes("orders.print") ? (
+            <button type="button" onClick={() => window.print()} className="flex h-10 items-center gap-2 rounded-lg border border-[var(--brand-border)] bg-[var(--brand-surface)] px-4 text-sm font-bold">
+              <Printer className="h-4 w-4" />
+              طباعة الفاتورة
+            </button>
+          ) : null}
+          <OrderStatusBadge status={order.status} />
+        </div>
       </div>
       <div className="mt-6 grid gap-5 xl:grid-cols-3">
         <Panel className="xl:col-span-2" title="عناصر الطلب">
@@ -121,6 +157,7 @@ export function OrderDetailsPage() {
           </Panel>
         </div>
       </div>
+      {receipt ? <div className="mt-5"><OrderReceipt receipt={receipt} /></div> : null}
       <div className="mt-5 grid gap-5 xl:grid-cols-2">
         <Panel title="الخط الزمني">
           {(order.timeline?.length

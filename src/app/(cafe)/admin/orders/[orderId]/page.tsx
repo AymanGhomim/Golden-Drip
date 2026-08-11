@@ -10,9 +10,9 @@ import {
   OrderInfoCard,
   OrderItemsCard,
   OrderPaymentsCard,
-  OrderReceiptCard,
   OrderTimelineCard,
 } from "@/components/features/orders/order-details-sections";
+import { OrderReceipt } from "@/components/features/orders/receipt/order-receipt";
 import { Breadcrumbs } from "@/components/shared/breadcrumbs";
 import { ConfirmDialog } from "@/components/shared/confirm-dialog";
 import { StatusBadge } from "@/components/shared/status-badge";
@@ -35,6 +35,7 @@ import {
 } from "@/services/order.service";
 import type { Order, OrderStatus } from "@/types/order.types";
 import { orderStatusPresentation } from "@shared/presentation/order";
+import { buildOrderReceiptData } from "@shared/presentation/order-receipt";
 
 const nextStatus: Partial<Record<OrderStatus, OrderStatus>> = {
   NEW: "ACCEPTED",
@@ -80,6 +81,21 @@ export default function OrderDetailsPage() {
     .filter((refund) => refund.orderId === order.id);
   const paid = payments.reduce((sum, payment) => sum + payment.amount, 0);
   const refunded = refunds.reduce((sum, refund) => sum + refund.amount, 0);
+  const cashPayment = payments.find(
+    (payment) => payment.receivedAmount !== undefined || payment.changeAmount !== undefined,
+  );
+  const receipt = buildOrderReceiptData({
+    order,
+    tenant,
+    branch,
+    branding,
+    payment: {
+      paidAmount: payments.length ? paid : undefined,
+      refundedAmount: refunds.length ? refunded : undefined,
+      cashReceived: cashPayment?.receivedAmount,
+      changeAmount: cashPayment?.changeAmount,
+    },
+  });
 
   function move() {
     const target = nextStatus[order!.status];
@@ -162,14 +178,7 @@ export default function OrderDetailsPage() {
             <OrderTimelineCard order={order} />
           </div>
           <div className="space-y-4">
-            <OrderReceiptCard
-              order={order}
-              tenant={tenant}
-              branch={branch}
-              branding={branding}
-              paid={paid}
-              refunded={refunded}
-            />
+            <OrderReceipt receipt={receipt} />
             <OrderPaymentsCard
               payments={payments}
               refundable={paid - refunded > 0}

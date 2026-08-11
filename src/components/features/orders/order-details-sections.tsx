@@ -1,15 +1,12 @@
 import Link from "next/link";
 import { RotateCcw } from "lucide-react";
 import { PermissionGate } from "@/components/access/permission-gate";
-import { AppLogo } from "@/components/shared/app-logo";
 import { StatusBadge } from "@/components/shared/status-badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { formatMoney } from "@/lib/money";
-import type { Branch } from "@/types/branch.types";
 import type { PaymentRecord } from "@/types/cafe-operations.types";
 import type { Order } from "@/types/order.types";
-import type { Tenant, TenantBranding } from "@/types/tenant.types";
 import { orderSourceLabels, orderTypeLabels } from "@shared/presentation/order";
 
 function Info({ label, value }: { label: string; value: string }) {
@@ -20,27 +17,6 @@ function Info({ label, value }: { label: string; value: string }) {
     </div>
   );
 }
-function PriceRow({
-  label,
-  value,
-  strong,
-  currency,
-}: {
-  label: string;
-  value: number;
-  strong?: boolean;
-  currency: string;
-}) {
-  return (
-    <div
-      className={`flex justify-between ${strong ? "border-y py-2 text-lg font-black" : "text-sm"}`}
-    >
-      <span>{label}</span>
-      <span>{formatMoney(value, currency)}</span>
-    </div>
-  );
-}
-
 export function OrderInfoCard({
   order,
   branchName,
@@ -158,87 +134,6 @@ export function OrderTimelineCard({ order }: { order: Order }) {
             </div>
           ))}
         </div>
-      </CardContent>
-    </Card>
-  );
-}
-
-export function OrderReceiptCard({
-  order,
-  tenant,
-  branch,
-  branding,
-  paid,
-  refunded,
-}: {
-  order: Order;
-  tenant: Tenant;
-  branch: Branch | null;
-  branding: TenantBranding;
-  paid: number;
-  refunded: number;
-}) {
-  const currency = tenant.settings.currencySymbol;
-  return (
-    <Card data-receipt>
-      <CardContent className="space-y-3 p-5">
-        <div className="border-b pb-3 text-center">
-          <AppLogo className="justify-center" />
-          <p className="mt-2 text-xs">{branch?.name}</p>
-          <p className="text-xs text-muted-foreground">
-            {branch?.address ?? tenant.contact?.address}
-          </p>
-          <p className="text-xs text-muted-foreground">
-            {branch?.phone ?? tenant.contact?.phone}
-          </p>
-          {branding.receipt?.header ? (
-            <p className="mt-2 font-bold">{branding.receipt.header}</p>
-          ) : null}
-        </div>
-        <PriceRow
-          label="المجموع الفرعي"
-          value={order.subtotal}
-          currency={currency}
-        />
-        <PriceRow
-          label="الخصم"
-          value={-(order.discount ?? 0)}
-          currency={currency}
-        />
-        <PriceRow
-          label="الكوبون"
-          value={-(order.couponDiscount ?? 0)}
-          currency={currency}
-        />
-        <PriceRow label="الضريبة" value={order.tax ?? 0} currency={currency} />
-        <PriceRow
-          label="الخدمة"
-          value={order.serviceCharge ?? 0}
-          currency={currency}
-        />
-        <PriceRow
-          label="التوصيل"
-          value={order.deliveryFee ?? 0}
-          currency={currency}
-        />
-        <PriceRow
-          label="الإجمالي"
-          value={order.total}
-          strong
-          currency={currency}
-        />
-        <PriceRow label="المدفوع" value={paid} currency={currency} />
-        <PriceRow label="المسترجع" value={-refunded} currency={currency} />
-        <PriceRow
-          label="المتاح للاسترجاع"
-          value={Math.max(0, paid - refunded)}
-          currency={currency}
-        />
-        {branding.receipt?.footer ? (
-          <p className="border-t pt-3 text-center text-xs">
-            {branding.receipt.footer}
-          </p>
-        ) : null}
       </CardContent>
     </Card>
   );
