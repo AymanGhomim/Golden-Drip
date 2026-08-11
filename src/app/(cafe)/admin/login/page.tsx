@@ -20,6 +20,9 @@ import { useAuthStore } from "@/store/auth.store";
 import { employeeService } from "@/services/employee.service";
 import { roleService } from "@/services/role.service";
 import { credentialService } from "@/services/credential.service";
+import { cafeAuthService } from "@/services/cafe-auth.service";
+import { AdminClientUnavailableState } from "@/components/access/admin-client-unavailable-state";
+import { isAdminClientAllowed } from "@/lib/admin-client-mode";
 
 export default function AdminLoginPage() {
   const router = useRouter();
@@ -77,24 +80,27 @@ export default function AdminLoginPage() {
     if (!isReady || isSubmitting) return;
 
     const normalizedEmail = email.trim().toLowerCase();
-    const authenticatedEmployee = await credentialService.authenticate(
-      tenant.id,
-      normalizedEmail,
+    setIsSubmitting(true);
+    const result = await cafeAuthService.login({
+      tenantCode: tenant.slug,
+      login: normalizedEmail,
       password,
-    );
-    if (!authenticatedEmployee) {
-      setError("اسم المستخدم أو كلمة المرور غير صحيحة.");
-      return;
-    }
-    if (authenticatedEmployee.status === "SUSPENDED") {
+      clientType: "WEB",
+    });
+    if (!result.ok) {
+      setIsSubmitting(false);
       setError(
-        "تم إيقاف هذا الحساب. يرجى التواصل مع إدارة الكافيه.",
+        result.code === "CLIENT_TYPE_NOT_ALLOWED"
+          ? "هذا الحساب متاح من تطبيق سطح المكتب فقط."
+          : result.code === "EMPLOYEE_SUSPENDED"
+            ? "تم إيقاف هذا الحساب. يرجى التواصل مع إدارة الكافيه."
+            : "اسم المستخدم أو كلمة المرور غير صحيحة.",
       );
       return;
     }
+    const authenticatedEmployee = result.employee;
 
     setError("");
-    setIsSubmitting(true);
     await Promise.resolve(useAuthStore.persist.rehydrate());
     login({
       id: authenticatedEmployee.id,
@@ -103,6 +109,7 @@ export default function AdminLoginPage() {
       role: "admin",
       tenantId: tenantService.getActiveTenantId(),
       employeeId: authenticatedEmployee.id,
+      clientType: "WEB",
     });
     router.replace("/admin/dashboard");
   }
@@ -112,6 +119,9 @@ export default function AdminLoginPage() {
         backgroundImage: `linear-gradient(color-mix(in srgb, var(--tenant-primary) 22%, transparent), color-mix(in srgb, var(--tenant-primary) 45%, transparent)), url("${branding.login.backgroundImage}")`,
       }
     : undefined;
+
+  if (!isAdminClientAllowed(tenant.adminClientMode, "WEB"))
+    return <AdminClientUnavailableState onExit={() => router.replace("/")} />;
 
   return (
     <main

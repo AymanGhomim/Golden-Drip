@@ -23,6 +23,7 @@ import {
   getEffectiveBranchLimit,
 } from "@/services/branch.service";
 import { AppNotFoundState } from "@/components/feedback/app-state";
+import { ADMIN_CLIENT_MODE_LABELS } from "@/lib/admin-client-mode";
 
 export default function TenantDetailsPage() {
   const { tenantId } = useParams<{ tenantId: string }>();
@@ -68,6 +69,10 @@ export default function TenantDetailsPage() {
               <Row label="البريد" value={tenant.contact?.email || "—"} />
               <Row label="العنوان" value={tenant.contact?.address || "—"} />
               <Row label="المسؤول" value={tenant.owner?.name || "—"} />
+              <Row
+                label="تطبيق الإدارة"
+                value={ADMIN_CLIENT_MODE_LABELS[tenant.adminClientMode]}
+              />
             </div>
           </CardContent>
         </Card>

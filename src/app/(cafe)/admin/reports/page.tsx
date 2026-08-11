@@ -3,6 +3,11 @@ import { useEffect, useState } from "react";
 import { Download } from "lucide-react";
 import { toast } from "sonner";
 import { AdminShell } from "@/components/admin/admin-shell";
+import {
+  EmployeeReport,
+  ReportMetricGrid as MetricGrid,
+  ReportTable,
+} from "@/components/features/reports/report-data-display";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -283,80 +288,5 @@ export default function ReportsPage() {
         ) : null}
       </section>
     </AdminShell>
-  );
-}
-function MetricGrid({ values }: { values: string[][] }) {
-  return (
-    <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-      {values.map(([label, value]) => (
-        <Card key={label}>
-          <CardContent className="p-5">
-            <p className="text-xs text-muted-foreground">{label}</p>
-            <b className="text-xl">{value}</b>
-          </CardContent>
-        </Card>
-      ))}
-    </div>
-  );
-}
-function ReportTable({
-  headers,
-  rows,
-}: {
-  headers: string[];
-  rows: string[][];
-}) {
-  return (
-    <Card>
-      <CardContent className="overflow-x-auto p-0">
-        <table className="w-full min-w-[720px] text-right text-sm">
-          <thead className="bg-muted/50">
-            <tr>
-              {headers.map((h) => (
-                <th key={h} className="px-4 py-3">
-                  {h}
-                </th>
-              ))}
-            </tr>
-          </thead>
-          <tbody>
-            {rows.map((row, i) => (
-              <tr key={i} className="border-t">
-                {row.map((v, j) => (
-                  <td key={j} className="px-4 py-3">
-                    {v}
-                  </td>
-                ))}
-              </tr>
-            ))}
-          </tbody>
-        </table>
-        {!rows.length ? (
-          <p className="p-8 text-center text-muted-foreground">
-            لا توجد بيانات كافية لهذا التقرير.
-          </p>
-        ) : null}
-      </CardContent>
-    </Card>
-  );
-}
-function EmployeeReport({ filters }: { filters: ReportFilters }) {
-  const orders = reportService.getOrders(filters);
-  const names = Array.from(
-    new Set(orders.map((o) => o.createdBy).filter(Boolean)),
-  ) as string[];
-  return (
-    <ReportTable
-      headers={["الموظف", "الطلبات", "المبيعات", "الإلغاءات"]}
-      rows={names.map((name) => {
-        const rows = orders.filter((o) => o.createdBy === name);
-        return [
-          name,
-          String(rows.length),
-          String(rows.reduce((s, o) => s + o.total, 0)),
-          String(rows.filter((o) => o.status === "CANCELLED").length),
-        ];
-      })}
-    />
   );
 }

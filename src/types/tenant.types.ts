@@ -1,4 +1,6 @@
 export type TenantStatus = "ACTIVE" | "SUSPENDED" | "TRIAL" | "ARCHIVED";
+export type AdminClientMode = "WEB" | "DESKTOP" | "BOTH";
+export type ClientType = "WEB" | "DESKTOP";
 export type SubscriptionPlan =
   "STARTER" | "GROWTH" | "ENTERPRISE" | (string & {});
 export type SubscriptionStatus =
@@ -84,6 +86,7 @@ export type Tenant = {
   status: TenantStatus;
   plan: SubscriptionPlan;
   subscriptionStatus: SubscriptionStatus;
+  adminClientMode: AdminClientMode;
   branding: TenantBranding;
   settings: TenantSettings;
   features: TenantFeatures;

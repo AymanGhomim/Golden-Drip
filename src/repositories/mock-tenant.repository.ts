@@ -7,6 +7,7 @@ import type { Tenant } from "@/types/tenant.types";
 const STORAGE_KEY = "platform:tenants:v1";
 const SELECTED_KEY = "platform:selected-tenant:v1";
 const GOLDEN_CONTACT_MIGRATION_KEY = "migration:golden-contact:kafr-v1";
+const ADMIN_CLIENT_MODE_MIGRATION_KEY = "migration:admin-client-mode:v1";
 let memoryTenants = [...DEMO_TENANTS];
 
 function read() {
@@ -18,20 +19,31 @@ function read() {
     if (Array.isArray(value)) {
       const restoreGoldenContact =
         window.localStorage.getItem(GOLDEN_CONTACT_MIGRATION_KEY) !== "done";
-      memoryTenants = value.map((tenant: Tenant) =>
-        tenant.id === "tenant-golden-drip"
+      const migrateAdminClientMode =
+        window.localStorage.getItem(ADMIN_CLIENT_MODE_MIGRATION_KEY) !== "done";
+      memoryTenants = value.map((storedTenant: Tenant) => {
+        // Development-only persisted mock migration. Real API responses must
+        // always provide adminClientMode and are never silently defaulted.
+        const tenant = migrateAdminClientMode && !storedTenant.adminClientMode
+          ? { ...storedTenant, adminClientMode: "WEB" as const }
+          : storedTenant;
+        return tenant.id === "tenant-golden-drip"
           ? {
               ...tenant,
+              adminClientMode: migrateAdminClientMode ? "BOTH" : tenant.adminClientMode,
               maxBranchesOverride: 1,
               contact: restoreGoldenContact
                 ? GOLDEN_DRIP_CONTACT
                 : tenant.contact,
             }
-          : tenant,
-      );
-      if (restoreGoldenContact) {
+          : tenant;
+      });
+      if (restoreGoldenContact || migrateAdminClientMode) {
         window.localStorage.setItem(STORAGE_KEY, JSON.stringify(memoryTenants));
-        window.localStorage.setItem(GOLDEN_CONTACT_MIGRATION_KEY, "done");
+        if (restoreGoldenContact)
+          window.localStorage.setItem(GOLDEN_CONTACT_MIGRATION_KEY, "done");
+        if (migrateAdminClientMode)
+          window.localStorage.setItem(ADMIN_CLIENT_MODE_MIGRATION_KEY, "done");
       }
     }
   } catch {

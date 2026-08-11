@@ -192,9 +192,12 @@ export function tenantBrandingCssVariables(branding?: Partial<TenantBranding>) {
     "--tenant-sidebar": value.sidebar,
     "--tenant-sidebar-foreground": value.sidebarText,
     "--tenant-sidebar-text": value.sidebarText,
-    "--tenant-sidebar-active": value.sidebarActive,
-    "--tenant-sidebar-active-foreground": value.sidebarActiveForeground,
-    "--tenant-sidebar-hover": `color-mix(in srgb, ${value.sidebarActive} 12%, ${value.sidebar})`,
+    // Navigation state follows the Cafe's primary identity color. Keeping this
+    // derived prevents an old/default sidebarActive value from making every
+    // tenant look identical after its primary branding changes.
+    "--tenant-sidebar-active": value.primary,
+    "--tenant-sidebar-active-foreground": value.primaryForeground,
+    "--tenant-sidebar-hover": `color-mix(in srgb, ${value.primary} 12%, ${value.sidebar})`,
     "--tenant-radius": value.radius,
     "--tenant-font-family": fontStack,
     "--background": hexToHslChannels(value.background),

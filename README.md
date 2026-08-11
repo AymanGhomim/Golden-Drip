@@ -43,6 +43,7 @@ Penta-K receives a separate central Platform for managing tenants, plans, subscr
 ```text
 Platform
 └── Tenant / Cafe Brand
+    ├── Client access mode: WEB | DESKTOP | BOTH
     ├── Subscription and enabled features
     ├── Branding and public contact details
     ├── Tenant-level catalog and management data
@@ -71,6 +72,137 @@ Platform
 
 Tenant and branch boundaries are security boundaries, not only interface filters.
 
+## Client delivery architecture
+
+Penta-K supports two staff-facing Cafe clients while keeping one shared product and one shared Backend.
+
+```text
+                         ┌────────────────────┐
+                         │  Penta-K Platform  │
+                         │   Platform Owner   │
+                         └─────────┬──────────┘
+                                   │ assigns per Cafe
+                                   ▼
+                           WEB | DESKTOP | BOTH
+                                   │
+                    ┌──────────────┴──────────────┐
+                    ▼                             ▼
+             Cafe Web Client              Cafe Desktop Client
+             existing product              additional client
+                    └──────────────┬──────────────┘
+                                   ▼
+                           One Shared Backend
+                                   │
+                    Tenant, Branch, User, Role,
+                    Menu, Orders, Payments, Stock
+
+Customer Menu → Web only → the same shared Backend
+```
+
+### Client access modes
+
+The Platform Owner assigns one staff-client mode to every Cafe tenant:
+
+| Mode | Cafe Web | Cafe Desktop | Customer Menu |
+|---|---:|---:|---:|
+| `WEB` | Enabled | Disabled | Web enabled according to public-menu features |
+| `DESKTOP` | Disabled for staff operations | Enabled | Web enabled according to public-menu features |
+| `BOTH` | Enabled | Enabled | Web enabled according to public-menu features |
+
+`AdminClientMode` is therefore:
+
+```text
+WEB
+DESKTOP
+BOTH
+```
+
+This mode controls which staff-facing clients may open an authenticated Cafe session. It does not create another Tenant, Branch, subscription, role, permission catalog, or operational dataset.
+
+### Cafe Web
+
+The existing Cafe Web application continues to work with its current responsibilities:
+
+- Cafe administration
+- POS
+- Orders
+- Kitchen access
+- Inventory and finance
+- Employees and settings
+
+The Web client is available when the tenant mode is `WEB` or `BOTH`.
+
+### Cafe Desktop
+
+Cafe Desktop is an additional client for the same Cafe system. It must:
+
+- Authenticate against the shared Backend
+- Use the same Tenant and Branch identifiers
+- Use the same employees, roles, permissions, and branch access
+- Consume the same API contracts and realtime events
+- Read and write the same Menu, Orders, Payments, Inventory, Shifts, and other operational records
+- Apply the same feature checks and business rules
+- Use idempotency for checkout and financial actions
+- Respect tenant branding where applicable
+
+The Desktop client must not introduce separate local business truth or a Desktop-only order, menu, payment, or inventory model. Offline operation and synchronization are not assumed; they require a separate explicit product decision.
+
+The Desktop client is available when the tenant mode is `DESKTOP` or `BOTH`.
+
+### Customer Menu
+
+The Customer Menu remains a Web experience for every Cafe. It is not converted into a Desktop client and is not disabled by selecting `DESKTOP` for staff operations.
+
+Customer-menu availability continues to depend on the relevant public features and context:
+
+- Non-QR online menu: `onlineMenu`
+- Table QR flow: `qrOrdering`
+- Takeaway ordering: `onlineMenu + takeaway`
+- Delivery ordering: `onlineMenu + delivery`
+
+### Shared Backend
+
+There is one Backend for Platform, Cafe Web, Cafe Desktop, Kitchen, and Customer Menu.
+
+The shared Backend owns:
+
+- Authentication and client-access-mode enforcement
+- Tenant and Branch isolation
+- Plans, subscriptions, and features
+- Employees, roles, permissions, and branch access
+- Menu pricing and checkout
+- Orders, kitchen state, payments, and refunds
+- Inventory, purchasing, cash, shifts, and expenses
+- Customers, loyalty, coupons, and offers
+- Notifications, audit, reports, assets, and realtime events
+
+No client may implement alternative business rules. Differences between Web and Desktop are presentation, operating-system integration, and delivery channel—not domain behavior.
+
+### Session enforcement
+
+The Backend must know the requesting staff client type and validate it against the tenant mode:
+
+```text
+WEB client     allowed by WEB or BOTH
+DESKTOP client allowed by DESKTOP or BOTH
+Customer Web   validated by public feature/context rules, not staff client mode
+Platform       validated as a separate Platform scope
+```
+
+The exact mechanism for identifying a trusted Desktop build—such as an OAuth client, signed application identity, or another secure client registration—is a Backend/security design decision. A freely editable request header is not sufficient authorization.
+
+### API contract impact
+
+This architecture does not require a second Backend or duplicate resource endpoints. It extends the existing tenant and authentication contracts:
+
+- Tenant create and update carry `adminClientMode`.
+- Tenant details expose `adminClientMode` to authorized Platform and Cafe administration clients.
+- Cafe staff login identifies whether the session is requested by the Web or Desktop client.
+- The Backend compares the trusted requesting client type with the tenant mode before issuing a staff session.
+- Public Customer Menu requests do not use the staff `adminClientMode` check.
+
+The frozen endpoint count can remain unchanged because these fields belong to existing Tenant and authentication endpoints.
+
 ## 3. Product users
 
 ### Platform operator
@@ -84,6 +216,7 @@ Manages the complete Penta-K product:
 - Assigns and extends subscriptions
 - Configures feature overrides
 - Configures branch-limit overrides
+- Assigns the Cafe staff-client mode: `WEB`, `DESKTOP`, or `BOTH`
 - Manages tenant branding
 - Reviews Platform activity
 
@@ -171,6 +304,7 @@ A tenant contains:
 - Owner and public contact information
 - Subscription plan and status
 - Subscription dates and type
+- Staff-client access mode: `WEB`, `DESKTOP`, or `BOTH`
 - Feature overrides
 - Maximum-branch override
 - Currency, timezone, locale, and tax settings
@@ -1085,6 +1219,8 @@ QA should validate at least the following cross-module scenarios:
 - Kitchen screen
 - Penta-K Platform screens
 - Role, permission, feature, and branch-access behavior
+- Runnable Electron/React Cafe Desktop foundation with real Dashboard, POS, Orders, Order Details, and Kitchen screens
+- Platform-managed `adminClientMode` with centralized Web and Desktop access enforcement
 - Complete Backend API contract
 
 ### Not production-ready yet
@@ -1095,6 +1231,7 @@ QA should validate at least the following cross-module scenarios:
 - Payment provider is not connected
 - Secure server sessions are not active
 - WebSocket delivery is specified but not implemented
+- Desktop currently uses an explicit development auth/data adapter until the production Backend is implemented
 - Browser storage does not provide server-enforced isolation, durable transactions, or cross-device synchronization
 
 The frontend prototype demonstrates workflows. The Backend API contract is the production handoff.
@@ -1106,6 +1243,7 @@ The frontend prototype demonstrates workflows. The Backend API contract is the p
 | Product | This README | Scope, workflows, rules, unresolved decisions |
 | Backend | [Backend API Contract](docs/backend-api-contract.md) | APIs, DTOs, security, transactions, events |
 | Frontend | This README + contract | Interface integration and state migration |
+| Desktop | [`desktop/`](desktop/) + Backend contract | Electron client using the shared API and rules |
 | Mobile | Backend contract | Shared customer/staff clients |
 | QA | This README + contract error codes | Functional and cross-module validation |
 | Design | Product surfaces and roles | Responsive, RTL, white-label experiences |
@@ -1123,6 +1261,8 @@ Only these bounded decisions remain:
 - Whether supplier and purchase editing controls remain exposed
 - Whether deleting a Recipe is distinct from saving an empty Recipe
 - Whether `advancedReports` changes Backend datasets or only presentation
+- Trusted Desktop client identification and application registration
+- Whether Desktop requires offline operation and conflict synchronization
 
 These decisions do not change the frozen endpoint count or core domain architecture.
 
@@ -1191,6 +1331,32 @@ These credentials must never be deployed as production authentication.
 ```bash
 npm run type-check
 npm run build
+```
+
+### Cafe Desktop
+
+```bash
+cd desktop
+npm install
+npm run electron:dev
+```
+
+Development login:
+
+```text
+Tenant:   golden-drip
+Login:    owner@golden.demo
+Password: desktop123
+```
+
+The password is development-only and can be replaced with `VITE_DESKTOP_DEV_PASSWORD`. Validate Desktop independently with:
+
+```bash
+npm run typecheck
+npm run lint
+npm run build
+npm run electron:smoke
+npm run electron:dev-test
 ```
 
 ## 40. Final source-of-truth statement

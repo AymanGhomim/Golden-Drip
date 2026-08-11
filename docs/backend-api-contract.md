@@ -53,6 +53,7 @@ Success envelopes are `ApiSuccess<T>` or `Paginated<T>`. Error envelopes are `Ap
 - Operational Order status and Payment status are separate state machines.
 - `QR_MENU + TABLE` requires `qrOrdering`; `ONLINE_MENU + TAKEAWAY` requires `onlineMenu + takeaway`; `ONLINE_MENU + DELIVERY` requires `onlineMenu + delivery`.
 - `/customer/qr/{token}` is QR-only context resolution; bundled `/customer/menu` handles non-QR resolution and accepts a validated QR context token.
+- Cafe staff client access uses `adminClientMode: WEB | DESKTOP | BOTH`; Cafe login carries `clientType`, and refresh/session restoration re-check the same rule without adding endpoints.
 
 ## Enum Reference
 
@@ -63,6 +64,20 @@ All values are case-sensitive JSON strings. The API operational `OrderStatus` in
 ```text
 "ACTIVE" | "SUSPENDED" | "TRIAL" | "ARCHIVED"
 ```
+
+### Enum: AdminClientMode
+
+```text
+"WEB" | "DESKTOP" | "BOTH"
+```
+
+### Enum: ClientType
+
+```text
+"WEB" | "DESKTOP"
+```
+
+`AdminClientMode` controls Cafe staff clients only. Platform scope and public Customer Menu traffic do not use this gate.
 
 ### Enum: SubscriptionStatus
 
@@ -284,7 +299,7 @@ type PlatformLoginResponse = ApiSuccess<TokenDto & { user: AuthUserDto }>;
 ### DTO: CafeLoginRequest
 
 ```ts
-type CafeLoginRequest = { tenantCode: string; login: string; password: string };
+type CafeLoginRequest = { tenantCode: string; login: string; password: string; clientType: ClientType };
 ```
 
 ### DTO: BranchAccessDto
@@ -296,7 +311,7 @@ type BranchAccessDto = { mode: BranchAccessMode; branchIds: string[] };
 ### DTO: CafeLoginResponse
 
 ```ts
-type CafeLoginResponse = ApiSuccess<TokenDto & { user: AuthUserDto; employee: CafeEmployeeDto; tenant: TenantDto; role: CafeRoleDto; permissions: PermissionKey[]; branchAccess: BranchAccessDto; features: EffectiveFeaturesDto; accessibleBranches: BranchDto[]; currentBranch: BranchDto | null }>;
+type CafeLoginResponse = ApiSuccess<TokenDto & { user: AuthUserDto; employee: CafeEmployeeDto; tenant: TenantDto; role: CafeRoleDto; permissions: PermissionKey[]; branchAccess: BranchAccessDto; features: EffectiveFeaturesDto; accessibleBranches: BranchDto[]; currentBranch: BranchDto | null; clientType: ClientType }>;
 ```
 
 ### DTO: RefreshResponse
@@ -340,8 +355,10 @@ Session display fields beyond `id/current/timestamps` are Product decision requi
 ### DTO: CafeSessionResponse
 
 ```ts
-type CafeSessionResponse = ApiSuccess<{ user: AuthUserDto; employee: CafeEmployeeDto | null; tenant: TenantDto | null; role: CafeRoleDto | null; permissions: PermissionKey[]; branchAccess: BranchAccessDto | null; features: EffectiveFeaturesDto; accessibleBranches: BranchDto[]; currentBranch: BranchDto | null }>;
+type CafeSessionResponse = ApiSuccess<{ user: AuthUserDto; employee: CafeEmployeeDto | null; tenant: TenantDto | null; role: CafeRoleDto | null; permissions: PermissionKey[]; branchAccess: BranchAccessDto | null; features: EffectiveFeaturesDto; accessibleBranches: BranchDto[]; currentBranch: BranchDto | null; clientType: ClientType | null }>;
 ```
+
+Cafe staff sessions retain the trusted `clientType` established at login. Refresh and session restoration re-check the tenant's current `adminClientMode`; a no-longer-allowed client receives `CLIENT_TYPE_NOT_ALLOWED` and the session is revoked. Platform sessions are outside this gate.
 
 ### DTO: AssetDto
 
@@ -402,13 +419,13 @@ type SubscriptionDto = { type: SubscriptionType; startsAt: string; endsAt: strin
 ### DTO: TenantDto
 
 ```ts
-type TenantDto = { id: string; slug: string; name: string; legalName?: string; status: TenantStatus; plan: string; subscriptionStatus: SubscriptionStatus; branding: BrandingDto; settings: TenantSettingsDto; features: EffectiveFeaturesDto; createdAt: string; owner?: TenantOwnerDto; contact?: TenantContactDto; subscription?: { type: SubscriptionType; startsAt: string; endsAt: string }; featureOverrides?: Partial<Record<FeatureKey, boolean>>; maxBranchesOverride?: number };
+type TenantDto = { id: string; slug: string; name: string; legalName?: string; status: TenantStatus; plan: string; subscriptionStatus: SubscriptionStatus; adminClientMode: AdminClientMode; branding: BrandingDto; settings: TenantSettingsDto; features: EffectiveFeaturesDto; createdAt: string; owner?: TenantOwnerDto; contact?: TenantContactDto; subscription?: { type: SubscriptionType; startsAt: string; endsAt: string }; featureOverrides?: Partial<Record<FeatureKey, boolean>>; maxBranchesOverride?: number };
 ```
 
 ### DTO: TenantSummaryDto
 
 ```ts
-type TenantSummaryDto = { id: string; slug: string; name: string; status: TenantStatus; plan: string; subscriptionStatus: SubscriptionStatus; logo: string; ownerName?: string; phone?: string; subscriptionEndsAt?: string; createdAt: string };
+type TenantSummaryDto = { id: string; slug: string; name: string; status: TenantStatus; plan: string; subscriptionStatus: SubscriptionStatus; adminClientMode: AdminClientMode; logo: string; ownerName?: string; phone?: string; subscriptionEndsAt?: string; createdAt: string };
 ```
 
 ### DTO: TenantDetailsDto
@@ -420,13 +437,13 @@ type TenantDetailsDto = TenantDto & { branches: BranchDto[]; effectiveBranchLimi
 ### DTO: CreateTenantRequest
 
 ```ts
-type CreateTenantRequest = { slug: string; name: string; status: TenantStatus; plan: string; branding: BrandingDto; settings: TenantSettingsDto; contact: TenantContactDto; owner: { name: string; email: string; phone: string; username: string; password: string }; subscription: { type: SubscriptionType; startsAt: string; endsAt: string }; featureOverrides: Partial<Record<FeatureKey, boolean>> };
+type CreateTenantRequest = { slug: string; name: string; status: TenantStatus; plan: string; adminClientMode: AdminClientMode; branding: BrandingDto; settings: TenantSettingsDto; contact: TenantContactDto; owner: { name: string; email: string; phone: string; username: string; password: string }; subscription: { type: SubscriptionType; startsAt: string; endsAt: string }; featureOverrides: Partial<Record<FeatureKey, boolean>> };
 ```
 
 ### DTO: UpdateTenantRequest
 
 ```ts
-type UpdateTenantRequest = { slug?: string; name?: string; legalName?: string; status?: TenantStatus; plan?: string; branding?: BrandingDto; settings?: TenantSettingsDto; contact?: TenantContactDto; owner?: TenantOwnerDto; subscription?: { type: SubscriptionType; startsAt: string; endsAt: string }; featureOverrides?: Partial<Record<FeatureKey, boolean>>; version: number };
+type UpdateTenantRequest = { slug?: string; name?: string; legalName?: string; status?: TenantStatus; plan?: string; adminClientMode?: AdminClientMode; branding?: BrandingDto; settings?: TenantSettingsDto; contact?: TenantContactDto; owner?: TenantOwnerDto; subscription?: { type: SubscriptionType; startsAt: string; endsAt: string }; featureOverrides?: Partial<Record<FeatureKey, boolean>>; version: number };
 ```
 
 ### DTO: UpdateTenantContactRequest
@@ -1610,7 +1627,7 @@ None.
 200
 
 **Important Validation / Machine-readable Errors:**  
-INVALID_CREDENTIALS, TENANT_NOT_FOUND, TENANT_SUSPENDED, EMPLOYEE_SUSPENDED, RATE_LIMITED
+INVALID_CREDENTIALS, TENANT_NOT_FOUND, TENANT_SUSPENDED, EMPLOYEE_SUSPENDED, CLIENT_TYPE_NOT_ALLOWED, RATE_LIMITED
 
 **Transaction Required?**  
 No.
@@ -11270,7 +11287,7 @@ Permission values are the exact `PermissionKey` enum. Each endpoint card is auth
 
 ## 53. Feature Matrix
 
-Feature values are the exact `FeatureKey` enum. Internal Menu/MenuItem endpoints are ungated. Public menu reads require `onlineMenu` for non-QR context or `qrOrdering` for validated QR context. Dedicated reports require `reports`; customer-detail analytics does not.
+Feature values are the exact `FeatureKey` enum. Internal Menu/MenuItem endpoints are ungated. Public menu reads require `onlineMenu` for non-QR context or `qrOrdering` for validated QR context. Dedicated reports require `reports`; customer-detail analytics does not. `adminClientMode` is a staff-client gate, not a Feature: it never disables Customer Menu routes.
 
 ## 54. Branch Scope Matrix
 
@@ -11294,6 +11311,9 @@ Branch routes validate `{branchId}` against tenant ownership and employee access
 - Enforce tenant isolation, permissions, features, branch access, output projection, DTO allowlists, secure password hashing, token rotation, CSRF controls, file-content validation, webhook signatures, and audit redaction.
 - Recalculate menu prices, modifiers, offers, coupon, tax, service, delivery, loyalty, payment and stock server-side.
 - Public endpoints return only public DTOs.
+- Validate the trusted Cafe staff `clientType` against `adminClientMode` on login and re-check it on refresh/session restoration. `WEB` permits Web, `DESKTOP` permits Desktop, and `BOTH` permits either; otherwise return `CLIENT_TYPE_NOT_ALLOWED` and do not issue or retain a staff session.
+- Do not trust a freely editable header as proof of a Desktop client. The deployment security design must bind `clientType` to a registered client/application identity while keeping the JSON field for contract intent and auditing.
+- Platform authentication is separate and must never be rejected by a Cafe tenant's `adminClientMode`. Public Customer Menu access remains governed by public context and Feature checks.
 
 ## 57. Backend-Only Responsibilities
 
@@ -11592,4 +11612,3 @@ Password recovery delivery integration, active-session listing, and remote sessi
 | Payment Webhook | 1 |
 
 **BACKEND HANDOFF STATUS: READY FOR IMPLEMENTATION**
-

@@ -1,7 +1,7 @@
 import type {
   PermissionDefinition,
   PermissionKey,
-} from "@/types/access-control.types";
+} from "../types/access-control.types";
 
 type PermissionSeed = [PermissionKey, string, string];
 const groups: { key: string; label: string; permissions: PermissionSeed[] }[] =
