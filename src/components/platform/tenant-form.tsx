@@ -10,6 +10,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import {
+  FEATURE_GROUPS,
   getEffectiveFeatures,
   getPlanByCode,
   getPlans,
@@ -27,6 +28,7 @@ import {
 } from "@/lib/tenant-branding";
 import { BrandAssetUpload } from "@/components/platform/brand-asset-upload";
 import { credentialService } from "@/services/credential.service";
+import type { FeatureKey } from "@/types/platform.types";
 
 type Draft = {
   name: string;
@@ -48,6 +50,8 @@ type Draft = {
   logo: string;
   branding: TenantBranding;
   plan: string;
+  featureSelectionMode: "PLAN" | "CUSTOM";
+  enabledFeatures: FeatureKey[];
   subscriptionType: "TRIAL" | "PAID";
   startsAt: string;
   endsAt: string;
@@ -76,6 +80,13 @@ const labels: Record<(typeof colors)[number], string> = {
   textPrimary: "النص الأساسي",
   textSecondary: "النص الثانوي",
   border: "الحدود",
+};
+const featureKeys = FEATURE_GROUPS.flatMap((group) =>
+  group.items.map((item) => item.key),
+);
+const featuresForPlan = (planCode: string) => {
+  const effective = getEffectiveFeatures(planCode);
+  return featureKeys.filter((key) => effective[key]);
 };
 const baseBranding: TenantBranding = {
   ...SAFE_TENANT_BRANDING,
@@ -106,7 +117,20 @@ export function TenantForm({ tenant }: { tenant?: Tenant }) {
   const existingOwner = tenant ? credentialService.getOwner(tenant.id) : undefined;
   const [step, setStep] = useState(0);
   const [submitted, setSubmitted] = useState(false);
-  const [draft, setDraft] = useState<Draft>(() => ({
+  const [draft, setDraft] = useState<Draft>(() => {
+    const plan = normalizePlanCode(
+      tenant?.plan ?? getPlans().find((item) => item.active)?.code ?? "BASIC",
+    );
+    const hasCustomFeatures = Boolean(
+      tenant?.featureOverrides &&
+        Object.keys(tenant.featureOverrides).length > 0,
+    );
+    const effectiveFeatures = getEffectiveFeatures(
+      plan,
+      hasCustomFeatures ? tenant?.featureOverrides : undefined,
+    );
+
+    return {
     name: tenant?.name || "",
     slug: tenant?.slug || "",
     phone: tenant?.contact?.phone || "",
@@ -125,9 +149,9 @@ export function TenantForm({ tenant }: { tenant?: Tenant }) {
     ownerPasswordConfirm: "",
     logo: tenant?.branding.logo || baseBranding.logo,
     branding: { ...baseBranding, ...tenant?.branding },
-    plan: normalizePlanCode(
-      tenant?.plan ?? getPlans().find((plan) => plan.active)?.code ?? "BASIC",
-    ),
+    plan,
+    featureSelectionMode: hasCustomFeatures ? "CUSTOM" : "PLAN",
+    enabledFeatures: featureKeys.filter((key) => effectiveFeatures[key]),
     subscriptionType: tenant?.subscription?.type || "TRIAL",
     startsAt:
       tenant?.subscription?.startsAt?.slice(0, 10) ||
@@ -136,7 +160,8 @@ export function TenantForm({ tenant }: { tenant?: Tenant }) {
       tenant?.subscription?.endsAt?.slice(0, 10) ||
       new Date(Date.now() + 30 * 86400000).toISOString().slice(0, 10),
     status: tenant?.status || "TRIAL",
-  }));
+    };
+  });
   useEffect(() => {
     if (!draft.slug && draft.name)
       setDraft((current) => ({ ...current, slug: slugify(current.name) }));
@@ -181,6 +206,12 @@ export function TenantForm({ tenant }: { tenant?: Tenant }) {
       return;
     }
     const plan = getPlanByCode(draft.plan);
+    const featureOverrides =
+      draft.featureSelectionMode === "CUSTOM"
+        ? (Object.fromEntries(
+            featureKeys.map((key) => [key, draft.enabledFeatures.includes(key)]),
+          ) as Partial<Record<FeatureKey, boolean>>)
+        : {};
     const tenantPayload: Tenant = {
       id: tenant?.id || `tenant-${draft.slug}-${Date.now()}`,
       slug: draft.slug,
@@ -204,8 +235,8 @@ export function TenantForm({ tenant }: { tenant?: Tenant }) {
         locale: "ar",
         taxRate: 14,
       },
-      features: getEffectiveFeatures(plan.code),
-      featureOverrides: {},
+      features: getEffectiveFeatures(plan.code, featureOverrides),
+      featureOverrides,
       createdAt: tenant?.createdAt || new Date().toISOString(),
       contact: {
         phone: draft.phone,
@@ -441,28 +472,174 @@ export function TenantForm({ tenant }: { tenant?: Tenant }) {
             </div>
           ) : null}
           {step === 3 ? (
-            <div className="grid gap-3 sm:grid-cols-3">
-              {getPlans()
-                .filter((item) => item.active)
-                .map((availablePlan) => {
-                  const code = availablePlan.code;
-                  return (
-                    <button
-                      key={code}
+            <div className="space-y-8">
+              <div>
+                <div className="mb-4">
+                  <h2 className="font-black">الباقة</h2>
+                  <p className="mt-1 text-sm text-muted-foreground">
+                    اختر الباقة أولًا، ثم حدد هل تريد استخدام مميزاتها أو تخصيص المميزات يدويًا.
+                  </p>
+                </div>
+                <div className="grid gap-3 sm:grid-cols-3">
+                  {getPlans()
+                    .filter((item) => item.active)
+                    .map((availablePlan) => {
+                      const code = availablePlan.code;
+                      return (
+                        <button
+                          key={code}
+                          type="button"
+                          onClick={() =>
+                            setDraft((current) => ({
+                              ...current,
+                              plan: code,
+                              enabledFeatures:
+                                current.featureSelectionMode === "PLAN"
+                                  ? featuresForPlan(code)
+                                  : current.enabledFeatures,
+                            }))
+                          }
+                          className={`rounded-2xl border p-5 text-right ${draft.plan === code ? "border-[#111111] bg-[#F3F4F6] ring-2 ring-[#111111]/20" : "bg-white"}`}
+                        >
+                          <p className="font-black">{availablePlan.name}</p>
+                          <p className="mt-1 text-xs font-bold text-[#667085]">
+                            {code}
+                          </p>
+                          <p className="mt-2 text-sm text-muted-foreground">
+                            {availablePlan.description}
+                          </p>
+                        </button>
+                      );
+                    })}
+                </div>
+              </div>
+
+              <div>
+                <h2 className="font-black">طريقة اختيار المميزات</h2>
+                <div className="mt-3 grid gap-3 sm:grid-cols-2">
+                  <button
+                    type="button"
+                    onClick={() =>
+                      setDraft((current) => ({
+                        ...current,
+                        featureSelectionMode: "PLAN",
+                        enabledFeatures: featuresForPlan(current.plan),
+                      }))
+                    }
+                    className={`rounded-2xl border p-5 text-right transition ${draft.featureSelectionMode === "PLAN" ? "border-[#111111] bg-[#111111] text-white ring-2 ring-[#111111]/20" : "border-[#D1D5DB] bg-white"}`}
+                  >
+                    <span className="block font-black">استخدام مميزات الباقة</span>
+                    <span className={`mt-1 block text-xs leading-5 ${draft.featureSelectionMode === "PLAN" ? "text-white/70" : "text-muted-foreground"}`}>
+                      تتغير المميزات تلقائيًا عند تغيير الباقة.
+                    </span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => update("featureSelectionMode", "CUSTOM")}
+                    className={`rounded-2xl border p-5 text-right transition ${draft.featureSelectionMode === "CUSTOM" ? "border-[#111111] bg-[#111111] text-white ring-2 ring-[#111111]/20" : "border-[#D1D5DB] bg-white"}`}
+                  >
+                    <span className="block font-black">اختيار يدوي</span>
+                    <span className={`mt-1 block text-xs leading-5 ${draft.featureSelectionMode === "CUSTOM" ? "text-white/70" : "text-muted-foreground"}`}>
+                      فعّل أو ألغِ أي ميزة بشكل مستقل عن الباقة.
+                    </span>
+                  </button>
+                </div>
+              </div>
+
+              {draft.featureSelectionMode === "CUSTOM" ? (
+              <div className="rounded-2xl border border-[#D1D5DB] bg-[#F9FAFB] p-4 sm:p-6">
+                <div className="flex flex-col justify-between gap-3 sm:flex-row sm:items-center">
+                  <div>
+                    <h2 className="font-black">اختيار المميزات يدويًا</h2>
+                    <p className="mt-1 text-sm text-muted-foreground">
+                      تم اختيار {draft.enabledFeatures.length} من {featureKeys.length} ميزة.
+                    </p>
+                  </div>
+                  <div className="flex gap-2">
+                    <Button
                       type="button"
-                      onClick={() => update("plan", code)}
-                      className={`rounded-2xl border p-5 text-right ${draft.plan === code ? "border-[#111111] bg-[#F3F4F6] ring-2 ring-[#111111]/20" : "bg-white"}`}
+                      variant="outline"
+                      size="sm"
+                      onClick={() => update("enabledFeatures", [...featureKeys])}
                     >
-                      <p className="font-black">{code}</p>
-                      <p className="mt-2 text-sm text-muted-foreground">
-                        {getPlanByCode(code).description}
-                      </p>
-                      <p className="mt-4 text-xs font-bold text-[#374151]">
-                        {getPlanByCode(code).features.length} ميزة
-                      </p>
-                    </button>
-                  );
-                })}
+                      تحديد الكل
+                    </Button>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={() => update("enabledFeatures", [])}
+                    >
+                      إلغاء الكل
+                    </Button>
+                  </div>
+                </div>
+
+                <div className="mt-6 space-y-6">
+                  {FEATURE_GROUPS.map((group) => (
+                    <section key={group.title}>
+                      <h3 className="mb-3 text-sm font-black text-[#374151]">
+                        {group.title}
+                      </h3>
+                      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+                        {group.items.map((feature) => {
+                          const checked = draft.enabledFeatures.includes(feature.key);
+                          return (
+                            <label
+                              key={feature.key}
+                              className={`flex cursor-pointer items-start gap-3 rounded-xl border bg-white p-4 transition ${checked ? "border-[#111111] ring-1 ring-[#111111]/10" : "border-[#E5E7EB] hover:border-[#9CA3AF]"}`}
+                            >
+                              <input
+                                type="checkbox"
+                                checked={checked}
+                                onChange={() =>
+                                  update(
+                                    "enabledFeatures",
+                                    checked
+                                      ? draft.enabledFeatures.filter(
+                                          (key) => key !== feature.key,
+                                        )
+                                      : [...draft.enabledFeatures, feature.key],
+                                  )
+                                }
+                                className="mt-1 h-4 w-4 accent-[#111111]"
+                              />
+                              <span>
+                                <span className="block text-sm font-black">
+                                  {feature.name}
+                                </span>
+                                <span className="mt-1 block text-xs leading-5 text-muted-foreground">
+                                  {feature.description}
+                                </span>
+                              </span>
+                            </label>
+                          );
+                        })}
+                      </div>
+                    </section>
+                  ))}
+                </div>
+              </div>
+              ) : (
+                <div className="rounded-2xl border border-[#D1D5DB] bg-[#F9FAFB] p-4 sm:p-6">
+                  <h2 className="font-black">مميزات باقة {getPlanByCode(draft.plan).name}</h2>
+                  <p className="mt-1 text-sm text-muted-foreground">
+                    سيتم تفعيل {draft.enabledFeatures.length} ميزة تلقائيًا.
+                  </p>
+                  <div className="mt-4 flex flex-wrap gap-2">
+                    {FEATURE_GROUPS.flatMap((group) => group.items)
+                      .filter((feature) => draft.enabledFeatures.includes(feature.key))
+                      .map((feature) => (
+                        <span
+                          key={feature.key}
+                          className="rounded-full border border-[#D1D5DB] bg-white px-3 py-1.5 text-xs font-bold"
+                        >
+                          {feature.name}
+                        </span>
+                      ))}
+                  </div>
+                </div>
+              )}
             </div>
           ) : null}
           {step === 4 ? (
@@ -521,6 +698,18 @@ export function TenantForm({ tenant }: { tenant?: Tenant }) {
                 <Summary label="المسؤول" value={draft.ownerName || "—"} />
                 <Summary label="اسم المستخدم" value={draft.ownerUsername || "—"} />
                 <Summary label="الباقة" value={draft.plan} />
+                <Summary
+                  label="مصدر المميزات"
+                  value={
+                    draft.featureSelectionMode === "PLAN"
+                      ? "مميزات الباقة"
+                      : "اختيار يدوي"
+                  }
+                />
+                <Summary
+                  label="المميزات المفعلة"
+                  value={`${draft.enabledFeatures.length} من ${featureKeys.length}`}
+                />
                 <Summary
                   label="الاشتراك"
                   value={

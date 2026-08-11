@@ -11,6 +11,8 @@ import type { Table } from "@/types/table.types";
 import type { Tenant } from "@/types/tenant.types";
 import { hasTenantFeature } from "@/config/feature-access.config";
 
+const GOLDEN_DRIP_TENANT_ID = "tenant-golden-drip";
+
 export type CustomerContextError =
   | "INVALID_LINK"
   | "TENANT_NOT_FOUND"
@@ -63,7 +65,9 @@ export function resolveCustomerContext(searchParams: URLSearchParams): CustomerC
     return failure("INVALID_LINK", true);
   if (orderType === "TABLE" && !tableId) return failure("INVALID_LINK", true);
 
-  const fallbackTenantId = tenantService.getSelectedDevelopmentTenant() ?? tenantService.getActiveTenantId();
+  // The public, parameter-free menu belongs to Golden Drip. Other tenants and
+  // table-specific links continue to carry their explicit context.
+  const fallbackTenantId = GOLDEN_DRIP_TENANT_ID;
   const resolvedTenantId = tenantId || fallbackTenantId;
   const tenant = tenantService.getTenant(resolvedTenantId);
   if (!tenant || tenant.status === "ARCHIVED" || tenant.status === "SUSPENDED")
@@ -104,6 +108,14 @@ export function resolveCustomerContext(searchParams: URLSearchParams): CustomerC
 export const customerContextService = {
   resolve: resolveCustomerContext,
   href(pathname: string, context: Pick<ResolvedCustomerContext, "tenant" | "branch" | "table" | "orderType">) {
+    if (
+      context.tenant.id === GOLDEN_DRIP_TENANT_ID &&
+      !context.table &&
+      !context.orderType
+    ) {
+      return pathname;
+    }
+
     return customerRouteHref(pathname, {
       tenantId: context.tenant.id,
       branchId: context.branch.id,

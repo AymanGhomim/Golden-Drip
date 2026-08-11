@@ -41,7 +41,7 @@ export function SiteHeader({ locale, onLocaleChange }: SiteHeaderProps) {
         <div className="flex min-w-0 items-center gap-3">
           <Link
             href={customerRoute.href(ROUTES.menu)}
-            className="shrink-0"
+            className="flex min-w-0 items-center gap-2.5 sm:gap-3"
             aria-label={`${tenant.name} menu`}
           >
             <AppLogo
@@ -49,6 +49,14 @@ export function SiteHeader({ locale, onLocaleChange }: SiteHeaderProps) {
               size="sm"
               className="mb-0.5 [&_div]:h-12 [&_div]:w-12 sm:[&_div]:h-16 sm:[&_div]:w-16"
             />
+            <span className="min-w-0">
+              <span className="block whitespace-nowrap text-sm font-black leading-tight text-foreground sm:text-lg">
+                {tenant.name}
+              </span>
+              <span className="mt-1 hidden text-[0.68rem] font-semibold text-muted-foreground sm:block">
+                {locale === "ar" ? "القائمة الإلكترونية" : "Digital menu"}
+              </span>
+            </span>
           </Link>
         </div>
         <div

@@ -10,5 +10,5 @@ export const metadata: Metadata = {
 };
 
 export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
-  return <html lang="ar" dir="rtl" suppressHydrationWarning><body className="font-sans antialiased"><AppProviders>{children}<Toaster position="top-center" richColors closeButton dir="rtl" toastOptions={{ style: { fontFamily: "var(--tenant-font-family, var(--font-cairo), system-ui, sans-serif)" } }} /></AppProviders></body></html>;
+  return <html lang="ar" dir="rtl" suppressHydrationWarning><body suppressHydrationWarning className="font-sans antialiased"><AppProviders>{children}<Toaster position="top-center" richColors closeButton dir="rtl" toastOptions={{ style: { fontFamily: "var(--tenant-font-family, var(--font-cairo), system-ui, sans-serif)" } }} /></AppProviders></body></html>;
 }
