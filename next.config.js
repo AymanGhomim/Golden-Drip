@@ -1,19 +1,9 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
-  async headers() {
-    return [
-      {
-        source: "/:path*",
-        headers: [
-          { key: "Cache-Control", value: "no-store, no-cache, must-revalidate, proxy-revalidate" },
-          { key: "Pragma", value: "no-cache" },
-          { key: "Expires", value: "0" },
-        ],
-      },
-    ];
-  },
   images: {
-    unoptimized: true,
+    // Let Next resize and cache menu images instead of downloading full-size
+    // Unsplash assets directly in the browser.
+    unoptimized: false,
     remotePatterns: [
       {
         protocol: "https",

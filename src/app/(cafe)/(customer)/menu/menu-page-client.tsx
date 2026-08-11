@@ -337,7 +337,7 @@ export function MenuPageClient() {
         </div>
 
         <div className="grid grid-cols-2 gap-4 sm:gap-6 lg:grid-cols-3">
-          {products.map((product) => {
+          {products.map((product, index) => {
             const quantity = quantitiesByProduct.get(product.id) ?? 0;
             const translatedProductText = translatedProduct(product.id, locale);
 
@@ -372,6 +372,7 @@ export function MenuPageClient() {
                             : "opacity-0",
                         )}
                         onLoad={() => markImageLoaded(`product-${product.id}`)}
+                        priority={index < 2}
                       />
                     </>
                   ) : (
