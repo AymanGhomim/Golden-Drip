@@ -1,6 +1,7 @@
 import { app, BrowserWindow, shell } from "electron";
 import path from "node:path";
 import { pathToFileURL } from "node:url";
+import { logDetectedPrinters, registerPrinterIpc } from "./printer-ipc";
 
 const APP_ID = "com.pentak.cafe";
 
@@ -39,12 +40,22 @@ function createWindow() {
       allowRunningInsecureContent: false,
     },
   });
+  registerPrinterIpc(window);
 
   window.once("ready-to-show", () => {
     if (!rendererSmokeTest) window.show();
   });
-  window.webContents.once("did-finish-load", () => {
-    if (rendererSmokeTest) {
+  window.webContents.once("did-finish-load", async () => {
+    if (process.env.ELECTRON_PRINTER_DISCOVERY_TEST === "1") {
+      try {
+        await logDetectedPrinters(window.webContents);
+      } catch (error) {
+        console.error("Electron printer discovery failed", error);
+        app.exit(1);
+        return;
+      }
+      app.quit();
+    } else if (rendererSmokeTest) {
       console.log("Electron renderer loaded successfully");
       app.quit();
     }

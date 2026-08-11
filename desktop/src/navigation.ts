@@ -56,7 +56,7 @@ export const navigationGroups: NavigationGroup[] = [
     { path: "/reports", label: "التقارير", icon: BarChart3, permission: "reports.view", feature: "reports" },
     { path: "/notifications", label: "الإشعارات", icon: Bell, permission: "notifications.view" },
     { path: "/activity-log", label: "سجل النشاط", icon: FileClock, permission: "audit.view" },
-    { path: "/settings", label: "الإعدادات", icon: Settings, permission: "settings.view" },
+    { path: "/settings", label: "الإعدادات", icon: Settings, permission: "settings.view", real: true },
   ] },
 ];
 

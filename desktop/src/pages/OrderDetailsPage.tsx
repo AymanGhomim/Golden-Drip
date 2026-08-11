@@ -1,5 +1,6 @@
 import { CheckCircle2, Clock3, Printer, XCircle } from "lucide-react";
 import { Link, useParams } from "react-router-dom";
+import { useState } from "react";
 import {
   orderSourceLabels,
   orderStatusPresentation,
@@ -9,6 +10,7 @@ import {
 } from "@shared/presentation/order";
 import { OrderStatusBadge } from "@/components/features/orders/OrderStatusBadge";
 import { OrderReceipt } from "@/components/features/orders/OrderReceipt";
+import { PrinterRequiredDialog } from "@/components/features/settings/printer/PrinterRequiredDialog";
 import { Info, Page, Panel } from "@/components/shared/PageLayout";
 import {
   formatDateTime,
@@ -17,6 +19,7 @@ import {
 } from "@/features/orders/order-presentation";
 import { useAppDispatch, useAppSelector } from "@/store";
 import { orderStatusChanged } from "@/store/orders-slice";
+import { printerErrorMessages, printerService } from "@/services/printer.service";
 import type { PaymentRecord, RefundRecord } from "@contracts/cafe-operations.types";
 import { buildOrderReceiptData } from "@shared/presentation/order-receipt";
 
@@ -30,6 +33,9 @@ export function OrderDetailsPage() {
   const refunds = useAppSelector((state) => state.development.operations.refunds) as RefundRecord[];
   const employees = useAppSelector((state) => state.development.employees);
   const dispatch = useAppDispatch();
+  const [printing, setPrinting] = useState(false);
+  const [printMessage, setPrintMessage] = useState<{ tone: "success" | "error"; text: string } | null>(null);
+  const [printerDialog, setPrinterDialog] = useState<{ open: boolean; message: string }>({ open: false, message: "" });
   if (!order)
     return (
       <Page>
@@ -67,6 +73,21 @@ export function OrderDetailsPage() {
       changeAmount: cashPayment?.changeAmount,
     },
   }) : null;
+
+  async function printReceipt() {
+    if (printing) return;
+    setPrinting(true);
+    setPrintMessage(null);
+    const result = await printerService.printReceipt();
+    if (result.success) {
+      setPrintMessage({ tone: "success", text: "تم إرسال الفاتورة إلى الطابعة." });
+    } else if (["NO_PRINTER_SELECTED", "SELECTED_PRINTER_UNAVAILABLE"].includes(result.code)) {
+      setPrinterDialog({ open: true, message: printerErrorMessages[result.code] });
+    } else {
+      setPrintMessage({ tone: "error", text: `${printerErrorMessages[result.code]}${result.detail ? ` (${result.detail})` : ""}` });
+    }
+    setPrinting(false);
+  }
   return (
     <Page>
       <Link
@@ -84,9 +105,9 @@ export function OrderDetailsPage() {
         </div>
         <div className="flex items-center gap-2">
           {session?.permissions.includes("orders.print") ? (
-            <button type="button" onClick={() => window.print()} className="flex h-10 items-center gap-2 rounded-lg border border-[var(--brand-border)] bg-[var(--brand-surface)] px-4 text-sm font-bold">
+            <button type="button" disabled={printing} onClick={() => void printReceipt()} className="flex h-10 items-center gap-2 rounded-lg border border-[var(--brand-border)] bg-[var(--brand-surface)] px-4 text-sm font-bold disabled:cursor-wait disabled:opacity-60">
               <Printer className="h-4 w-4" />
-              طباعة الفاتورة
+              {printing ? "جارٍ إرسال الفاتورة..." : "طباعة الفاتورة"}
             </button>
           ) : null}
           <OrderStatusBadge status={order.status} />
@@ -157,6 +178,7 @@ export function OrderDetailsPage() {
           </Panel>
         </div>
       </div>
+      {printMessage ? <p className={`mt-4 rounded-lg p-3 text-sm font-bold ${printMessage.tone === "success" ? "bg-emerald-50 text-emerald-800" : "bg-red-50 text-red-800"}`}>{printMessage.text}</p> : null}
       {receipt ? <div className="mt-5"><OrderReceipt receipt={receipt} /></div> : null}
       <div className="mt-5 grid gap-5 xl:grid-cols-2">
         <Panel title="الخط الزمني">
@@ -210,6 +232,7 @@ export function OrderDetailsPage() {
           ) : null}
         </Panel>
       </div>
+      <PrinterRequiredDialog open={printerDialog.open} message={printerDialog.message} onClose={() => setPrinterDialog((current) => ({ ...current, open: false }))} />
     </Page>
   );
 }

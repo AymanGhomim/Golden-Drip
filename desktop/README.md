@@ -11,6 +11,30 @@ npm run electron:dev
 
 Development authentication is available only in Vite development mode. It is dynamically imported and excluded from production bundles.
 
+## Windows receipt printer setup
+
+Penta-K Cafe discovers printers that are already installed in Windows. Install the printer using its manufacturer or compatible Windows driver first, configure the driver for the actual 80mm roll size, then:
+
+1. Start the Electron application with `npm run electron:dev`.
+2. Open **الإعدادات → الطابعة**.
+3. Click **تحديث الطابعات**.
+4. Select the exact installed receipt printer and click **حفظ الطابعة**.
+5. Use **طباعة تجريبية** before printing a real order receipt.
+
+The selected system `deviceName` is stored only on that computer at:
+
+```text
+Electron userData/desktop-printer-settings.json
+```
+
+The application validates the saved name against `webContents.getPrintersAsync()` before every print and never silently switches to another printer. Physical printing uses `webContents.print()` directly; it does not create a PDF. Penta-K Cafe does not install or manage printer drivers.
+
+To inspect the printers Electron can currently see without sending any print job:
+
+```bash
+npm run electron:printers
+```
+
 ## Production build
 
 ```bash

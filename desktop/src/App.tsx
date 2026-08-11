@@ -4,6 +4,7 @@ import { AppShell } from "@/components/AppShell";
 import { allNavigationItems, firstAccessibleRoute } from "@/navigation";
 import { DashboardPage, KitchenPage, OrderDetailsPage, OrdersPage, PosPage } from "@/pages/OperationalPages";
 import { LoginPage } from "@/pages/LoginPage";
+import { SettingsPage } from "@/pages/SettingsPage";
 import { AccessDeniedPage, ModuleDataPage } from "@/pages/StatePages";
 import { useAppSelector } from "@/store";
 
@@ -25,6 +26,7 @@ export default function App() {
             <Route element={<ProtectedRoute requirement={{ permission: "pos.use", feature: "pos" }} />}><Route path="pos" element={<PosPage />} /></Route>
             <Route element={<ProtectedRoute requirement={{ permission: "orders.view", feature: "orders" }} />}><Route path="orders" element={<OrdersPage />} /><Route path="orders/:orderId" element={<OrderDetailsPage />} /></Route>
             <Route element={<ProtectedRoute requirement={{ permission: "kitchen.view", feature: "kitchen" }} />}><Route path="kitchen" element={<KitchenPage />} /></Route>
+            <Route element={<ProtectedRoute requirement={{ permission: "settings.view" }} />}><Route path="settings" element={<SettingsPage />} /></Route>
             {dataModules.map((item) => <Route key={item.path} element={<ProtectedRoute requirement={{ permission: item.permission, feature: item.feature }} />}><Route path={item.path.slice(1)} element={<ModuleDataPage />} /></Route>)}
             <Route path="access-denied" element={<AccessDeniedPage />} />
           </Route>
