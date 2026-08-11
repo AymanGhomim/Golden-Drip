@@ -1,0 +1,24 @@
+export type CustomerMenuSettings = {
+  tenantId: string;
+  onlineOrderingEnabled: boolean;
+  menuOpen: boolean;
+  autoAcceptOrders: boolean;
+  qrEnabled: boolean;
+  multipleTableOrders: boolean;
+  waiterRequestsEnabled: boolean;
+  billRequestsEnabled: boolean;
+  payAtCashierEnabled: boolean;
+  electronicDineInPaymentEnabled: boolean;
+  takeawayEnabled: boolean;
+  asapPickupEnabled: boolean;
+  scheduledPickupEnabled: boolean;
+  preparationMinutes: number;
+  deliveryEnabled: boolean;
+  minimumDeliveryOrder: number;
+  estimatedDeliveryMinutes: number;
+  cashEnabled: boolean;
+  cardEnabled: boolean;
+  walletEnabled: boolean;
+  onlinePaymentEnabled: boolean;
+  updatedAt: string;
+};

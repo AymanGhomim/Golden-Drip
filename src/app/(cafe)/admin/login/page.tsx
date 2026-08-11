@@ -19,6 +19,7 @@ import { tenantService } from "@/services/tenant.service";
 import { useAuthStore } from "@/store/auth.store";
 import { employeeService } from "@/services/employee.service";
 import { roleService } from "@/services/role.service";
+import { credentialService } from "@/services/credential.service";
 
 export default function AdminLoginPage() {
   const router = useRouter();
@@ -39,10 +40,11 @@ export default function AdminLoginPage() {
   const selectedRole = selectedEmployee
     ? roleService.getRoleById(selectedEmployee.roleId, tenant.id)
     : undefined;
-  const demoEmail =
-    selectedEmployee?.email ?? selectedEmployee?.username ?? `admin@${tenant.slug}.demo`;
+  const demoEmail = selectedEmployee
+    ? credentialService.getLogin(selectedEmployee)
+    : `admin@${tenant.slug}.demo`;
   const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("admin123");
+  const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [rememberMe, setRememberMe] = useState(true);
   const [error, setError] = useState("");
@@ -75,18 +77,16 @@ export default function AdminLoginPage() {
     if (!isReady || isSubmitting) return;
 
     const normalizedEmail = email.trim().toLowerCase();
-    if (
-      normalizedEmail !== demoEmail.toLowerCase() ||
-      password !== "admin123"
-    ) {
-      setError("استخدم بيانات الدخول التجريبية الموضحة بالأسفل.");
+    const authenticatedEmployee = await credentialService.authenticate(
+      tenant.id,
+      normalizedEmail,
+      password,
+    );
+    if (!authenticatedEmployee) {
+      setError("اسم المستخدم أو كلمة المرور غير صحيحة.");
       return;
     }
-    if (!selectedEmployee) {
-      setError("لا يوجد حساب موظف صالح لهذا الكافيه.");
-      return;
-    }
-    if (selectedEmployee.status === "SUSPENDED") {
+    if (authenticatedEmployee.status === "SUSPENDED") {
       setError(
         "تم إيقاف هذا الحساب. يرجى التواصل مع إدارة الكافيه.",
       );
@@ -97,12 +97,12 @@ export default function AdminLoginPage() {
     setIsSubmitting(true);
     await Promise.resolve(useAuthStore.persist.rehydrate());
     login({
-      id: selectedEmployee.id,
-      name: selectedEmployee.name,
+      id: authenticatedEmployee.id,
+      name: authenticatedEmployee.name,
       email: normalizedEmail,
       role: "admin",
       tenantId: tenantService.getActiveTenantId(),
-      employeeId: selectedEmployee.id,
+      employeeId: authenticatedEmployee.id,
     });
     router.replace("/admin/dashboard");
   }
@@ -180,13 +180,13 @@ export default function AdminLoginPage() {
                 </label>
               ) : null}
               <label className="block space-y-2 text-sm font-semibold" htmlFor="email">
-                البريد الإلكتروني
+                اسم المستخدم أو البريد الإلكتروني
                 <span className="relative mt-2 block">
                   <Mail className="pointer-events-none absolute right-4 top-1/2 h-5 w-5 -translate-y-1/2 text-primary" />
                   <Input
                     id="email"
-                    type="email"
-                    autoComplete="email"
+                    type="text"
+                    autoComplete="username"
                     value={email}
                     onChange={(event) => setEmail(event.target.value)}
                     className="h-[50px] rounded-lg bg-background pl-4 pr-12 text-right text-sm shadow-none"

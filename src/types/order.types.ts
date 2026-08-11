@@ -55,6 +55,9 @@ export type Order = {
   couponCode?: string;
   couponDiscount?: number;
   cancellation?: { reason: string; employeeId?: string; cancelledAt: string };
+  inventoryConsumedAt?: string;
+  inventoryRestoredAt?: string;
+  inventoryRestoredBy?: string;
   timeline?: {
     status: OrderStatus;
     employeeId?: string;

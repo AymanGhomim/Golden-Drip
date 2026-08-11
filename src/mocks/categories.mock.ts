@@ -1,7 +1,7 @@
 import { Category } from "@/types/category.types";
 import { getMockTenantId } from "@/mocks/mock-tenant-context";
 
-const goldenCategories: Category[] = [
+export const goldenCategories: Category[] = [
   { id: "cat-1", name: "Hot Coffee", image: "", sortOrder: 1, isActive: true },
   { id: "cat-2", name: "Iced Coffee", image: "", sortOrder: 2, isActive: true },
   { id: "cat-3", name: "Tea & Matcha", image: "", sortOrder: 3, isActive: true },

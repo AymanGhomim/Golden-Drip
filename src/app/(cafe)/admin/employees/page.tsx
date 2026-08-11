@@ -6,6 +6,8 @@ import { toast } from "sonner";
 import { AdminShell } from "@/components/admin/admin-shell";
 import { PermissionGate } from "@/components/access/permission-gate";
 import { ConfirmDialog } from "@/components/shared/confirm-dialog";
+import { Pagination } from "@/components/shared/pagination";
+import { usePagination } from "@/hooks/use-pagination";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -38,6 +40,7 @@ export default function EmployeesPage() {
   const roleMap = new Map(roles.map((role) => [role.id, role]));
   const branchMap = new Map(branches.map((branch) => [branch.id, branch.name]));
   const filtered = employees.filter((employee) => `${employee.name} ${employee.phone} ${employee.email ?? ""} ${employee.username ?? ""} ${roleMap.get(employee.roleId)?.name ?? ""}`.toLowerCase().includes(query.toLowerCase()));
+  const pagination = usePagination(filtered, query);
 
   const refresh = () => setRevision((value) => value + 1);
   const openCreate = () => { setEditing(null); setFormOpen(true); };
@@ -56,8 +59,8 @@ export default function EmployeesPage() {
         <Card className="overflow-hidden"><CardContent className="p-0">
           <div className="border-b p-4"><div className="relative max-w-sm"><Search className="absolute right-3 top-3 h-4 w-4 text-muted-foreground" /><Input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="بحث عن موظف..." className="pr-9" /></div></div>
           <div className="overflow-x-auto"><table className="w-full min-w-[1050px] text-right text-sm"><thead className="bg-muted/50"><tr>{["الموظف", "الهاتف", "الدور", "الفروع", "الحالة", "تاريخ الانضمام", "الإجراءات"].map((heading) => <th key={heading} className="px-4 py-3">{heading}</th>)}</tr></thead><tbody>
-            {filtered.map((employee) => <tr key={employee.id} className="border-t"><td className="px-4 py-4"><p className="font-black">{employee.name}</p><p className="text-xs text-muted-foreground">{employee.email || employee.username || "—"}</p></td><td className="px-4 py-4">{employee.phone || "—"}</td><td className="px-4 py-4 font-bold">{roleMap.get(employee.roleId)?.name || "دور غير صالح"}</td><td className="px-4 py-4">{employee.branchAccess === "ALL" ? "كل الفروع" : employee.branchIds.map((id) => branchMap.get(id)).filter(Boolean).join("، ") || "—"}</td><td className="px-4 py-4"><Badge className={employee.status === "ACTIVE" ? "bg-emerald-500/15 text-emerald-700" : "bg-red-500/15 text-red-700"}>{employee.status === "ACTIVE" ? "نشط" : "موقوف"}</Badge></td><td className="px-4 py-4">{employee.joinDate ? new Date(employee.joinDate).toLocaleDateString("ar-EG") : "—"}</td><td className="px-4 py-4"><div className="flex gap-1"><Button variant="outline" size="icon" onClick={() => setViewing(employee)} aria-label="عرض"><Eye className="h-4 w-4" /></Button><PermissionGate permission="employees.update"><Button variant="outline" size="icon" onClick={() => openEdit(employee)} aria-label="تعديل"><Pencil className="h-4 w-4" /></Button></PermissionGate><PermissionGate permission="employees.suspend"><Button variant="outline" size="sm" onClick={() => setStatusTarget(employee)}><Power className="ml-1 h-4 w-4" />{employee.status === "ACTIVE" ? "إيقاف" : "تفعيل"}</Button></PermissionGate></div></td></tr>)}
-          </tbody></table>{!filtered.length ? <div className="p-12 text-center text-sm text-muted-foreground">لا يوجد موظفون حتى الآن.</div> : null}</div>
+            {pagination.items.map((employee) => <tr key={employee.id} className="border-t"><td className="px-4 py-4"><p className="font-black">{employee.name}</p><p className="text-xs text-muted-foreground">{employee.email || employee.username || "—"}</p></td><td className="px-4 py-4">{employee.phone || "—"}</td><td className="px-4 py-4 font-bold">{roleMap.get(employee.roleId)?.name || "دور غير صالح"}</td><td className="px-4 py-4">{employee.branchAccess === "ALL" ? "كل الفروع" : employee.branchIds.map((id) => branchMap.get(id)).filter(Boolean).join("، ") || "—"}</td><td className="px-4 py-4"><Badge className={employee.status === "ACTIVE" ? "bg-emerald-500/15 text-emerald-700" : "bg-red-500/15 text-red-700"}>{employee.status === "ACTIVE" ? "نشط" : "موقوف"}</Badge></td><td className="px-4 py-4">{employee.joinDate ? new Date(employee.joinDate).toLocaleDateString("ar-EG") : "—"}</td><td className="px-4 py-4"><div className="flex gap-1"><Button variant="outline" size="icon" onClick={() => setViewing(employee)} aria-label="عرض"><Eye className="h-4 w-4" /></Button><PermissionGate permission="employees.update"><Button variant="outline" size="icon" onClick={() => openEdit(employee)} aria-label="تعديل"><Pencil className="h-4 w-4" /></Button></PermissionGate><PermissionGate permission="employees.suspend"><Button variant="outline" size="sm" onClick={() => setStatusTarget(employee)}><Power className="ml-1 h-4 w-4" />{employee.status === "ACTIVE" ? "إيقاف" : "تفعيل"}</Button></PermissionGate></div></td></tr>)}
+          </tbody></table>{!filtered.length ? <div className="p-12 text-center text-sm text-muted-foreground">لا يوجد موظفون حتى الآن.</div> : null}<Pagination {...pagination.state} onPageChange={pagination.setPage} onPageSizeChange={pagination.setPageSize} /></div>
         </CardContent></Card>
       </section>
       {formOpen ? <EmployeeForm open onOpenChange={setFormOpen} employee={editing} roles={roles} branches={branches} onSaved={refresh} /> : null}

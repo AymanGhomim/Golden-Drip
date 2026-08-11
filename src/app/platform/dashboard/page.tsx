@@ -1,4 +1,5 @@
 "use client";
+/* eslint-disable @next/next/no-img-element -- Tenant logos may be data URLs and need immediate local previews. */
 
 import Link from "next/link";
 import { Building2, Clock3, PauseCircle, Plus, Sparkles, Users } from "lucide-react";

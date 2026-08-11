@@ -1,17 +1,31 @@
 "use client";
 import Link from "next/link";
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { CalendarPlus } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { tenantService } from "@/services/tenant.service";
-import { STATUS_LABELS } from "@/constants/status-presentation";
 import { getPlanByCode } from "@/config/plans.config";
 import { toast } from "sonner";
+import { SearchInput } from "@/components/shared/search-input";
+import { Pagination } from "@/components/shared/pagination";
+import { EmptyState } from "@/components/shared/empty-state";
+import { StatusBadge } from "@/components/shared/status-badge";
+import { useDebouncedValue } from "@/hooks/use-debounced-value";
+import { usePagination } from "@/hooks/use-pagination";
+import { formatDate } from "@/lib/formatters";
 
 export default function PlatformSubscriptionsPage() {
   const [, refresh] = useState(0);
+  const [query, setQuery] = useState("");
+  const [statusFilter, setStatusFilter] = useState("ALL");
+  const debouncedQuery = useDebouncedValue(query);
   const tenants = tenantService.listTenants();
+  const filteredTenants = useMemo(() => tenants.filter((tenant) => {
+    const matchesQuery = !debouncedQuery || `${tenant.name} ${tenant.slug}`.toLocaleLowerCase("ar").includes(debouncedQuery.toLocaleLowerCase("ar"));
+    return matchesQuery && (statusFilter === "ALL" || tenant.subscriptionStatus === statusFilter);
+  }), [debouncedQuery, statusFilter, tenants]);
+  const pagination = usePagination(filteredTenants, `${debouncedQuery}:${statusFilter}`);
   const active = tenants.filter((tenant) => tenant.status === "ACTIVE").length;
   const trial = tenants.filter((tenant) => tenant.status === "TRIAL").length;
   const suspended = tenants.filter(
@@ -68,6 +82,7 @@ export default function PlatformSubscriptionsPage() {
           </Card>
         ))}
       </div>
+      <Card className="mt-6"><CardContent className="grid gap-3 p-4 sm:grid-cols-[1fr_220px]"><SearchInput value={query} onChange={setQuery} placeholder="بحث باسم الكافيه أو المعرّف المختصر" /><select value={statusFilter} onChange={(event) => setStatusFilter(event.target.value)} className="h-10 rounded-lg border bg-background px-3 text-sm" aria-label="تصفية حسب حالة الاشتراك"><option value="ALL">كل حالات الاشتراك</option><option value="ACTIVE">نشط</option><option value="TRIAL">تجريبي</option><option value="SUSPENDED">موقوف</option><option value="EXPIRED">منتهي</option></select></CardContent></Card>
       <div className="mt-6 overflow-x-auto rounded-2xl border bg-white">
         <table className="w-full min-w-[850px] text-right text-sm">
           <thead className="bg-[#F3F4F6]">
@@ -88,7 +103,7 @@ export default function PlatformSubscriptionsPage() {
             </tr>
           </thead>
           <tbody>
-            {tenants.map((tenant) => {
+            {pagination.items.map((tenant) => {
               const days = tenant.subscription?.endsAt
                 ? Math.ceil(
                     (new Date(tenant.subscription.endsAt).getTime() -
@@ -107,15 +122,12 @@ export default function PlatformSubscriptionsPage() {
                     </Link>
                   </td>
                   <td className="p-4">{getPlanByCode(tenant.plan).name}</td>
+                  <td className="p-4"><StatusBadge status={tenant.subscriptionStatus} /></td>
                   <td className="p-4">
-                    {STATUS_LABELS[tenant.subscriptionStatus] ??
-                      tenant.subscriptionStatus}
+                    {formatDate(tenant.subscription?.startsAt)}
                   </td>
                   <td className="p-4">
-                    {tenant.subscription?.startsAt?.slice(0, 10) || "—"}
-                  </td>
-                  <td className="p-4">
-                    {tenant.subscription?.endsAt?.slice(0, 10) || "—"}
+                    {formatDate(tenant.subscription?.endsAt)}
                   </td>
                   <td className="p-4">{days === null ? "—" : `${days} يوم`}</td>
                   <td className="p-3">
@@ -131,8 +143,10 @@ export default function PlatformSubscriptionsPage() {
                 </tr>
               );
             })}
+            {!filteredTenants.length ? <tr><td colSpan={7}><EmptyState title="لا توجد اشتراكات مطابقة" description="غيّر البحث أو حالة الاشتراك لعرض نتائج أخرى." /></td></tr> : null}
           </tbody>
         </table>
+        <Pagination {...pagination.state} onPageChange={pagination.setPage} onPageSizeChange={pagination.setPageSize} />
       </div>
     </section>
   );

@@ -2,7 +2,6 @@ import { roundMoney } from "@/lib/money";
 import { cafeOperationsRepository } from "@/repositories/cafe-operations.repository";
 import { tenantDataRepository } from "@/repositories/tenant-data.repository";
 import { branchService } from "@/services/branch.service";
-import { cafeOperationsService } from "@/services/cafe-operations.service";
 import { tenantService } from "@/services/tenant.service";
 import type {
   Expense,
@@ -18,6 +17,9 @@ import type {
   OrderType,
   PaymentMethod,
 } from "@/types/order.types";
+import { calculateRecipeCost } from "@/lib/recipe-cost";
+import { useAuthStore } from "@/store/auth.store";
+import { employeeService } from "@/services/employee.service";
 
 export type ReportFilters = {
   from?: string;
@@ -26,6 +28,7 @@ export type ReportFilters = {
   orderType?: OrderType;
   orderSource?: OrderSource;
   paymentMethod?: PaymentMethod;
+  allowedBranchIds?: string[];
 };
 
 const inRange = (date: string, from?: string, to?: string) =>
@@ -34,9 +37,17 @@ const inRange = (date: string, from?: string, to?: string) =>
 
 function scope(filters: ReportFilters) {
   const tenantId = tenantService.requireActiveTenantId();
-  const allowed = new Set(
-    branchService.getBranches(tenantId).map((item) => item.id),
-  );
+  const tenantBranchIds = branchService.getBranches(tenantId).map((item) => item.id);
+  const user = useAuthStore.getState().user;
+  const employee = user?.tenantId === tenantId && user.employeeId
+    ? employeeService.getEmployeeById(user.employeeId, tenantId)
+    : undefined;
+  const effectiveAllowed = filters.allowedBranchIds ?? (employee
+    ? employeeService.getAccessibleBranches(employee, tenantId).map((branch) => branch.id)
+    : user?.role === "platform_super_admin"
+      ? tenantBranchIds
+      : [branchService.getActiveBranchId(tenantId)].filter(Boolean) as string[]);
+  const allowed = new Set(effectiveAllowed.filter((id) => tenantBranchIds.includes(id)));
   const requested = filters.branchIds?.length
     ? filters.branchIds
     : ([branchService.getActiveBranchId(tenantId)].filter(Boolean) as string[]);
@@ -46,15 +57,9 @@ function scope(filters: ReportFilters) {
 export const reportService = {
   getOrders(filters: ReportFilters = {}) {
     const { tenantId, branchIds } = scope(filters);
-    const branches = branchService.getBranches(tenantId);
     return tenantDataRepository
       .getOrders(tenantId)
-      .map((order, index) => ({
-        ...order,
-        tenantId,
-        branchId:
-          order.branchId ?? branches[index % Math.max(1, branches.length)]?.id,
-      }))
+      .map((order) => ({ ...order, tenantId }))
       .filter(
         (order) =>
           order.tenantId === tenantId &&
@@ -125,26 +130,14 @@ export const reportService = {
   },
   profit(filters: ReportFilters = {}) {
     const sales = this.sales(filters);
-    const recipes = cafeOperationsService.get<Recipe>("recipes");
-    const inventory = this.getBranchRecords<InventoryItem>(
-      "inventory",
-      filters,
-    );
-    const costByProduct = new Map(
-      recipes.map((recipe) => [
-        recipe.productId,
-        recipe.ingredients.reduce(
-          (sum, ingredient) =>
-            sum +
-            ingredient.quantity *
-              Number(
-                inventory.find((item) => item.id === ingredient.inventoryItemId)
-                  ?.averageCost ?? 0,
-              ),
-          0,
-        ),
-      ]),
-    );
+    const inventoryByBranch = new Map<string, InventoryItem[]>();
+    const recipesByBranch = new Map<string, Recipe[]>();
+    sales.orders.forEach((order) => {
+      if (order.branchId && !inventoryByBranch.has(order.branchId)) {
+        inventoryByBranch.set(order.branchId, cafeOperationsRepository.getForBranch<InventoryItem>("inventory", order.branchId, order.tenantId));
+        recipesByBranch.set(order.branchId, cafeOperationsRepository.getForBranch<Recipe>("recipes", order.branchId, order.tenantId));
+      }
+    });
     const cogs = roundMoney(
       sales.orders.reduce(
         (total, order) =>
@@ -152,7 +145,10 @@ export const reportService = {
           order.items.reduce(
             (sum, item) =>
               sum +
-              Number(costByProduct.get(item.productId) ?? 0) * item.quantity,
+              calculateRecipeCost(
+                recipesByBranch.get(order.branchId ?? "")?.find((recipe) => recipe.productId === item.productId) ?? { id: "missing", productId: item.productId, ingredients: [] },
+                inventoryByBranch.get(order.branchId ?? "") ?? [],
+              ) * item.quantity,
             0,
           ),
         0,

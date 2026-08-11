@@ -2,7 +2,7 @@ import { cafeOperationsRepository } from "@/repositories/cafe-operations.reposit
 import { branchService } from "@/services/branch.service";
 import { tenantService } from "@/services/tenant.service";
 import { roundMoney } from "@/lib/money";
-import { convertInventoryQuantity } from "@/lib/inventory-units";
+import { calculateRecipeCost } from "@/lib/recipe-cost";
 import type {
   AuditEntry,
   InventoryItem,
@@ -223,19 +223,6 @@ export const cafeOperationsService = {
   },
   getRecipeCost(recipe: Recipe) {
     const inventory = cafeOperationsRepository.get<InventoryItem>("inventory");
-    return roundMoney(
-      recipe.ingredients.reduce((total, ingredient) => {
-        const item = inventory.find(
-          (entry) => entry.id === ingredient.inventoryItemId,
-        );
-        if (!item) return total;
-        const normalizedQuantity = convertInventoryQuantity(
-          ingredient.quantity,
-          ingredient.unit,
-          item.unit,
-        );
-        return total + normalizedQuantity * Number(item.averageCost ?? 0);
-      }, 0),
-    );
+    return calculateRecipeCost(recipe, inventory);
   },
 };

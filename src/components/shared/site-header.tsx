@@ -1,10 +1,8 @@
 "use client";
 
 import Link from "next/link";
-import { useSearchParams } from "next/navigation";
 import { useEffect, useState } from "react";
-import { useTheme } from "next-themes";
-import { Moon, ShoppingCart, Sun } from "lucide-react";
+import { ShoppingCart } from "lucide-react";
 
 import { AppLogo } from "@/components/shared/app-logo";
 import { ContactTicker } from "@/components/shared/contact-ticker";
@@ -14,6 +12,7 @@ import { cn } from "@/lib/utils";
 import { useCartStore } from "@/store/cart.store";
 import type { Locale } from "@/lib/menu-translations";
 import { useTenant } from "@/providers/tenant-provider";
+import { useCustomerRoute } from "@/providers/customer-route-provider";
 
 interface SiteHeaderProps {
   locale: Locale;
@@ -22,47 +21,26 @@ interface SiteHeaderProps {
 
 export function SiteHeader({ locale, onLocaleChange }: SiteHeaderProps) {
   const { tenant } = useTenant();
-  const [isMounted, setIsMounted] = useState(false);
+  const customerRoute = useCustomerRoute();
   const [isCartHydrated, setIsCartHydrated] = useState(false);
-  const [scannedTableNumber, setScannedTableNumber] = useState<string | null>(
-    null,
-  );
-  const searchParams = useSearchParams();
   const items = useCartStore((state) => state.items);
   const totalItems = isCartHydrated
     ? items.reduce((sum, item) => sum + item.quantity, 0)
     : 0;
-  const { resolvedTheme, setTheme } = useTheme();
-
   useEffect(() => {
-    setIsMounted(true);
-    const tableFromUrl =
-      searchParams.get("table") ??
-      searchParams.get("tableNumber") ??
-      searchParams.get("t");
-
-    if (tableFromUrl) {
-      window.localStorage.setItem("cafe-ui-table", tableFromUrl);
-      setScannedTableNumber(tableFromUrl);
-    } else {
-      setScannedTableNumber(window.localStorage.getItem("cafe-ui-table"));
-    }
-
     void Promise.resolve().then(() => {
       setIsCartHydrated(true);
     });
-  }, [searchParams]);
+  }, []);
 
-  const cartHref = scannedTableNumber
-    ? `${ROUTES.cart}?table=${encodeURIComponent(scannedTableNumber)}`
-    : ROUTES.cart;
+  const cartHref = customerRoute.href(ROUTES.cart);
 
   return (
     <header className="sticky top-0 z-20 border-b bg-background/95 backdrop-blur animate-header-enter">
       <div className="mx-auto flex min-h-[4.75rem] w-full max-w-6xl items-center justify-between gap-2 px-3 py-3.5 sm:min-h-[6rem] sm:gap-6 sm:px-6 sm:py-5">
         <div className="flex min-w-0 items-center gap-3">
           <Link
-            href={ROUTES.menu}
+            href={customerRoute.href(ROUTES.menu)}
             className="shrink-0"
             aria-label={`${tenant.name} menu`}
           >
@@ -92,29 +70,9 @@ export function SiteHeader({ locale, onLocaleChange }: SiteHeaderProps) {
           <Button
             type="button"
             variant="outline"
-            size="icon"
-            className="order-2 h-8 w-8 rounded-full border-primary/15 bg-card shadow-sm transition-all hover:-translate-y-0.5 hover:border-primary/30 hover:bg-card hover:shadow-md sm:h-11 sm:w-11"
-            onClick={() =>
-              setTheme(resolvedTheme === "dark" ? "light" : "dark")
-            }
-            aria-label={
-              resolvedTheme === "dark"
-                ? "Switch to light mode"
-                : "Switch to dark mode"
-            }
-          >
-            {isMounted && resolvedTheme === "dark" ? (
-              <Sun className="h-3.5 w-3.5 text-accent sm:h-4 sm:w-4" />
-            ) : (
-              <Moon className="h-3.5 w-3.5 text-primary sm:h-4 sm:w-4" />
-            )}
-          </Button>
-          <Button
-            type="button"
-            variant="outline"
             className={cn(
               "h-8 w-[4.25rem] justify-between gap-0 rounded-full border-primary/15 bg-card p-0.5 shadow-sm transition-all hover:-translate-y-0.5 hover:border-primary/30 hover:bg-card hover:shadow-md sm:h-11 sm:w-[5.35rem] sm:p-1",
-              locale === "en" ? "order-1" : "order-3",
+              locale === "en" ? "order-1" : "order-2",
             )}
             onClick={() => onLocaleChange(locale === "en" ? "ar" : "en")}
             aria-label={

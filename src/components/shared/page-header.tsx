@@ -5,18 +5,20 @@ interface PageHeaderProps {
   description?: string;
   children?: React.ReactNode;
   className?: string;
+  breadcrumbs?: React.ReactNode;
 }
 
-export function PageHeader({ title, description, children, className }: PageHeaderProps) {
+export function PageHeader({ title, description, children, className, breadcrumbs }: PageHeaderProps) {
   return (
-    <div className={cn("flex flex-col gap-1 pb-4", className)}>
-      <div className="flex items-center justify-between">
+    <header className={cn("flex flex-col gap-1 pb-4", className)}>
+      {breadcrumbs ? <nav aria-label="مسار الصفحة" className="mb-2 text-xs text-muted-foreground">{breadcrumbs}</nav> : null}
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <h1 className="text-2xl font-bold tracking-tight">{title}</h1>
         {children}
       </div>
       {description && (
         <p className="text-muted-foreground">{description}</p>
       )}
-    </div>
+    </header>
   );
 }

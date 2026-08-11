@@ -9,7 +9,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { EmptyState } from "./empty-state";
-import { LoadingState } from "./loading-state";
+import { TableSkeleton } from "./skeleton-patterns";
 import { cn } from "@/lib/utils";
 
 export interface DataTableColumn<T> {
@@ -29,6 +29,7 @@ interface DataTableProps<T> {
   emptyDescription?: string;
   keyExtractor: (item: T) => string;
   className?: string;
+  skeletonRows?: number;
 }
 
 export function DataTable<T>({
@@ -39,9 +40,10 @@ export function DataTable<T>({
   emptyDescription,
   keyExtractor,
   className,
+  skeletonRows = 8,
 }: DataTableProps<T>) {
   if (loading) {
-    return <LoadingState />;
+    return <TableSkeleton columns={columns.length} rows={skeletonRows} className={className} />;
   }
 
   if (data.length === 0) {
@@ -49,8 +51,8 @@ export function DataTable<T>({
   }
 
   return (
-    <div className={cn("overflow-hidden rounded-md border bg-card", className)}>
-      <Table className="text-xs">
+    <div className={cn("overflow-x-auto rounded-md border bg-card", className)}>
+      <Table className="min-w-[680px] text-xs">
         <TableHeader className="bg-muted/45">
           <TableRow>
             {columns.map((col) => (
@@ -69,7 +71,7 @@ export function DataTable<T>({
         </TableHeader>
         <TableBody>
           {data.map((item) => (
-            <TableRow key={keyExtractor(item)}>
+            <TableRow key={keyExtractor(item)} className="transition-colors hover:bg-muted/35">
               {columns.map((col) => (
                 <TableCell
                   key={col.key}

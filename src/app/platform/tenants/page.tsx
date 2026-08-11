@@ -5,17 +5,23 @@ import { useMemo, useState } from "react";
 import {
   Building2,
   Eye,
-  Filter,
+  ExternalLink,
   LayoutDashboard,
   Palette,
   Pencil,
-  Search,
   ShieldCheck,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
+import { EmptyState } from "@/components/shared/empty-state";
+import { Pagination } from "@/components/shared/pagination";
+import { SearchInput } from "@/components/shared/search-input";
+import { StatusBadge } from "@/components/shared/status-badge";
+import { useDebouncedValue } from "@/hooks/use-debounced-value";
+import { usePagination } from "@/hooks/use-pagination";
+import { formatDate } from "@/lib/formatters";
 import { tenantService } from "@/services/tenant.service";
+import { branchService } from "@/services/branch.service";
 import type { TenantStatus } from "@/types/tenant.types";
 
 const statusLabels: Record<TenantStatus, string> = {
@@ -25,23 +31,34 @@ const statusLabels: Record<TenantStatus, string> = {
   ARCHIVED: "منتهي",
 };
 
+function getCustomerMenuHref(tenantId: string) {
+  const branch = branchService
+    .getBranches(tenantId)
+    .find((item) => item.status === "ACTIVE" && item.menuId);
+  return branch
+    ? `/menu?tenantId=${encodeURIComponent(tenantId)}&branchId=${encodeURIComponent(branch.id)}`
+    : null;
+}
+
 export default function PlatformTenantsPage() {
   const [query, setQuery] = useState("");
   const [status, setStatus] = useState("ALL");
   const [plan, setPlan] = useState("ALL");
+  const debouncedQuery = useDebouncedValue(query);
   const tenants = tenantService.listTenants();
   const filtered = useMemo(
     () =>
       tenants.filter((tenant) => {
         const text = `${tenant.name} ${tenant.slug} ${tenant.owner?.name || ""} ${tenant.contact?.phone || ""}`.toLowerCase();
         return (
-          (!query || text.includes(query.toLowerCase())) &&
+          (!debouncedQuery || text.includes(debouncedQuery.toLocaleLowerCase("ar"))) &&
           (status === "ALL" || tenant.status === status) &&
           (plan === "ALL" || tenant.plan === plan)
         );
       }),
-    [plan, query, status, tenants],
+    [debouncedQuery, plan, status, tenants],
   );
+  const pagination = usePagination(filtered, `${debouncedQuery}:${status}:${plan}`);
   const counts = {
     all: tenants.length,
     active: tenants.filter((tenant) => tenant.status === "ACTIVE").length,
@@ -93,15 +110,7 @@ export default function PlatformTenantsPage() {
       <Card className="mt-6">
         <CardContent className="p-4">
           <div className="grid gap-3 md:grid-cols-[1fr_180px_180px]">
-            <div className="relative">
-              <Search className="pointer-events-none absolute right-3 top-3 h-4 w-4 text-muted-foreground" />
-              <Input
-                value={query}
-                onChange={(event) => setQuery(event.target.value)}
-                placeholder="بحث بالاسم أو المعرّف المختصر أو المسؤول أو الهاتف"
-                className="pr-9"
-              />
-            </div>
+            <SearchInput value={query} onChange={setQuery} placeholder="بحث بالاسم أو المعرّف المختصر أو المسؤول أو الهاتف" />
             <select
               value={status}
               onChange={(event) => setStatus(event.target.value)}
@@ -150,7 +159,7 @@ export default function PlatformTenantsPage() {
             </tr>
           </thead>
           <tbody>
-            {filtered.map((tenant) => (
+            {pagination.items.map((tenant) => (
               <tr key={tenant.id} className="border-t">
                 <td className="p-3">
                   <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-[#F3F4F6] p-1">
@@ -176,21 +185,30 @@ export default function PlatformTenantsPage() {
                   {tenant.subscription?.endsAt?.slice(0, 10) || "—"}
                 </td>
                 <td className="p-4">
-                  <span
-                    className={`rounded-full px-2.5 py-1 text-xs font-bold ${
-                      tenant.status === "ACTIVE"
-                        ? "bg-emerald-500/15 text-emerald-700"
-                        : tenant.status === "SUSPENDED"
-                          ? "bg-red-500/15 text-red-700"
-                          : "bg-amber-500/15 text-amber-700"
-                    }`}
-                  >
-                    {statusLabels[tenant.status]}
-                  </span>
+                  <StatusBadge status={tenant.status} />
                 </td>
-                <td className="p-4">{tenant.createdAt.slice(0, 10)}</td>
+                <td className="p-4">{formatDate(tenant.createdAt)}</td>
                 <td className="p-3">
                   <div className="flex items-center gap-1">
+                    {getCustomerMenuHref(tenant.id) ? (
+                      <Button
+                        asChild
+                        type="button"
+                        size="sm"
+                        variant="outline"
+                        className="h-8 gap-1.5 px-3 text-xs"
+                      >
+                        <Link
+                          href={getCustomerMenuHref(tenant.id)!}
+                          target="_blank"
+                          rel="noreferrer"
+                          title={`فتح منيو العميل لـ ${tenant.name}`}
+                        >
+                          <ExternalLink className="h-3.5 w-3.5" />
+                          منيو العميل
+                        </Link>
+                      </Button>
+                    ) : null}
                     <Button
                       type="button"
                       size="sm"
@@ -227,17 +245,12 @@ export default function PlatformTenantsPage() {
             ))}
             {!filtered.length ? (
               <tr>
-                <td
-                  colSpan={9}
-                  className="p-12 text-center text-muted-foreground"
-                >
-                  <Filter className="mx-auto mb-2 h-6 w-6" />
-                  لا توجد نتائج مطابقة.
-                </td>
+                <td colSpan={9}><EmptyState title="لا توجد كافيهات مطابقة" description="جرّب مسح البحث أو تغيير الفلاتر الحالية." icon="search" /></td>
               </tr>
             ) : null}
           </tbody>
         </table>
+        <Pagination {...pagination.state} onPageChange={pagination.setPage} onPageSizeChange={pagination.setPageSize} />
       </div>
     </section>
   );

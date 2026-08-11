@@ -9,6 +9,11 @@ export const FEATURE_GROUPS: {
     title: "المبيعات",
     items: [
       {
+        key: "onlineMenu",
+        name: "المنيو الإلكتروني",
+        description: "عرض منيو العميل وربطه بكل فرع",
+      },
+      {
         key: "pos",
         name: "نقطة البيع",
         description: "تشغيل الكاشير وإتمام الطلبات",
@@ -82,7 +87,15 @@ export const DEFAULT_PLANS: Plan[] = [
     description: "البداية لإدارة المقهى",
     active: true,
     maxBranches: 1,
-    features: ["pos", "orders", "tables", "kitchen", "takeaway", "reports"],
+    features: [
+      "onlineMenu",
+      "pos",
+      "orders",
+      "tables",
+      "kitchen",
+      "takeaway",
+      "reports",
+    ],
   },
   {
     id: "plan-pro",
@@ -151,7 +164,7 @@ export function getEffectiveFeatures(
   const normalized = normalizePlanCode(planCode);
   const plan = getPlanByCode(normalized);
   const result = {
-    onlineMenu: false,
+    onlineMenu: true,
     qrOrdering: false,
     delivery: false,
     inventory: false,
@@ -159,7 +172,9 @@ export function getEffectiveFeatures(
   } as TenantFeatures;
   FEATURE_GROUPS.flatMap((group) => group.items).forEach((item) => {
     result[item.key] =
-      overrides?.[item.key] ?? plan.features.includes(item.key);
+      item.key === "onlineMenu"
+        ? (overrides?.onlineMenu ?? true)
+        : (overrides?.[item.key] ?? plan.features.includes(item.key));
   });
   return result;
 }

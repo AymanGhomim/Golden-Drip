@@ -78,7 +78,7 @@ export default function MenuOverviewPage() {
         <div className="mt-4 flex flex-wrap gap-2">
           <Button asChild><Link href="/admin/menu-settings"><Settings2 className="ml-2 h-4 w-4" />إعدادات المنيو</Link></Button>
           <Button asChild variant="outline"><Link href="/admin/qr"><QrCode className="ml-2 h-4 w-4" />رموز QR</Link></Button>
-          <Button type="button" variant="outline"><ExternalLink className="ml-2 h-4 w-4" />فتح المنيو</Button>
+          <Button asChild variant="outline"><Link href="/menu" target="_blank" rel="noreferrer"><ExternalLink className="ml-2 h-4 w-4" />فتح المنيو</Link></Button>
         </div>
       </section>
     </AdminShell>

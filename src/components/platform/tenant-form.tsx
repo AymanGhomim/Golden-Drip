@@ -1,5 +1,7 @@
 "use client";
 
+/* eslint-disable @next/next/no-img-element -- Tenant previews may use temporary data/blob URLs. */
+
 import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
@@ -24,6 +26,7 @@ import {
   SAFE_TENANT_BRANDING,
 } from "@/lib/tenant-branding";
 import { BrandAssetUpload } from "@/components/platform/brand-asset-upload";
+import { credentialService } from "@/services/credential.service";
 
 type Draft = {
   name: string;
@@ -32,9 +35,16 @@ type Draft = {
   whatsapp: string;
   email: string;
   address: string;
+  locationUrl: string;
+  facebook: string;
+  instagram: string;
+  tiktok: string;
   ownerName: string;
   ownerEmail: string;
   ownerPhone: string;
+  ownerUsername: string;
+  ownerPassword: string;
+  ownerPasswordConfirm: string;
   logo: string;
   branding: TenantBranding;
   plan: string;
@@ -93,6 +103,7 @@ function slugify(value: string) {
 
 export function TenantForm({ tenant }: { tenant?: Tenant }) {
   const router = useRouter();
+  const existingOwner = tenant ? credentialService.getOwner(tenant.id) : undefined;
   const [step, setStep] = useState(0);
   const [submitted, setSubmitted] = useState(false);
   const [draft, setDraft] = useState<Draft>(() => ({
@@ -102,9 +113,16 @@ export function TenantForm({ tenant }: { tenant?: Tenant }) {
     whatsapp: tenant?.contact?.whatsapp || "",
     email: tenant?.contact?.email || "",
     address: tenant?.contact?.address || "",
+    locationUrl: tenant?.contact?.locationUrl || "",
+    facebook: tenant?.contact?.facebook || "",
+    instagram: tenant?.contact?.instagram || "",
+    tiktok: tenant?.contact?.tiktok || "",
     ownerName: tenant?.owner?.name || "",
     ownerEmail: tenant?.owner?.email || "",
     ownerPhone: tenant?.owner?.phone || "",
+    ownerUsername: existingOwner ? credentialService.getLogin(existingOwner) : "",
+    ownerPassword: "",
+    ownerPasswordConfirm: "",
     logo: tenant?.branding.logo || baseBranding.logo,
     branding: { ...baseBranding, ...tenant?.branding },
     plan: normalizePlanCode(
@@ -137,9 +155,29 @@ export function TenantForm({ tenant }: { tenant?: Tenant }) {
       ...current,
       branding: { ...current.branding, [key]: value },
     }));
-  const save = () => {
+  const save = async () => {
     if (!draft.name.trim() || !/^[a-z0-9-]+$/.test(draft.slug) || duplicate) {
       toast.error("راجع اسم الكافيه والـ المعرّف المختصر قبل الحفظ");
+      return;
+    }
+    if (!draft.ownerName.trim() || !draft.ownerUsername.trim()) {
+      toast.error("اسم المسؤول واسم المستخدم مطلوبان.");
+      setStep(1);
+      return;
+    }
+    if (!tenant && draft.ownerPassword.length < 6) {
+      toast.error("كلمة المرور يجب ألا تقل عن 6 أحرف.");
+      setStep(1);
+      return;
+    }
+    if (draft.ownerPassword && draft.ownerPassword.length < 6) {
+      toast.error("كلمة المرور الجديدة يجب ألا تقل عن 6 أحرف.");
+      setStep(1);
+      return;
+    }
+    if (draft.ownerPassword !== draft.ownerPasswordConfirm) {
+      toast.error("كلمتا المرور غير متطابقتين.");
+      setStep(1);
       return;
     }
     const plan = getPlanByCode(draft.plan);
@@ -174,6 +212,10 @@ export function TenantForm({ tenant }: { tenant?: Tenant }) {
         whatsapp: draft.whatsapp,
         email: draft.email,
         address: draft.address,
+        locationUrl: draft.locationUrl,
+        facebook: draft.facebook,
+        instagram: draft.instagram,
+        tiktok: draft.tiktok,
       },
       owner: {
         name: draft.ownerName,
@@ -186,12 +228,29 @@ export function TenantForm({ tenant }: { tenant?: Tenant }) {
         endsAt: draft.endsAt,
       },
     };
-    tenant
-      ? tenantService.updateTenant(tenant.id, tenantPayload)
-      : tenantService.createTenant(tenantPayload);
-    setSubmitted(true);
-    toast.success(tenant ? "تم تحديث بيانات الكافيه" : "تم إنشاء الكافيه");
-    router.replace(`/platform/tenants/${tenantPayload.id}`);
+    try {
+      tenant
+        ? tenantService.updateTenant(tenant.id, tenantPayload)
+        : tenantService.createTenant(tenantPayload);
+      await credentialService.provisionOwner(tenantPayload.id, {
+        name: draft.ownerName,
+        email: draft.ownerEmail,
+        phone: draft.ownerPhone,
+        username: draft.ownerUsername,
+        password: draft.ownerPassword || undefined,
+      });
+      setSubmitted(true);
+      toast.success(
+        tenant
+          ? draft.ownerPassword
+            ? "تم تحديث الكافيه وإعادة تعيين كلمة مرور المسؤول"
+            : "تم تحديث بيانات الكافيه"
+          : "تم إنشاء الكافيه وحساب المسؤول",
+      );
+      router.replace(`/platform/tenants/${tenantPayload.id}`);
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "تعذر حفظ بيانات الكافيه.");
+    }
   };
   const steps = [
     "بيانات الكافيه",
@@ -271,6 +330,26 @@ export function TenantForm({ tenant }: { tenant?: Tenant }) {
                 value={draft.address}
                 onChange={(value) => update("address", value)}
               />
+              <Field
+                label="رابط الموقع على الخريطة"
+                value={draft.locationUrl}
+                onChange={(value) => update("locationUrl", value)}
+              />
+              <Field
+                label="Facebook"
+                value={draft.facebook}
+                onChange={(value) => update("facebook", value)}
+              />
+              <Field
+                label="Instagram"
+                value={draft.instagram}
+                onChange={(value) => update("instagram", value)}
+              />
+              <Field
+                label="TikTok"
+                value={draft.tiktok}
+                onChange={(value) => update("tiktok", value)}
+              />
             </div>
           ) : null}
           {step === 1 ? (
@@ -290,10 +369,28 @@ export function TenantForm({ tenant }: { tenant?: Tenant }) {
                 value={draft.ownerPhone}
                 onChange={(value) => update("ownerPhone", value)}
               />
-              <div className="rounded-xl border border-dashed p-4 text-sm text-muted-foreground">
-                حساب المسؤول هنا عقد Frontend فقط. كلمة المرور والدخول الآمن
-                يحتاجان Backend.
-              </div>
+              <Field
+                label="اسم المستخدم"
+                value={draft.ownerUsername}
+                onChange={(value) => update("ownerUsername", value)}
+              />
+              <Field
+                label={tenant ? "كلمة مرور جديدة (اختياري)" : "كلمة المرور"}
+                value={draft.ownerPassword}
+                onChange={(value) => update("ownerPassword", value)}
+                type="password"
+              />
+              <Field
+                label={tenant ? "تأكيد كلمة المرور الجديدة" : "تأكيد كلمة المرور"}
+                value={draft.ownerPasswordConfirm}
+                onChange={(value) => update("ownerPasswordConfirm", value)}
+                type="password"
+              />
+              <p className="sm:col-span-2 text-xs leading-6 text-muted-foreground">
+                {tenant
+                  ? "اترك كلمة المرور فارغة للاحتفاظ بها، أو اكتب كلمة جديدة لإعادة تعيينها مباشرة بصلاحية مالك المنصة."
+                  : "سيستخدم مسؤول الكافيه اسم المستخدم وكلمة المرور لتسجيل الدخول إلى لوحة الإدارة."}
+              </p>
             </div>
           ) : null}
           {step === 2 ? (
@@ -422,6 +519,7 @@ export function TenantForm({ tenant }: { tenant?: Tenant }) {
                 <Summary label="الاسم" value={draft.name || "—"} />
                 <Summary label="المعرّف المختصر" value={draft.slug || "—"} />
                 <Summary label="المسؤول" value={draft.ownerName || "—"} />
+                <Summary label="اسم المستخدم" value={draft.ownerUsername || "—"} />
                 <Summary label="الباقة" value={draft.plan} />
                 <Summary
                   label="الاشتراك"

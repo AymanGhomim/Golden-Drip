@@ -24,7 +24,7 @@ const productImages = {
   hotChocolate: "https://images.unsplash.com/photo-1542990253-0d0f5be5f0ed?w=800&auto=format&fit=crop",
 };
 
-const goldenProducts: Product[] = [
+export const goldenProducts: Product[] = [
   { id: "prod-1", name: "Espresso", description: "Double-shot espresso made from freshly ground Arabica beans.", price: 55, image: productImages.espresso, categoryId: "cat-1", isAvailable: true },
   { id: "prod-2", name: "Americano", description: "Double espresso gently lengthened with hot filtered water.", price: 60, image: productImages.americano, categoryId: "cat-1", isAvailable: true },
   { id: "prod-3", name: "Cappuccino", description: "Espresso, steamed whole milk, and a thick layer of silky milk foam.", price: 75, image: productImages.cappuccino, categoryId: "cat-1", isAvailable: true },

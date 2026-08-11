@@ -278,7 +278,7 @@ export default function PosPage() {
               الأسعار والتوفر من منيو الفرع الحالي.
             </p>
           </div>
-          <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_420px]">
+          <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_420px]">
             <Card>
               <CardHeader className="border-b">
                 <div className="relative">
@@ -316,7 +316,7 @@ export default function PosPage() {
                 </div>
               ) : null}
             </Card>
-            <Card className="h-fit">
+            <Card className="h-fit xl:sticky xl:top-4">
               <CardHeader>
                 <CardTitle className="flex items-center justify-between">
                   الطلب الحالي <ShoppingCart className="h-5 w-5" />
@@ -467,6 +467,7 @@ export default function PosPage() {
                             onClick={() =>
                               decrease(item.cartId ?? item.productId)
                             }
+                            aria-label={`تقليل كمية ${item.name}`}
                           >
                             <Minus className="h-3 w-3" />
                           </Button>
@@ -479,6 +480,7 @@ export default function PosPage() {
                             onClick={() =>
                               increase(item.cartId ?? item.productId)
                             }
+                            aria-label={`زيادة كمية ${item.name}`}
                           >
                             <Plus className="h-3 w-3" />
                           </Button>

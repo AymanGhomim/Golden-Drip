@@ -6,6 +6,7 @@ interface EmptyStateProps {
   description?: string;
   icon?: "search" | "cart" | "package" | "file";
   action?: React.ReactNode;
+  secondaryAction?: React.ReactNode;
   className?: string;
 }
 
@@ -16,11 +17,11 @@ const iconMap = {
   file: FileX,
 };
 
-export function EmptyState({ title, description, icon = "search", action, className }: EmptyStateProps) {
+export function EmptyState({ title, description, icon = "search", action, secondaryAction, className }: EmptyStateProps) {
   const Icon = iconMap[icon];
 
   return (
-    <div className={cn("flex flex-col items-center justify-center py-12 text-center", className)}>
+    <div className={cn("flex flex-col items-center justify-center px-4 py-12 text-center", className)} role="status">
       <div className="mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-muted">
         <Icon className="h-8 w-8 text-muted-foreground" />
       </div>
@@ -28,7 +29,7 @@ export function EmptyState({ title, description, icon = "search", action, classN
       {description && (
         <p className="mt-1 max-w-sm text-sm text-muted-foreground">{description}</p>
       )}
-      {action && <div className="mt-4">{action}</div>}
+      {(action || secondaryAction) && <div className="mt-5 flex flex-col-reverse gap-2 sm:flex-row">{secondaryAction}{action}</div>}
     </div>
   );
 }

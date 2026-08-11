@@ -1,7 +1,7 @@
 import { Table } from "@/types/table.types";
 import { getMockTenantId } from "@/mocks/mock-tenant-context";
 
-const goldenTables: Table[] = [
+export const goldenTables: Table[] = [
   { id: "tbl-1", number: 1, qrCode: "qr-table-1", isActive: true },
   { id: "tbl-2", number: 2, qrCode: "qr-table-2", isActive: true },
   { id: "tbl-3", number: 3, qrCode: "qr-table-3", isActive: true },

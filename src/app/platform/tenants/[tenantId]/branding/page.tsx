@@ -1,5 +1,6 @@
 "use client";
-import { useMemo, useState } from "react";
+/* eslint-disable @next/next/no-img-element -- Live branding previews intentionally support data/blob URLs. */
+import { useEffect, useMemo, useState } from "react";
 import { useParams } from "next/navigation";
 import { toast } from "sonner";
 import { RotateCcw, Save } from "lucide-react";
@@ -47,29 +48,35 @@ export default function TenantBrandingPage() {
   return <BrandingEditor tenant={tenant} />;
 }
 function BrandingEditor({ tenant }: { tenant: Tenant }) {
-  const [branding, setBranding] = useState<TenantBranding>(() =>
-    normalizeTenantBranding(tenant.branding),
-  );
+  const initialBranding = useMemo(() => normalizeTenantBranding(tenant.branding), [tenant.branding]);
+  const [branding, setBranding] = useState<TenantBranding>(() => initialBranding);
+  const [savedBranding, setSavedBranding] = useState<TenantBranding>(() => initialBranding);
+  const [saving, setSaving] = useState(false);
   const [mode, setMode] = useState("admin");
-  const original = useMemo(
-    () => normalizeTenantBranding(tenant.branding),
-    [tenant.branding],
-  );
+  const isDirty = JSON.stringify(branding) !== JSON.stringify(savedBranding);
+  useEffect(() => {
+    if (!isDirty) return;
+    const warn = (event: BeforeUnloadEvent) => { event.preventDefault(); event.returnValue = ""; };
+    window.addEventListener("beforeunload", warn);
+    return () => window.removeEventListener("beforeunload", warn);
+  }, [isDirty]);
   const update = (key: keyof TenantBranding, value: string) =>
     setBranding((current) => ({ ...current, [key]: value }));
   const save = () => {
     const normalized = normalizeTenantBranding(branding);
+    setSaving(true);
     try {
       tenantService.updateTenant(tenant.id, { branding: normalized });
       setBranding(normalized);
-      toast.success("تم حفظ الهوية");
+      setSavedBranding(normalized);
+      toast.success("تم حفظ التغييرات بنجاح");
     } catch {
       toast.error(
         "تعذر حفظ الصور محليًا. جرّب صورة أصغر أو احذف بيانات الموقع المحلية.",
       );
-    }
+    } finally { setSaving(false); }
   };
-  const reset = () => setBranding({ ...original });
+  const reset = () => setBranding({ ...savedBranding });
   return (
     <section className="mx-auto max-w-[1500px] p-5 sm:p-10">
       <TenantDetailHeader tenant={{ ...tenant, branding }} />
@@ -390,13 +397,13 @@ function BrandingEditor({ tenant }: { tenant: Tenant }) {
         </Card>
         <Preview tenant={tenant} branding={branding} mode={mode} />
         <div className="xl:col-span-2 flex justify-end gap-2">
-          <Button variant="outline" onClick={reset}>
+          <Button variant="outline" onClick={reset} disabled={!isDirty || saving}>
             <RotateCcw className="ml-2 h-4 w-4" />
             إلغاء التغييرات
           </Button>
-          <Button onClick={save}>
+          <Button onClick={save} disabled={!isDirty || saving}>
             <Save className="ml-2 h-4 w-4" />
-            حفظ التغييرات
+            {saving ? "جاري الحفظ..." : "حفظ التغييرات"}
           </Button>
         </div>
       </div>

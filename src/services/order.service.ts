@@ -2,6 +2,7 @@ import { cafeDataService } from "@/services/cafe-data.service";
 import { cafeOperationsService } from "@/services/cafe-operations.service";
 import { useAuthStore } from "@/store/auth.store";
 import type { Order, OrderStatus } from "@/types/order.types";
+import { restoreOrderInventory } from "@/services/inventory-reversal.service";
 
 const transitions: Record<OrderStatus, OrderStatus[]> = {
   NEW: ["ACCEPTED", "CANCELLED"],
@@ -68,8 +69,11 @@ export const orderService = {
     if (!canTransitionOrderStatus(order.status, "CANCELLED"))
       throw new Error("لا يمكن إلغاء الطلب في حالته الحالية.");
     const timestamp = new Date().toISOString();
+    const inventoryResult = ["NEW", "ACCEPTED"].includes(order.status)
+      ? restoreOrderInventory(order)
+      : { restored: false, order };
     const updated = saveOrder({
-      ...order,
+      ...inventoryResult.order,
       status: "CANCELLED",
       updatedAt: timestamp,
       cancellation: {

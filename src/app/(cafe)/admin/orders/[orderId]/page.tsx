@@ -1,4 +1,6 @@
 "use client";
+import Link from "next/link";
+import { useParams } from "next/navigation";
 import { useCallback, useEffect, useState } from "react";
 import { Printer, RotateCcw } from "lucide-react";
 import { toast } from "sonner";
@@ -7,6 +9,7 @@ import { PermissionGate } from "@/components/access/permission-gate";
 import { AppLogo } from "@/components/shared/app-logo";
 import { ConfirmDialog } from "@/components/shared/confirm-dialog";
 import { StatusBadge } from "@/components/shared/status-badge";
+import { Breadcrumbs } from "@/components/shared/breadcrumbs";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import {
@@ -53,11 +56,8 @@ const typeLabels = {
   TAKEAWAY: "تيك أواي",
   DELIVERY: "توصيل",
 };
-export default function OrderDetailsPage({
-  params,
-}: {
-  params: { orderId: string };
-}) {
+export default function OrderDetailsPage() {
+  const params = useParams<{ orderId: string }>();
   const { tenant } = useTenant();
   const { branch } = useBranch();
   const [order, setOrder] = useState<Order | undefined>();
@@ -121,6 +121,7 @@ export default function OrderDetailsPage({
         dir="rtl"
         className="mx-auto w-full max-w-[1200px] px-3 py-5 sm:px-5"
       >
+        <Breadcrumbs items={[{ label: "الطلبات", href: "/admin/orders" }, { label: order.orderNumber }]} />
         <div className="mb-4 flex flex-wrap items-end justify-between gap-3">
           <div>
             <p className="text-xs font-bold text-accent">تفاصيل الطلب</p>
@@ -355,12 +356,12 @@ export default function OrderDetailsPage({
                   </p>
                 ) : null}
                 {paid - refunded > 0 && (
-                  <PermissionGate anyOf={["refunds.create", "orders.refund"]}>
+                  <PermissionGate permission="refunds.create">
                     <Button asChild variant="outline" className="w-full">
-                      <a href="/admin/payments">
+                      <Link href="/admin/payments">
                         <RotateCcw className="ml-2 h-4 w-4" />
                         فتح المدفوعات للاسترجاع
-                      </a>
+                      </Link>
                     </Button>
                   </PermissionGate>
                 )}

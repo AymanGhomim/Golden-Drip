@@ -6,7 +6,8 @@ export function formatMoney(
   currencySymbol = "ج.م",
   locale = "ar-EG",
 ) {
-  return `${roundMoney(value).toLocaleString(locale, { minimumFractionDigits: 0, maximumFractionDigits: 2 })} ${currencySymbol}`;
+  const safeValue = Number.isFinite(value) ? value : 0;
+  return `${roundMoney(safeValue).toLocaleString(locale, { minimumFractionDigits: 0, maximumFractionDigits: 2 })} ${currencySymbol}`;
 }
 export function percentageOf(value: number, percentage: number) {
   return roundMoney((value * Math.max(0, percentage)) / 100);

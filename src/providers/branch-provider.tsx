@@ -15,6 +15,7 @@ import { useOrdersStore } from "@/store/orders.store";
 import type { Branch } from "@/types/branch.types";
 import { useCurrentEmployee } from "@/providers/current-employee-provider";
 import { employeeService } from "@/services/employee.service";
+import { useCustomerRoute } from "@/providers/customer-route-provider";
 
 type BranchContextValue = {
   branch: Branch | null;
@@ -28,6 +29,7 @@ const BranchContext = createContext<BranchContextValue | null>(null);
 export function BranchProvider({ children }: { children: React.ReactNode }) {
   const { tenant } = useTenant();
   const { employee } = useCurrentEmployee();
+  const customerRoute = useCustomerRoute();
   const [branches, setBranches] = useState<Branch[]>([]);
   const [branchId, setBranchId] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
@@ -37,15 +39,18 @@ export function BranchProvider({ children }: { children: React.ReactNode }) {
       ? employeeService.getAccessibleBranches(employee, tenant.id)
       : all;
     const saved = branchService.getActiveBranchId(tenant.id);
-    const validBranchId = next.some((item) => item.id === saved)
-      ? saved
-      : (next.find((item) => item.status === "ACTIVE")?.id ?? null);
+    const requestedBranchId = customerRoute.context?.branch.id;
+    const validBranchId = requestedBranchId && next.some((item) => item.id === requestedBranchId)
+      ? requestedBranchId
+      : next.some((item) => item.id === saved)
+        ? saved
+        : (next.find((item) => item.status === "ACTIVE")?.id ?? null);
     if (validBranchId !== saved)
       branchService.setActiveBranch(validBranchId, tenant.id);
     setBranches(next);
     setBranchId(validBranchId);
     setLoading(false);
-  }, [employee, tenant.id]);
+  }, [customerRoute.context?.branch.id, employee, tenant.id]);
   useEffect(() => {
     setLoading(true);
     refreshBranches();

@@ -17,7 +17,6 @@ import {
 } from "@/lib/menu-translations";
 import { useCartStore } from "@/store/cart.store";
 import type { Product } from "@/types/product.types";
-import { cafeDataService } from "@/services/cafe-data.service";
 import { modifierService } from "@/services/modifier.service";
 import type { ModifierGroup } from "@/types/cafe-operations.types";
 import { toast } from "sonner";
@@ -33,10 +32,7 @@ export function ProductDetailClient({ product }: { product: Product }) {
 
   useEffect(() => {
     if (window.localStorage.getItem("cafe-ui-locale") === "ar") setLocale("ar");
-    setBranchPrice(
-      cafeDataService.getBranchProducts().find((item) => item.id === product.id)
-        ?.price ?? product.price,
-    );
+    setBranchPrice(product.price);
     setModifierGroups(modifierService.getForProduct(product.id));
     setSelections({});
     void Promise.resolve();
@@ -162,7 +158,7 @@ export function ProductDetailClient({ product }: { product: Product }) {
           </div>
         </div>
 
-        <div className="h-fit space-y-4 rounded-md border bg-card p-5 shadow-[0_10px_28px_hsl(var(--foreground)/0.07)]">
+        <div className="h-fit space-y-4 rounded-md border bg-card p-5 shadow-[0_10px_28px_hsl(var(--foreground)/0.07)] lg:sticky lg:top-24">
           {modifierGroups.map((group) => (
             <div key={group.id} className="space-y-2 border-b pb-4">
               <div className="flex justify-between gap-2">
@@ -190,6 +186,7 @@ export function ProductDetailClient({ product }: { product: Product }) {
                     disabled={!option.available}
                     onClick={() => toggleModifier(group, option.id)}
                     className="justify-between"
+                    aria-pressed={(selections[group.id] ?? []).includes(option.id)}
                   >
                     <span>{option.name}</span>
                     <Price value={option.priceAdjustment} locale={locale} />
@@ -207,7 +204,7 @@ export function ProductDetailClient({ product }: { product: Product }) {
                 variant="outline"
                 className="transition-colors hover:bg-accent hover:text-accent-foreground"
                 onClick={() => setQuantity((value) => Math.max(1, value - 1))}
-                aria-label="Decrease quantity"
+                aria-label={locale === "ar" ? "تقليل الكمية" : "Decrease quantity"}
               >
                 <Minus className="h-4 w-4" />
               </Button>
@@ -220,7 +217,7 @@ export function ProductDetailClient({ product }: { product: Product }) {
                 variant="outline"
                 className="transition-colors hover:bg-accent hover:text-accent-foreground"
                 onClick={() => setQuantity((value) => value + 1)}
-                aria-label="Increase quantity"
+                aria-label={locale === "ar" ? "زيادة الكمية" : "Increase quantity"}
               >
                 <Plus className="h-4 w-4" />
               </Button>
@@ -229,7 +226,7 @@ export function ProductDetailClient({ product }: { product: Product }) {
           <Button
             type="button"
             size="lg"
-            className="w-full gap-2 rounded-md bg-primary font-bold text-primary-foreground shadow-sm transition-all hover:-translate-y-0.5 hover:bg-primary/90"
+            className="sticky bottom-3 z-10 w-full gap-2 rounded-md bg-primary font-bold text-primary-foreground shadow-lg transition-all hover:-translate-y-0.5 hover:bg-primary/90 lg:static"
             onClick={addToCart}
           >
             <ShoppingCart className="h-5 w-5" />

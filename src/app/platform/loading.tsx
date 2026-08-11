@@ -1,5 +1,5 @@
-import { AppLoadingState } from "@/components/feedback/app-state";
+import { DashboardSkeleton } from "@/components/shared/skeleton-patterns";
 
 export default function PlatformLoading() {
-  return <AppLoadingState variant="platform" title="جاري تحميل لوحة إدارة المنصة..." />;
+  return <main dir="rtl" className="min-h-screen bg-[#F5F5F5] text-[#111111]"><div className="mx-auto w-full max-w-[1500px]"><DashboardSkeleton /></div></main>;
 }

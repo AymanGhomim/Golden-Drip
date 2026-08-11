@@ -5,6 +5,10 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { cafeOperationsService } from "@/services/cafe-operations.service";
 import type { AuditEntry } from "@/types/cafe-operations.types";
+import { Pagination } from "@/components/shared/pagination";
+import { SearchInput } from "@/components/shared/search-input";
+import { usePagination } from "@/hooks/use-pagination";
+import { formatDateTime } from "@/lib/formatters";
 export default function ActivityLogPage() {
   const [records, setRecords] = useState<AuditEntry[]>([]);
   const [query, setQuery] = useState("");
@@ -36,6 +40,8 @@ export default function ActivityLogPage() {
       ),
     [records, query, module, action, employee, from, to],
   );
+  const sortedFiltered = useMemo(() => [...filtered].reverse(), [filtered]);
+  const pagination = usePagination(sortedFiltered, [query, module, action, employee, from, to].join(":"));
   return (
     <AdminShell>
       <section
@@ -50,11 +56,7 @@ export default function ActivityLogPage() {
         <Card>
           <CardContent className="p-0">
             <div className="grid gap-2 border-b p-4 sm:grid-cols-2 lg:grid-cols-6">
-              <Input
-                placeholder="بحث"
-                value={query}
-                onChange={(e) => setQuery(e.target.value)}
-              />
+              <SearchInput placeholder="بحث في سجل النشاط" value={query} onChange={setQuery} />
               <Input
                 placeholder="الموظف"
                 value={employee}
@@ -111,10 +113,10 @@ export default function ActivityLogPage() {
                   </tr>
                 </thead>
                 <tbody>
-                  {[...filtered].reverse().map((r) => (
+                  {pagination.items.map((r) => (
                     <tr key={r.id} className="border-t">
                       <td className="px-4 py-3">
-                        {new Date(r.createdAt).toLocaleString("ar-EG")}
+                        {formatDateTime(r.createdAt)}
                       </td>
                       <td className="px-4 py-3">{r.userId ?? "النظام"}</td>
                       <td className="px-4 py-3">{r.branchId ?? "كل الفروع"}</td>
@@ -131,6 +133,7 @@ export default function ActivityLogPage() {
                   لا توجد سجلات نشاط مطابقة.
                 </div>
               ) : null}
+              <Pagination {...pagination.state} onPageChange={pagination.setPage} onPageSizeChange={pagination.setPageSize} />
             </div>
           </CardContent>
         </Card>

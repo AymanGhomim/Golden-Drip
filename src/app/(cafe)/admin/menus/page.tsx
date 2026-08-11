@@ -5,6 +5,7 @@ import { toast } from "sonner";
 import { AdminShell } from "@/components/admin/admin-shell";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { PermissionGate } from "@/components/access/permission-gate";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { useTenant } from "@/providers/tenant-provider";
@@ -106,10 +107,10 @@ export default function MenusPage() {
               منيوهات قابلة لإعادة الاستخدام بأسعار وتوفر مستقلين.
             </p>
           </div>
-          <Button onClick={() => open()}>
+          <PermissionGate permission="menus.manage"><Button onClick={() => open()}>
             <Plus className="ml-2 h-4 w-4" />
             إنشاء منيو
-          </Button>
+          </Button></PermissionGate>
         </div>
         <Card>
           <CardContent className="overflow-x-auto p-0">
@@ -149,7 +150,7 @@ export default function MenusPage() {
                       {new Date(menu.updatedAt).toLocaleDateString("ar-EG")}
                     </td>
                     <td className="px-4 py-3">
-                      <div className="flex gap-1">
+                      <PermissionGate permission="menus.manage"><div className="flex gap-1">
                         <Button
                           variant="outline"
                           size="icon"
@@ -195,7 +196,7 @@ export default function MenusPage() {
                         >
                           <Trash2 className="h-4 w-4" />
                         </Button>
-                      </div>
+                      </div></PermissionGate>
                     </td>
                   </tr>
                 ))}

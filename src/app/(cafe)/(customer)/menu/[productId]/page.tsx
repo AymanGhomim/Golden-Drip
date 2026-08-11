@@ -1,5 +1,6 @@
 import { ProductPageResolver } from "./product-page-resolver";
 
-export default function ProductPage({ params }: { params: { productId: string } }) {
-  return <ProductPageResolver productId={params.productId} />;
+export default async function ProductPage({ params }: { params: Promise<{ productId: string }> }) {
+  const { productId } = await params;
+  return <ProductPageResolver productId={productId} />;
 }

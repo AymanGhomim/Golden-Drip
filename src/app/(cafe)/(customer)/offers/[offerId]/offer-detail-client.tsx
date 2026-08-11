@@ -53,7 +53,7 @@ export function OfferDetailClient({ offer }: { offer: Offer }) {
       <section className="animate-content-enter mx-auto grid w-full max-w-6xl gap-6 px-4 py-8 lg:grid-cols-[1fr_22rem] sm:px-6">
         <div className="relative min-h-[26rem] overflow-hidden rounded-md border bg-muted shadow-sm">
           <Image
-            src={offer.image}
+            src={offer.image || "/cafe-placeholder.svg"}
             alt={offer.title}
             fill
             sizes="(min-width: 1024px) 1152px, 100vw"

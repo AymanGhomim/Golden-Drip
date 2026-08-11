@@ -1,7 +1,7 @@
 import { Order } from "@/types/order.types";
 import { getMockTenantId } from "@/mocks/mock-tenant-context";
 
-const goldenOrders: Order[] = [
+export const goldenOrders: Order[] = [
   {
     id: "ord-1",
     orderNumber: "ORD-001",

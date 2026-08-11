@@ -8,6 +8,7 @@ import { AdminStatCard } from "@/components/admin/admin-stat-card";
 import { ConfirmDialog } from "@/components/shared/confirm-dialog";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { PermissionGate } from "@/components/access/permission-gate";
 import { Card, CardContent } from "@/components/ui/card";
 import {
   Dialog,
@@ -94,14 +95,14 @@ export default function CategoriesPage() {
               إدارة أقسام الكافيه الحالي فقط.
             </p>
           </div>
-          <Button
+          <PermissionGate permission="categories.manage"><Button
             type="button"
             className="h-10 rounded-lg"
             onClick={() => setOpen(true)}
           >
             <Plus className="ml-2 h-4 w-4" />
             إضافة قسم
-          </Button>
+          </Button></PermissionGate>
         </div>
         <div className="mb-4 grid gap-3 sm:grid-cols-3">
           <AdminStatCard
@@ -162,7 +163,7 @@ export default function CategoriesPage() {
                         </Badge>
                       </td>
                       <td className="px-4 py-4">
-                        <div className="flex gap-1">
+                        <PermissionGate permission="categories.manage"><div className="flex gap-1">
                           <Button
                             type="button"
                             variant="ghost"
@@ -188,7 +189,7 @@ export default function CategoriesPage() {
                           >
                             <Trash2 className="h-3.5 w-3.5" />
                           </Button>
-                        </div>
+                        </div></PermissionGate>
                       </td>
                     </tr>
                   ))}

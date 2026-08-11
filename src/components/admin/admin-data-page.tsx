@@ -1,15 +1,18 @@
 "use client";
 
-import { Check, RotateCcw, Search, SlidersHorizontal, Plus, X } from "lucide-react";
+import { Check, RotateCcw, SlidersHorizontal, Plus, X } from "lucide-react";
 import { useMemo, useState } from "react";
 
 import { AdminShell } from "@/components/admin/admin-shell";
 import { AdminStatCard, type AdminStatCardProps } from "@/components/admin/admin-stat-card";
 import { DataTable, type DataTableColumn } from "@/components/shared/data-table";
+import { Pagination } from "@/components/shared/pagination";
+import { SearchInput } from "@/components/shared/search-input";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
+import { useDebouncedValue } from "@/hooks/use-debounced-value";
+import { usePagination } from "@/hooks/use-pagination";
 import {
   Select,
   SelectContent,
@@ -79,7 +82,8 @@ export function AdminDataPage<T>({
   const [activeFilters, setActiveFilters] = useState<Record<string, string>>({});
   const [draftFilters, setDraftFilters] = useState<Record<string, string>>({});
   const [isFilterPanelOpen, setIsFilterPanelOpen] = useState(false);
-  const normalizedSearchQuery = searchQuery.trim().toLowerCase();
+  const debouncedSearchQuery = useDebouncedValue(searchQuery);
+  const normalizedSearchQuery = debouncedSearchQuery.trim().toLocaleLowerCase("ar");
   const resolvedFilterGroups = useMemo(
     () =>
       filterGroups ??
@@ -107,7 +111,7 @@ export function AdminDataPage<T>({
       const matchesSearch =
         !searchValue ||
         !normalizedSearchQuery ||
-        searchValue(item).toLowerCase().includes(normalizedSearchQuery);
+        searchValue(item).toLocaleLowerCase("ar").includes(normalizedSearchQuery);
       const matchesFilters = resolvedFilterGroups.every((group) => {
         const activeValue = activeFilters[group.label] ?? "all";
         const selectedFilter = group.options.find((filter) => filter.value === activeValue);
@@ -118,6 +122,7 @@ export function AdminDataPage<T>({
       return matchesSearch && matchesFilters;
     });
   }, [activeFilters, data, normalizedSearchQuery, resolvedFilterGroups, searchValue]);
+  const pagination = usePagination(filteredData, `${normalizedSearchQuery}:${JSON.stringify(activeFilters)}`);
 
   return (
     <AdminShell>
@@ -158,15 +163,7 @@ export function AdminDataPage<T>({
                 <>
                 <div className="mt-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                   {searchValue ? (
-                    <div className="relative w-full sm:max-w-sm">
-                      <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-                      <Input
-                        value={searchQuery}
-                        onChange={(event) => setSearchQuery(event.target.value)}
-                        placeholder={searchPlaceholder}
-                        className="h-10 rounded-md pl-9 text-sm shadow-sm"
-                      />
-                    </div>
+                    <SearchInput value={searchQuery} onChange={setSearchQuery} placeholder={searchPlaceholder} className="w-full sm:max-w-sm" inputClassName="rounded-md text-sm shadow-sm" />
                   ) : null}
                   {resolvedFilterGroups.length > 0 ? (
                     <Button
@@ -282,12 +279,13 @@ export function AdminDataPage<T>({
             </div>
             <DataTable
               columns={columns}
-              data={filteredData}
+              data={pagination.items}
               keyExtractor={keyExtractor}
               className="rounded-none border-0"
               emptyMessage={emptyMessage}
               emptyDescription={emptyDescription}
             />
+            <Pagination {...pagination.state} onPageChange={pagination.setPage} onPageSizeChange={pagination.setPageSize} />
           </CardContent>
         </Card>
       </section>

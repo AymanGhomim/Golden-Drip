@@ -16,6 +16,7 @@ const typeLabels: Record<StockMovement["type"], string> = {
   WASTE: "هالك",
   ADJUSTMENT: "تسوية",
   RETURN: "مرتجع",
+  ORDER_CANCELLATION_RESTORE: "استرجاع إلغاء طلب",
 };
 export default function StockMovementsPage() {
   const [movements, setMovements] = useState<StockMovement[]>([]);

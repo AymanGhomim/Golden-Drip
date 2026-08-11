@@ -1,8 +1,10 @@
 "use client";
 import { useCallback, useEffect, useState } from "react";
+import { useParams } from "next/navigation";
 import { Plus, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import { AdminShell } from "@/components/admin/admin-shell";
+import { Breadcrumbs } from "@/components/shared/breadcrumbs";
 import { PermissionGate } from "@/components/access/permission-gate";
 import { ConfirmDialog } from "@/components/shared/confirm-dialog";
 import { Button } from "@/components/ui/button";
@@ -28,11 +30,8 @@ const blank = {
   notes: "",
   isDefault: false,
 };
-export default function CustomerDetailsPage({
-  params,
-}: {
-  params: { customerId: string };
-}) {
+export default function CustomerDetailsPage() {
+  const params = useParams<{ customerId: string }>();
   const { tenant } = useTenant();
   const [customer, setCustomer] = useState<Customer>();
   const [open, setOpen] = useState(false);
@@ -85,6 +84,7 @@ export default function CustomerDetailsPage({
         dir="rtl"
         className="mx-auto w-full max-w-[1200px] px-3 py-5 sm:px-5"
       >
+        <Breadcrumbs items={[{ label: "العملاء", href: "/admin/customers" }, { label: customer.name }]} />
         <p className="text-xs font-bold text-accent">ملف العميل</p>
         <h1 className="text-2xl font-black">{customer.name}</h1>
         <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
@@ -121,7 +121,7 @@ export default function CustomerDetailsPage({
           ))}
         </div>
         <Tabs defaultValue="info" className="mt-4">
-          <TabsList className="grid w-full grid-cols-5">
+          <TabsList className="flex w-full justify-start overflow-x-auto [&>button]:shrink-0">
             <TabsTrigger value="info">البيانات</TabsTrigger>
             <TabsTrigger value="addresses">العناوين</TabsTrigger>
             <TabsTrigger value="orders">الطلبات</TabsTrigger>

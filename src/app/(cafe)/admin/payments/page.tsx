@@ -6,6 +6,8 @@ import { toast } from "sonner";
 import { AdminShell } from "@/components/admin/admin-shell";
 import { ConfirmDialog } from "@/components/shared/confirm-dialog";
 import { StatusBadge } from "@/components/shared/status-badge";
+import { Pagination } from "@/components/shared/pagination";
+import { SearchInput } from "@/components/shared/search-input";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import {
@@ -24,6 +26,8 @@ import { customerService } from "@/services/customer.service";
 import { employeeService } from "@/services/employee.service";
 import { financeService } from "@/services/finance.service";
 import type { PaymentRecord } from "@/types/cafe-operations.types";
+import { usePagination } from "@/hooks/use-pagination";
+import { formatDateTime } from "@/lib/formatters";
 
 const methods: Record<string, string> = {
   CASH: "نقدي",
@@ -99,6 +103,7 @@ export default function PaymentsPage() {
       (!date || payment.createdAt.slice(0, 10) === date)
     );
   });
+  const pagination = usePagination(filtered, `${query}:${method}:${status}:${date}`);
   function processRefund() {
     if (!details) return;
     try {
@@ -135,11 +140,7 @@ export default function PaymentsPage() {
         <Card>
           <CardContent className="p-0">
             <div className="grid gap-2 border-b p-4 sm:grid-cols-2 lg:grid-cols-5">
-              <Input
-                placeholder="رقم العملية أو الطلب أو العميل"
-                value={query}
-                onChange={(e) => setQuery(e.target.value)}
-              />
+              <SearchInput placeholder="رقم العملية أو الطلب أو العميل" value={query} onChange={setQuery} />
               <Input
                 type="date"
                 value={date}
@@ -208,7 +209,7 @@ export default function PaymentsPage() {
                   </tr>
                 </thead>
                 <tbody>
-                  {filtered.map((payment) => {
+                  {pagination.items.map((payment) => {
                     const order = orders.get(payment.id);
                     return (
                       <tr key={payment.id} className="border-t">
@@ -241,7 +242,7 @@ export default function PaymentsPage() {
                           {employees.get(payment.employeeId ?? "") ?? "—"}
                         </td>
                         <td className="px-4 py-3">
-                          {new Date(payment.createdAt).toLocaleString("ar-EG")}
+                          {formatDateTime(payment.createdAt)}
                         </td>
                         <td className="px-4 py-3">
                           <Button
@@ -263,6 +264,7 @@ export default function PaymentsPage() {
                   لا توجد مدفوعات حتى الآن.
                 </div>
               ) : null}
+              <Pagination {...pagination.state} onPageChange={pagination.setPage} onPageSizeChange={pagination.setPageSize} />
             </div>
           </CardContent>
         </Card>
@@ -365,7 +367,7 @@ export default function PaymentsPage() {
                     ))}
                   </div>
                 ) : null}
-                {access.hasAnyPermission(["refunds.create", "orders.refund"]) &&
+                {access.hasPermission("refunds.create") &&
                 details.remainingRefundable > 0 ? (
                   <Button
                     variant="destructive"

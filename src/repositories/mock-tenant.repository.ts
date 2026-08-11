@@ -1,8 +1,12 @@
-import { DEMO_TENANTS } from "@/config/tenants.config";
+import {
+  DEMO_TENANTS,
+  GOLDEN_DRIP_CONTACT,
+} from "@/config/tenants.config";
 import type { Tenant } from "@/types/tenant.types";
 
 const STORAGE_KEY = "platform:tenants:v1";
 const SELECTED_KEY = "platform:selected-tenant:v1";
+const GOLDEN_CONTACT_MIGRATION_KEY = "migration:golden-contact:kafr-v1";
 let memoryTenants = [...DEMO_TENANTS];
 
 function read() {
@@ -11,7 +15,25 @@ function read() {
     const value = JSON.parse(
       window.localStorage.getItem(STORAGE_KEY) || "null",
     );
-    if (Array.isArray(value)) memoryTenants = value;
+    if (Array.isArray(value)) {
+      const restoreGoldenContact =
+        window.localStorage.getItem(GOLDEN_CONTACT_MIGRATION_KEY) !== "done";
+      memoryTenants = value.map((tenant: Tenant) =>
+        tenant.id === "tenant-golden-drip"
+          ? {
+              ...tenant,
+              maxBranchesOverride: 1,
+              contact: restoreGoldenContact
+                ? GOLDEN_DRIP_CONTACT
+                : tenant.contact,
+            }
+          : tenant,
+      );
+      if (restoreGoldenContact) {
+        window.localStorage.setItem(STORAGE_KEY, JSON.stringify(memoryTenants));
+        window.localStorage.setItem(GOLDEN_CONTACT_MIGRATION_KEY, "done");
+      }
+    }
   } catch {
     window.localStorage.removeItem(STORAGE_KEY);
   }

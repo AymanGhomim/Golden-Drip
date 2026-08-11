@@ -15,26 +15,13 @@ function branchSeeds(tenantId: string): Branch[] {
       {
         id: "branch-golden-nasr",
         tenantId,
-        name: "فرع مدينة نصر",
-        code: "NSR",
-        phone: "01000000001",
-        address: "مدينة نصر، القاهرة",
+        name: "فرع كفر الشيخ",
+        code: "KFS",
+        phone: "01050555375",
+        address: "كفر الشيخ، شارع الاستاد أمام بوابة سيتي كلوب الخلفية",
         status: "ACTIVE",
         menuId: "menu-golden-cairo",
         settings: defaults,
-        createdAt: now,
-        updatedAt: now,
-      },
-      {
-        id: "branch-golden-cairo",
-        tenantId,
-        name: "فرع التجمع",
-        code: "NCA",
-        phone: "01000000002",
-        address: "التجمع الخامس، القاهرة الجديدة",
-        status: "ACTIVE",
-        menuId: "menu-golden-new-cairo",
-        settings: { ...defaults, preparationTime: 25 },
         createdAt: now,
         updatedAt: now,
       },
@@ -124,9 +111,51 @@ function itemSeeds(tenantId: string): MenuItem[] {
   return [];
 }
 
+function getBranches(tenantId: string) {
+  const stored = tenantStorage.get<Branch[]>(
+    tenantId,
+    "branches",
+    branchSeeds(tenantId),
+  );
+  if (tenantId !== "tenant-golden-drip") return stored;
+
+  let primary =
+    stored.find((branch) => branch.id === "branch-golden-nasr") ??
+    stored[0] ??
+    branchSeeds(tenantId)[0];
+  const contactMigrationDone = tenantStorage.get<boolean>(
+    tenantId,
+    "migration:golden-branch-kafr-v1",
+    false,
+  );
+  if (primary && !contactMigrationDone) {
+    primary = {
+      ...primary,
+      name: "فرع كفر الشيخ",
+      code: "KFS",
+      phone: "01050555375",
+      address: "كفر الشيخ، شارع الاستاد أمام بوابة سيتي كلوب الخلفية",
+      updatedAt: new Date().toISOString(),
+    };
+    tenantStorage.set(
+      tenantId,
+      "migration:golden-branch-kafr-v1",
+      true,
+    );
+  }
+  const normalized = primary ? [primary] : [];
+  if (
+    stored.length !== normalized.length ||
+    stored[0]?.id !== normalized[0]?.id ||
+    stored[0]?.name !== normalized[0]?.name ||
+    stored[0]?.address !== normalized[0]?.address
+  )
+    tenantStorage.set(tenantId, "branches", normalized);
+  return normalized;
+}
+
 export const branchRepository = {
-  getBranches: (tenantId: string) =>
-    tenantStorage.get<Branch[]>(tenantId, "branches", branchSeeds(tenantId)),
+  getBranches,
   saveBranches: (tenantId: string, branches: Branch[]) =>
     tenantStorage.set(tenantId, "branches", branches),
   getMenus: (tenantId: string) =>

@@ -18,6 +18,15 @@ const changed = () => {
     window.dispatchEvent(new Event("operations:changed"));
 };
 
+export function calculateShiftExpectedCash(openingCash: number, entries: CashRegisterEntry[]) {
+  const sum = (types: CashRegisterEntry["type"][]) => entries.filter((entry) => types.includes(entry.type)).reduce((total, entry) => total + entry.amount, 0);
+  return roundMoney(
+    openingCash +
+      sum(["CASH_SALE", "CASH_IN", "SHIFT_ADJUSTMENT"]) -
+      sum(["CASH_OUT", "EXPENSE", "REFUND"]),
+  );
+}
+
 export function calculateRefundState(
   payment: PaymentRecord,
   refunds: RefundRecord[],
@@ -45,6 +54,12 @@ export const financeService = {
   getExpenses: () => cafeOperationsService.get<Expense>("expenses"),
   getPayments: () => cafeOperationsService.get<PaymentRecord>("payments"),
   getRefunds: () => cafeOperationsService.get<RefundRecord>("refunds"),
+  getActiveShift(employeeId = actorId()) {
+    if (!employeeId) return undefined;
+    return cafeOperationsService
+      .get<Shift>("shifts")
+      .find((shift) => shift.employeeId === employeeId && shift.status === "OPEN");
+  },
   getPaymentDetails(paymentId: string) {
     const payment = this.getPayments().find((item) => item.id === paymentId);
     if (!payment) return undefined;
@@ -77,6 +92,7 @@ export const financeService = {
       {
         ...value,
         employeeId: actorId(),
+        shiftId: value.shiftId ?? this.getActiveShift()?.id,
         createdAt: new Date().toISOString(),
       },
     );
@@ -378,16 +394,8 @@ export const financeService = {
       throw new Error("تم إغلاق هذه الوردية من قبل.");
     const entries = cafeOperationsService
       .get<CashRegisterEntry>("cashRegister")
-      .filter((item) => item.createdAt >= shift.openedAt);
-    const value = (types: CashRegisterEntry["type"][]) =>
-      entries
-        .filter((item) => types.includes(item.type))
-        .reduce((sum, item) => sum + item.amount, 0);
-    const expectedCash = roundMoney(
-      shift.openingCash +
-        value(["CASH_SALE", "CASH_IN"]) -
-        value(["CASH_OUT", "EXPENSE", "REFUND"]),
-    );
+      .filter((item) => item.shiftId === shift.id);
+    const expectedCash = calculateShiftExpectedCash(shift.openingCash, entries);
     const difference = roundMoney(actualCash - expectedCash);
     const closedAt = new Date().toISOString();
     const updated = {

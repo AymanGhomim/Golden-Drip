@@ -9,6 +9,7 @@ import { AdminStatCard } from "@/components/admin/admin-stat-card";
 import { ConfirmDialog } from "@/components/shared/confirm-dialog";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { PermissionGate } from "@/components/access/permission-gate";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { cafeDataService } from "@/services/cafe-data.service";
@@ -66,7 +67,7 @@ export default function TablesPage() {
               طاولات الكافيه الحالي والجلسات المرتبطة بها.
             </p>
           </div>
-          <Button
+          <PermissionGate permission="tables.manage"><Button
             type="button"
             className="h-10 rounded-lg"
             onClick={() => {
@@ -86,7 +87,7 @@ export default function TablesPage() {
           >
             <Plus className="ml-2 h-4 w-4" />
             إضافة طاولة
-          </Button>
+          </Button></PermissionGate>
         </div>
         <div className="mb-4 grid gap-3 sm:grid-cols-3">
           <AdminStatCard
@@ -135,7 +136,7 @@ export default function TablesPage() {
                   </Badge>
                 </div>
                 <div className="grid grid-cols-2 gap-2">
-                  <Button
+                  <PermissionGate permission="tables.manage"><Button
                     asChild
                     variant="outline"
                     className="h-9 rounded-lg text-xs"
@@ -144,7 +145,7 @@ export default function TablesPage() {
                       <QrCode className="ml-1 h-3.5 w-3.5" />
                       عرض QR
                     </Link>
-                  </Button>
+                  </Button></PermissionGate>
                   <Button
                     type="button"
                     variant="outline"
@@ -162,7 +163,7 @@ export default function TablesPage() {
                     {table.isActive ? "إيقاف" : "تفعيل"}
                   </Button>
                 </div>
-                <Button
+                <PermissionGate permission="tables.manage"><Button
                   type="button"
                   variant="ghost"
                   className="h-8 w-full text-xs text-destructive"
@@ -170,7 +171,7 @@ export default function TablesPage() {
                 >
                   <Trash2 className="ml-1 h-3.5 w-3.5" />
                   حذف
-                </Button>
+                </Button></PermissionGate>
               </CardContent>
             </Card>
           ))}

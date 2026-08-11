@@ -1,4 +1,5 @@
 "use client";
+/* eslint-disable @next/next/no-img-element -- Tenant logos may be data URLs. */
 import Link from "next/link";
 import { Palette } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";

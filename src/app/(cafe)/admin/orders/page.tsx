@@ -9,6 +9,7 @@ import { AdminShell } from "@/components/admin/admin-shell";
 import { PermissionGate } from "@/components/access/permission-gate";
 import { AppLogo } from "@/components/shared/app-logo";
 import { ConfirmDialog } from "@/components/shared/confirm-dialog";
+import { Pagination } from "@/components/shared/pagination";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -27,6 +28,7 @@ import { reportService } from "@/services/report.service";
 import { useTenant } from "@/providers/tenant-provider";
 import { useBranch } from "@/providers/branch-provider";
 import { normalizeTenantBranding } from "@/lib/tenant-branding";
+import { usePagination } from "@/hooks/use-pagination";
 import type {
   Order,
   OrderSource,
@@ -137,6 +139,7 @@ export default function OrdersPage() {
       typeFilter,
     ],
   );
+  const pagination = usePagination(filteredOrders, [query, tab, typeFilter, sourceFilter, paymentFilter, methodFilter, employeeFilter, dateFrom, dateTo].join(":"));
 
   function nextStatus(order: Order) {
     const sequence: OrderStatus[] = [
@@ -378,7 +381,7 @@ export default function OrdersPage() {
                   </tr>
                 </thead>
                 <tbody>
-                  {filteredOrders.map((order) => (
+                  {pagination.items.map((order) => (
                     <tr key={order.id} className="border-t align-middle">
                       <td className="px-3 py-3 font-black">
                         {order.orderNumber}
@@ -500,6 +503,7 @@ export default function OrdersPage() {
                   لا توجد طلبات مطابقة للفلاتر الحالية.
                 </div>
               ) : null}
+              <Pagination {...pagination.state} onPageChange={pagination.setPage} onPageSizeChange={pagination.setPageSize} />
             </div>
           </CardContent>
         </Card>

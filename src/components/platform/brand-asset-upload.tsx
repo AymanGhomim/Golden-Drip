@@ -29,11 +29,13 @@ export function BrandAssetUpload({
   const [dragging, setDragging] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string>();
+  const [previewFailed, setPreviewFailed] = useState(false);
   const rule = brandAssetService.getRule(kind);
 
   const selectFile = async (file?: File) => {
     if (!file) return;
     setError(undefined);
+    setPreviewFailed(false);
     setBusy(true);
     try {
       const serialized = await brandAssetService.serializeForDevelopment(
@@ -53,6 +55,7 @@ export function BrandAssetUpload({
 
   const remove = () => {
     setError(undefined);
+    setPreviewFailed(false);
     onChange(brandAssetService.removeAsset());
   };
 
@@ -101,13 +104,14 @@ export function BrandAssetUpload({
           error && "border-red-400",
         )}
       >
-        {value ? (
+        {value && !previewFailed ? (
           <>
             {/* Data URLs and .ico previews are intentionally rendered without image optimization. */}
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img
               src={value}
               alt={`معاينة ${label}`}
+              onError={() => setPreviewFailed(true)}
               className={cn(
                 "h-28 w-full object-contain",
                 kind === "loginBackground" && "h-36 object-cover",
@@ -127,7 +131,7 @@ export function BrandAssetUpload({
               )}
             </span>
             <span className="mt-3 text-sm font-black text-[#111827]">
-              اسحب الصورة هنا أو اضغط للاختيار
+              {previewFailed ? "تعذر عرض الصورة؛ اختر ملفًا بديلًا" : "اسحب الصورة هنا أو اضغط للاختيار"}
             </span>
             <span className="mt-1 text-xs text-[#667085]">
               PNG أو JPG أو WEBP · الحد الأقصى {rule.maxSizeLabel}

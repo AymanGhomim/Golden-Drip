@@ -6,6 +6,10 @@ import { formatMoney } from "@/lib/money";
 import { useTenant } from "@/providers/tenant-provider";
 import { financeService } from "@/services/finance.service";
 import type { RefundRecord } from "@/types/cafe-operations.types";
+import { Pagination } from "@/components/shared/pagination";
+import { EmptyState } from "@/components/shared/empty-state";
+import { usePagination } from "@/hooks/use-pagination";
+import { formatDateTime } from "@/lib/formatters";
 export default function RefundsPage() {
   const { tenant } = useTenant();
   const [records, setRecords] = useState<RefundRecord[]>([]);
@@ -15,6 +19,7 @@ export default function RefundsPage() {
     window.addEventListener("operations:changed", reload);
     return () => window.removeEventListener("operations:changed", reload);
   }, []);
+  const pagination = usePagination(records);
   return (
     <AdminShell>
       <section
@@ -48,7 +53,7 @@ export default function RefundsPage() {
                 </tr>
               </thead>
               <tbody>
-                {records.map((record) => (
+                {pagination.items.map((record) => (
                   <tr key={record.id} className="border-t">
                     <td className="px-4 py-3">
                       {financeService.getPaymentDetails(record.paymentId)?.order
@@ -70,17 +75,16 @@ export default function RefundsPage() {
                     <td className="px-4 py-3">{record.reason}</td>
                     <td className="px-4 py-3">{record.employeeId ?? "—"}</td>
                     <td className="px-4 py-3">
-                      {new Date(record.createdAt).toLocaleString("ar-EG")}
+                      {formatDateTime(record.createdAt)}
                     </td>
                   </tr>
                 ))}
               </tbody>
             </table>
             {!records.length ? (
-              <div className="p-12 text-center text-sm text-muted-foreground">
-                لا توجد عمليات استرجاع.
-              </div>
+              <EmptyState title="لا توجد عمليات استرجاع حتى الآن" description="ستظهر هنا عمليات الاسترجاع الكاملة والجزئية." />
             ) : null}
+            <Pagination {...pagination.state} onPageChange={pagination.setPage} onPageSizeChange={pagination.setPageSize} />
           </CardContent>
         </Card>
       </section>

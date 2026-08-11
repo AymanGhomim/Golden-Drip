@@ -1,8 +1,9 @@
 "use client";
 import { useEffect, useState } from "react";
-import { Check, Pencil, Plus, Trash2, X } from "lucide-react";
+import { Check, Pencil, Plus, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import {
   DEFAULT_PLANS,
   FEATURE_GROUPS,
@@ -41,7 +42,10 @@ export default function PlatformPlansPage() {
     savePlans(next);
   };
   const save = () => {
-    if (!editing?.name.trim() || !editing.code.trim()) return;
+    if (!editing?.name.trim() || !editing.code.trim()) return toast.error("اسم الباقة والكود مطلوبان.");
+    if (Number(editing.price ?? 0) < 0 || !Number.isFinite(Number(editing.price ?? 0))) return toast.error("سعر الباقة لا يمكن أن يكون سالبًا.");
+    if (!Number.isInteger(editing.maxBranches) || editing.maxBranches < 1) return toast.error("الحد الأقصى للفروع يجب أن يكون رقمًا صحيحًا أكبر من صفر.");
+    if (plans.some((item) => item.id !== editing.id && item.code === editing.code)) return toast.error("كود الباقة مستخدم بالفعل.");
     const previous = plans.find((item) => item.id === editing.id);
     if (
       previous &&
@@ -59,6 +63,7 @@ export default function PlatformPlansPage() {
     persist(next);
     setSelected(editing.code);
     setEditing(null);
+    toast.success("تم حفظ التغييرات بنجاح");
   };
   const remove = (id: string) => {
     const plan = plans.find((item) => item.id === id);
@@ -212,28 +217,18 @@ export default function PlatformPlansPage() {
         </Card>
       )}
       {editing ? (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
-          <div className="max-h-[90vh] w-full max-w-2xl overflow-y-auto rounded-2xl bg-white p-6 shadow-2xl">
-            <div className="flex items-center justify-between">
-              <div>
-                <h2 className="text-xl font-black">
+        <Dialog open onOpenChange={(open) => !open && setEditing(null)}>
+          <DialogContent dir="rtl" className="max-w-2xl">
+            <DialogHeader>
+                <DialogTitle>
                   {plans.some((item) => item.id === editing.id)
                     ? "تعديل الباقة"
                     : "إضافة باقة"}
-                </h2>
-                <p className="mt-1 text-sm text-muted-foreground">
+                </DialogTitle>
+                <DialogDescription>
                   بيانات الباقة والمميزات المتاحة للمشتركين.
-                </p>
-              </div>
-              <Button
-                variant="ghost"
-                size="icon"
-                onClick={() => setEditing(null)}
-                aria-label="إغلاق"
-              >
-                <X className="h-5 w-5" />
-              </Button>
-            </div>
+                </DialogDescription>
+            </DialogHeader>
             <div className="mt-6 grid gap-4 sm:grid-cols-2">
               <label className="text-sm font-bold">
                 اسم الباقة
@@ -343,8 +338,8 @@ export default function PlatformPlansPage() {
                 حفظ الباقة
               </Button>
             </div>
-          </div>
-        </div>
+          </DialogContent>
+        </Dialog>
       ) : null}
       <ConfirmDialog
         open={Boolean(removeId)}

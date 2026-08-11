@@ -1,16 +1,36 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Percent, ShieldCheck } from "lucide-react";
+import { KeyRound, Percent, Share2, ShieldCheck } from "lucide-react";
+import { toast } from "sonner";
 
 import { AdminShell } from "@/components/admin/admin-shell";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Button } from "@/components/ui/button";
 import { useAdminLocale } from "@/providers/admin-locale-provider";
 import { useSettingsStore } from "@/store/settings.store";
 import { useTenant } from "@/providers/tenant-provider";
 import { useCurrentEmployee } from "@/providers/current-employee-provider";
+import { credentialService } from "@/services/credential.service";
+import { tenantService } from "@/services/tenant.service";
+
+const emptyContact = {
+  phone: "",
+  whatsapp: "",
+  address: "",
+  locationUrl: "",
+  facebook: "",
+  instagram: "",
+  tiktok: "",
+};
+
+function normalizeWebUrl(value: string) {
+  const trimmed = value.trim();
+  if (!trimmed || /^https?:\/\//i.test(trimmed)) return trimmed;
+  return `https://${trimmed}`;
+}
 
 const copy = {
   en: {
@@ -26,7 +46,7 @@ const copy = {
     english: "English",
     arabic: "Arabic",
     workspace: "Workspace",
-    workspaceText: "Admin access and demo data are ready.",
+    workspaceText: "Admin access and workspace data are ready.",
     active: "Active",
   },
   ar: {
@@ -42,7 +62,7 @@ const copy = {
     english: "English",
     arabic: "العربية",
     workspace: "مساحة العمل",
-    workspaceText: "صلاحيات الأدمن وبيانات التجربة جاهزة.",
+    workspaceText: "صلاحيات الإدارة وبيانات مساحة العمل جاهزة.",
     active: "نشط",
   },
 } as const;
@@ -50,7 +70,7 @@ const copy = {
 export default function SettingsPage() {
   const { locale } = useAdminLocale();
   const { tenant } = useTenant();
-  const { hasPermission } = useCurrentEmployee();
+  const { employee, hasPermission } = useCurrentEmployee();
   const canEdit = hasPermission("settings.edit");
   const serviceTaxPercent = useSettingsStore(
     (state) => state.serviceTaxPercent,
@@ -59,6 +79,11 @@ export default function SettingsPage() {
     (state) => state.setServiceTaxPercent,
   );
   const [taxInput, setTaxInput] = useState("0");
+  const [currentPassword, setCurrentPassword] = useState("");
+  const [newPassword, setNewPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
+  const [isChangingPassword, setIsChangingPassword] = useState(false);
+  const [contact, setContact] = useState(emptyContact);
   const text = copy[locale];
 
   useEffect(() => {
@@ -69,6 +94,18 @@ export default function SettingsPage() {
     setTaxInput(String(serviceTaxPercent));
   }, [serviceTaxPercent]);
 
+  useEffect(() => {
+    setContact({
+      phone: tenant.contact?.phone ?? "",
+      whatsapp: tenant.contact?.whatsapp ?? "",
+      address: tenant.contact?.address ?? "",
+      locationUrl: tenant.contact?.locationUrl ?? "",
+      facebook: tenant.contact?.facebook ?? "",
+      instagram: tenant.contact?.instagram ?? "",
+      tiktok: tenant.contact?.tiktok ?? "",
+    });
+  }, [tenant]);
+
   function handleTaxChange(value: string) {
     if (!canEdit) return;
     setTaxInput(value);
@@ -77,6 +114,47 @@ export default function SettingsPage() {
     if (!Number.isNaN(nextValue)) {
       setServiceTaxPercent(nextValue);
     }
+  }
+
+  async function handlePasswordChange() {
+    if (!employee || isChangingPassword) return;
+    if (newPassword.length < 6) {
+      toast.error(locale === "ar" ? "كلمة المرور الجديدة يجب ألا تقل عن 6 أحرف." : "The new password must be at least 6 characters.");
+      return;
+    }
+    if (newPassword !== confirmPassword) {
+      toast.error(locale === "ar" ? "كلمتا المرور الجديدتان غير متطابقتين." : "The new passwords do not match.");
+      return;
+    }
+    try {
+      setIsChangingPassword(true);
+      await credentialService.changePassword(employee, currentPassword, newPassword);
+      setCurrentPassword("");
+      setNewPassword("");
+      setConfirmPassword("");
+      toast.success(locale === "ar" ? "تم تغيير كلمة المرور بنجاح." : "Password changed successfully.");
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "تعذر تغيير كلمة المرور.");
+    } finally {
+      setIsChangingPassword(false);
+    }
+  }
+
+  function saveContact() {
+    if (!canEdit) return;
+    tenantService.updateTenant(tenant.id, {
+      contact: {
+        ...tenant.contact,
+        phone: contact.phone.trim(),
+        whatsapp: contact.whatsapp.trim(),
+        address: contact.address.trim(),
+        locationUrl: normalizeWebUrl(contact.locationUrl),
+        facebook: normalizeWebUrl(contact.facebook),
+        instagram: normalizeWebUrl(contact.instagram),
+        tiktok: normalizeWebUrl(contact.tiktok),
+      },
+    });
+    toast.success("تم حفظ بيانات التواصل والسوشيال ميديا وستظهر في المنيو.");
   }
 
   return (
@@ -100,6 +178,25 @@ export default function SettingsPage() {
         </div>
 
         <div className="mt-6 grid gap-5">
+          <SettingsCard
+            icon={Share2}
+            title="بيانات التواصل والسوشيال ميديا"
+            description="تظهر هذه البيانات مع العنوان ورقم الهاتف داخل منيو العملاء."
+            action={
+              <div className="grid w-full gap-3 sm:grid-cols-2 lg:w-[720px]">
+                <ContactField label="رقم الهاتف" value={contact.phone} disabled={!canEdit} onChange={(phone) => setContact((current) => ({ ...current, phone }))} />
+                <ContactField label="WhatsApp" value={contact.whatsapp} disabled={!canEdit} onChange={(whatsapp) => setContact((current) => ({ ...current, whatsapp }))} />
+                <div className="sm:col-span-2"><ContactField label="العنوان" value={contact.address} disabled={!canEdit} onChange={(address) => setContact((current) => ({ ...current, address }))} /></div>
+                <div className="sm:col-span-2"><ContactField label="رابط الموقع على الخريطة" value={contact.locationUrl} disabled={!canEdit} placeholder="https://maps.google.com/..." onChange={(locationUrl) => setContact((current) => ({ ...current, locationUrl }))} /></div>
+                <ContactField label="Facebook" value={contact.facebook} disabled={!canEdit} placeholder="https://facebook.com/..." onChange={(facebook) => setContact((current) => ({ ...current, facebook }))} />
+                <ContactField label="Instagram" value={contact.instagram} disabled={!canEdit} placeholder="https://instagram.com/..." onChange={(instagram) => setContact((current) => ({ ...current, instagram }))} />
+                <ContactField label="TikTok" value={contact.tiktok} disabled={!canEdit} placeholder="https://tiktok.com/@..." onChange={(tiktok) => setContact((current) => ({ ...current, tiktok }))} />
+                <Button type="button" disabled={!canEdit} onClick={saveContact} className="sm:self-end">
+                  حفظ بيانات التواصل
+                </Button>
+              </div>
+            }
+          />
           <SettingsCard
             icon={Percent}
             title={text.serviceTax}
@@ -144,9 +241,66 @@ export default function SettingsPage() {
               </span>
             }
           />
+          <SettingsCard
+            icon={KeyRound}
+            title={locale === "ar" ? "تغيير كلمة المرور" : "Change password"}
+            description={locale === "ar" ? "أدخل كلمة المرور الحالية أولًا لحماية حسابك." : "Enter your current password first to protect your account."}
+            action={
+              <div className="grid w-full gap-3 sm:w-[420px]">
+                <Input
+                  type="password"
+                  autoComplete="current-password"
+                  placeholder={locale === "ar" ? "كلمة المرور الحالية" : "Current password"}
+                  value={currentPassword}
+                  onChange={(event) => setCurrentPassword(event.target.value)}
+                />
+                <div className="grid gap-3 sm:grid-cols-2">
+                  <Input
+                    type="password"
+                    autoComplete="new-password"
+                    placeholder={locale === "ar" ? "كلمة المرور الجديدة" : "New password"}
+                    value={newPassword}
+                    onChange={(event) => setNewPassword(event.target.value)}
+                  />
+                  <Input
+                    type="password"
+                    autoComplete="new-password"
+                    placeholder={locale === "ar" ? "تأكيد كلمة المرور" : "Confirm password"}
+                    value={confirmPassword}
+                    onChange={(event) => setConfirmPassword(event.target.value)}
+                  />
+                </div>
+                <Button
+                  type="button"
+                  disabled={!employee || !currentPassword || !newPassword || !confirmPassword || isChangingPassword}
+                  onClick={handlePasswordChange}
+                >
+                  {isChangingPassword
+                    ? locale === "ar" ? "جارٍ التغيير..." : "Changing..."
+                    : locale === "ar" ? "تغيير كلمة المرور" : "Change password"}
+                </Button>
+              </div>
+            }
+          />
         </div>
       </section>
     </AdminShell>
+  );
+}
+
+function ContactField({ label, value, disabled, placeholder, onChange }: { label: string; value: string; disabled: boolean; placeholder?: string; onChange: (value: string) => void }) {
+  return (
+    <Label className="text-xs font-bold text-muted-foreground">
+      {label}
+      <Input
+        value={value}
+        disabled={disabled}
+        placeholder={placeholder}
+        onChange={(event) => onChange(event.target.value)}
+        className="mt-2 h-11 text-foreground"
+        dir="ltr"
+      />
+    </Label>
   );
 }
 

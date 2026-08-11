@@ -1,6 +1,6 @@
 "use client";
 
-import { Facebook, Instagram, MapPin, Music2, Phone } from "lucide-react";
+import { Facebook, Instagram, MapPin, MessageCircle, Music2, Phone } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import type { Locale } from "@/lib/menu-translations";
 import { cn } from "@/lib/utils";
@@ -12,6 +12,11 @@ type TickerItem = {
   text: string;
   href?: string;
 };
+
+function whatsappHref(value: string) {
+  if (/^https?:\/\//i.test(value)) return value;
+  return `https://wa.me/${value.replace(/\D/g, "")}`;
+}
 
 export function ContactTicker({ locale }: { locale: Locale }) {
   const { tenant } = useTenant();
@@ -34,6 +39,16 @@ export function ContactTicker({ locale }: { locale: Locale }) {
             icon: Phone,
             text: contact.phone,
             href: `tel:${contact.phone}`,
+          },
+        ]
+      : []),
+    ...(contact?.whatsapp
+      ? [
+          {
+            key: "whatsapp",
+            icon: MessageCircle,
+            text: "WhatsApp",
+            href: whatsappHref(contact.whatsapp),
           },
         ]
       : []),

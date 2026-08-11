@@ -24,6 +24,9 @@ import type {
   Purchase,
   Supplier,
 } from "@/types/cafe-operations.types";
+import { Pagination } from "@/components/shared/pagination";
+import { usePagination } from "@/hooks/use-pagination";
+import { formatDate } from "@/lib/formatters";
 
 const blank = () => ({
   invoiceNumber: `PUR-${Date.now().toString().slice(-6)}`,
@@ -64,6 +67,7 @@ export default function PurchasesPage() {
     .filter((item) => item.active);
   const supplierName = (id: string) =>
     suppliers.find((item) => item.id === id)?.name ?? "مورد غير معروف";
+  const pagination = usePagination(purchases);
   function save() {
     const quantity = Number(form.quantity);
     const unitCost = Number(form.unitCost);
@@ -173,7 +177,7 @@ export default function PurchasesPage() {
                 </tr>
               </thead>
               <tbody>
-                {purchases.map((purchase) => (
+                {pagination.items.map((purchase) => (
                   <tr key={purchase.id} className="border-t">
                     <td className="px-4 py-3 font-bold">
                       {purchase.invoiceNumber}
@@ -182,7 +186,7 @@ export default function PurchasesPage() {
                       {supplierName(purchase.supplierId)}
                     </td>
                     <td className="px-4 py-3">
-                      {new Date(purchase.date).toLocaleDateString("ar-EG")}
+                      {formatDate(purchase.date)}
                     </td>
                     <td className="px-4 py-3">
                       {formatMoney(
@@ -221,6 +225,7 @@ export default function PurchasesPage() {
                 لا توجد فواتير شراء في الفرع الحالي.
               </div>
             ) : null}
+            <Pagination {...pagination.state} onPageChange={pagination.setPage} onPageSizeChange={pagination.setPageSize} />
           </CardContent>
         </Card>
         <Dialog open={open} onOpenChange={setOpen}>

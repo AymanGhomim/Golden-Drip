@@ -1,6 +1,6 @@
 "use client";
 
-import { FormEvent, useState } from "react";
+import { type FormEvent, useState } from "react";
 import { useRouter } from "next/navigation";
 import { ArrowLeft, Eye, EyeOff, LockKeyhole, Mail, ShieldCheck, Sparkles } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -9,13 +9,54 @@ import { PlatformLogo } from "@/components/platform/platform-logo";
 import { PLATFORM_CONFIG } from "@/config/platform.config";
 import { useAuthStore } from "@/store/auth.store";
 
+const TEMPORARY_PLATFORM_EMAIL = "platform@example.com";
+const TEMPORARY_PLATFORM_PASSWORD = "platform123";
+
 export default function PlatformLoginPage() {
   const router = useRouter();
   const login = useAuthStore((state) => state.login);
-  const [email, setEmail] = useState("platform@example.com");
-  const [password, setPassword] = useState("");
+  const [email, setEmail] = useState(TEMPORARY_PLATFORM_EMAIL);
+  const [password, setPassword] = useState(TEMPORARY_PLATFORM_PASSWORD);
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState("");
-  const submit = (event: FormEvent) => { event.preventDefault(); if (email === "platform@example.com" && password === "platform123") { login({ id: "platform-1", name: "Platform Owner", email, role: "platform_super_admin" }); router.replace("/platform/dashboard"); } else setError("بيانات الدخول غير صحيحة. استخدم بيانات التجربة بالأسفل."); };
-  return <main dir="rtl" className="relative flex min-h-screen items-center justify-center overflow-hidden bg-[#F5F8FA] px-4 py-8 sm:px-6 lg:px-10"><div className="pointer-events-none absolute -right-28 -top-32 h-80 w-80 rounded-full bg-black/5 blur-3xl" /><div className="pointer-events-none absolute -bottom-40 -left-20 h-96 w-96 rounded-full bg-slate-400/10 blur-3xl" /><div className="relative grid w-full max-w-5xl overflow-hidden rounded-[2rem] border border-[#DCE7EA] bg-white shadow-[0_24px_80px_rgba(16,24,40,0.12)] lg:min-h-[610px] lg:grid-cols-[0.9fr_1.1fr]"><section className="relative hidden overflow-hidden bg-[#111827] p-10 text-white lg:flex lg:flex-col lg:justify-between"><div className="absolute -left-28 -top-28 h-80 w-80 rounded-full border-[38px] border-[#D1D5DB]/10" /><div className="absolute -bottom-28 -right-28 h-80 w-80 rounded-full border-[38px] border-[#374151]/20" /><div className="relative"><PlatformLogo light /><div className="mt-20 max-w-sm"><span className="inline-flex items-center gap-2 rounded-full border border-[#D1D5DB]/30 bg-[#D1D5DB]/10 px-3 py-1.5 text-xs font-bold text-[#F3F4F6]"><Sparkles className="h-3.5 w-3.5" /> منصة تشغيل ذكية</span><h2 className="mt-6 text-4xl font-black leading-tight">كل فروعك،<br /><span className="text-[#E5E7EB]">في مكان واحد.</span></h2><p className="mt-5 text-sm leading-7 text-slate-300">Penta-K تساعدك على إدارة المقاهي والمطاعم، متابعة الاشتراكات، وتخصيص تجربة كل كافيه بسهولة.</p></div></div><div className="relative grid grid-cols-2 gap-3"><div className="rounded-2xl border border-white/10 bg-white/[0.06] p-4"><ShieldCheck className="h-5 w-5 text-[#E5E7EB]" /><p className="mt-3 text-sm font-bold">تحكم مركزي</p><p className="mt-1 text-xs text-slate-400">إدارة آمنة ومرنة</p></div><div className="rounded-2xl border border-white/10 bg-white/[0.06] p-4"><Sparkles className="h-5 w-5 text-[#E5E7EB]" /><p className="mt-3 text-sm font-bold">هوية موحدة</p><p className="mt-1 text-xs text-slate-400">White-label جاهز</p></div></div></section><section className="flex flex-col justify-center p-6 sm:p-10 lg:p-14"><div className="mb-10 lg:hidden"><PlatformLogo /></div><div className="mx-auto w-full max-w-md"><p className="text-sm font-black text-[#374151]">مرحبًا بك في {PLATFORM_CONFIG.name}</p><h1 className="mt-3 text-3xl font-black tracking-tight text-[#101828]">دخول إدارة المنصة</h1><p className="mt-3 text-sm leading-6 text-[#667085]">سجّل الدخول لإدارة الكافيهات والاشتراكات والهوية من لوحة تحكم واحدة.</p><form onSubmit={submit} className="mt-8 space-y-5"><label className="block text-sm font-bold text-[#344054]">البريد الإلكتروني<div className="relative mt-2"><Mail className="pointer-events-none absolute right-3 top-3 h-4 w-4 text-[#374151]" /><Input dir="ltr" className="h-12 border-[#DCE7EA] bg-[#FAFAFA] pr-10 focus-visible:ring-[#D1D5DB]" value={email} onChange={(event) => setEmail(event.target.value)} /></div></label><label className="block text-sm font-bold text-[#344054]">كلمة المرور<div className="relative mt-2"><LockKeyhole className="pointer-events-none absolute right-3 top-3 h-4 w-4 text-[#374151]" /><Input dir="ltr" className="h-12 border-[#DCE7EA] bg-[#FAFAFA] pr-10 pl-10 focus-visible:ring-[#D1D5DB]" type={showPassword ? "text" : "password"} value={password} onChange={(event) => setPassword(event.target.value)} /><button type="button" onClick={() => setShowPassword((value) => !value)} className="absolute left-3 top-3 text-[#6B7280] hover:text-[#111111]" aria-label={showPassword ? "إخفاء كلمة المرور" : "إظهار كلمة المرور"}>{showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}</button></div></label>{error ? <p className="rounded-xl bg-red-50 px-3 py-2 text-xs font-bold text-red-600">{error}</p> : null}<Button className="h-12 w-full gap-2 bg-[#374151] text-white hover:bg-[#111827]" type="submit">تسجيل الدخول <ArrowLeft className="h-4 w-4" /></Button></form><div className="mt-7 rounded-2xl border border-dashed border-[#D1D5DB] bg-[#F3F4F6] p-4"><p className="text-xs font-black text-[#111827]">بيانات الدخول التجريبية</p><p dir="ltr" className="mt-2 text-center text-xs font-bold text-[#374151]">platform@example.com · platform123</p></div><p className="mt-8 text-center text-xs text-[#98A2B3]">{PLATFORM_CONFIG.name} · {PLATFORM_CONFIG.tagline}</p></div></section></div></main>;
+
+  const submit = (event: FormEvent) => {
+    event.preventDefault();
+    if (
+      email.trim().toLowerCase() === TEMPORARY_PLATFORM_EMAIL &&
+      password === TEMPORARY_PLATFORM_PASSWORD
+    ) {
+      login({ id: "platform-development", name: "Platform Owner", email, role: "platform_super_admin" });
+      router.replace("/platform/dashboard");
+      return;
+    }
+    setError("بيانات الدخول غير صحيحة.");
+  };
+
+  return (
+    <main dir="rtl" className="relative flex min-h-screen items-center justify-center overflow-hidden bg-[#F5F8FA] px-4 py-8 sm:px-6 lg:px-10">
+      <div className="relative grid w-full max-w-5xl overflow-hidden rounded-[2rem] border border-[#DCE7EA] bg-white shadow-[0_24px_80px_rgba(16,24,40,0.12)] lg:min-h-[610px] lg:grid-cols-[0.9fr_1.1fr]">
+        <section className="relative hidden overflow-hidden bg-[#111827] p-10 text-white lg:flex lg:flex-col lg:justify-between">
+          <div><PlatformLogo light /><div className="mt-20 max-w-sm"><span className="inline-flex items-center gap-2 rounded-full border border-white/20 bg-white/10 px-3 py-1.5 text-xs font-bold"><Sparkles className="h-3.5 w-3.5" />منصة تشغيل ذكية</span><h2 className="mt-6 text-4xl font-black leading-tight">كل فروعك،<br /><span className="text-[#E5E7EB]">في مكان واحد.</span></h2><p className="mt-5 text-sm leading-7 text-slate-300">Penta-K لإدارة المقاهي والمطاعم والاشتراكات من لوحة موحدة.</p></div></div>
+          <div className="rounded-2xl border border-white/10 bg-white/[0.06] p-4"><ShieldCheck className="h-5 w-5" /><p className="mt-3 text-sm font-bold">تحكم مركزي آمن</p></div>
+        </section>
+        <section className="flex flex-col justify-center p-6 sm:p-10 lg:p-14"><div className="mb-10 lg:hidden"><PlatformLogo /></div><div className="mx-auto w-full max-w-md">
+          <p className="text-sm font-black text-[#374151]">مرحبًا بك في {PLATFORM_CONFIG.name}</p><h1 className="mt-3 text-3xl font-black text-[#101828]">دخول إدارة المنصة</h1><p className="mt-3 text-sm leading-6 text-[#667085]">سجّل الدخول لإدارة الكافيهات والاشتراكات من مكان واحد.</p>
+          <form onSubmit={submit} className="mt-8 space-y-5">
+            <label className="block text-sm font-bold text-[#344054]">البريد الإلكتروني<div className="relative mt-2"><Mail className="pointer-events-none absolute right-3 top-3.5 h-4 w-4 text-[#374151]" /><Input dir="ltr" autoComplete="username" className="h-12 bg-[#FAFAFA] pr-10" value={email} onChange={(event) => setEmail(event.target.value)} /></div></label>
+            <label className="block text-sm font-bold text-[#344054]">كلمة المرور<div className="relative mt-2"><LockKeyhole className="pointer-events-none absolute right-3 top-3.5 h-4 w-4 text-[#374151]" /><Input dir="ltr" autoComplete="current-password" className="h-12 bg-[#FAFAFA] pl-10 pr-10" type={showPassword ? "text" : "password"} value={password} onChange={(event) => setPassword(event.target.value)} /><button type="button" onClick={() => setShowPassword((value) => !value)} className="absolute left-3 top-3.5 text-[#6B7280]" aria-label={showPassword ? "إخفاء كلمة المرور" : "إظهار كلمة المرور"}>{showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}</button></div></label>
+            {error ? <p className="rounded-xl bg-red-50 px-3 py-2 text-xs font-bold text-red-600">{error}</p> : null}
+            <Button className="h-12 w-full gap-2 bg-[#374151] text-white hover:bg-[#111827]" type="submit">تسجيل الدخول <ArrowLeft className="h-4 w-4" /></Button>
+          </form>
+          <div className="mt-5 rounded-xl border border-dashed border-[#D0D5DD] bg-[#F9FAFB] p-4 text-sm text-[#475467]">
+            <p className="font-black text-[#344054]">بيانات الدخول المؤقتة</p>
+            <p className="mt-2" dir="ltr">{TEMPORARY_PLATFORM_EMAIL}</p>
+            <p dir="ltr">{TEMPORARY_PLATFORM_PASSWORD}</p>
+            <p className="mt-2 text-xs">هذه مصادقة Frontend مؤقتة لحين ربط نظام الدخول بالـ Backend.</p>
+          </div>
+          <p className="mt-8 text-center text-xs text-[#98A2B3]">{PLATFORM_CONFIG.name} · {PLATFORM_CONFIG.tagline}</p>
+        </div></section>
+      </div>
+    </main>
+  );
 }

@@ -57,6 +57,7 @@ export default function ReportsPage() {
       ? [branch]
       : [];
   const filters: ReportFilters = {
+    allowedBranchIds: accessible.map((branch) => branch.id),
     from: from || undefined,
     to: to || undefined,
     branchIds:
@@ -125,7 +126,7 @@ export default function ReportsPage() {
           </Button>
         </div>
         <Card className="mb-4">
-          <CardContent className="grid gap-2 p-4 sm:grid-cols-2 lg:grid-cols-6">
+          <CardContent className="grid gap-2 p-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6">
             <Input
               type="date"
               value={from}
@@ -236,7 +237,7 @@ export default function ReportsPage() {
             />
           </TabsContent>
           <TabsContent value="orders">
-            <div className="grid gap-4 lg:grid-cols-2">
+            <div className="grid gap-4 xl:grid-cols-2">
               <ReportTable
                 headers={["نوع الطلب", "العدد"]}
                 rows={breakdown.byType.map((r) => [r.value, String(r.count)])}
@@ -308,7 +309,7 @@ function ReportTable({
   return (
     <Card>
       <CardContent className="overflow-x-auto p-0">
-        <table className="w-full text-right text-sm">
+        <table className="w-full min-w-[720px] text-right text-sm">
           <thead className="bg-muted/50">
             <tr>
               {headers.map((h) => (

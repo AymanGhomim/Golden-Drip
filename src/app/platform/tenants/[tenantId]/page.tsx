@@ -1,7 +1,10 @@
 "use client";
+/* eslint-disable @next/next/no-img-element -- White-label logos may be data URLs. */
 import Link from "next/link";
 import { useParams } from "next/navigation";
 import { useState } from "react";
+import { Copy, ExternalLink } from "lucide-react";
+import { toast } from "sonner";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import {
@@ -222,6 +225,7 @@ export default function TenantDetailsPage() {
                 <th className="px-4 py-3">الحالة</th>
                 <th className="px-4 py-3">المنيو</th>
                 <th className="px-4 py-3">تاريخ الإنشاء</th>
+                <th className="px-4 py-3">رابط منيو العميل</th>
               </tr>
             </thead>
             <tbody>
@@ -237,6 +241,39 @@ export default function TenantDetailsPage() {
                   </td>
                   <td className="px-4 py-3">
                     {new Date(branch.createdAt).toLocaleDateString("ar-EG")}
+                  </td>
+                  <td className="px-4 py-3">
+                    {branch.status === "ACTIVE" && branch.menuId ? (
+                      <div className="flex items-center gap-2">
+                        <Button asChild size="sm" variant="outline" className="gap-2">
+                          <Link
+                            href={`/menu?tenantId=${encodeURIComponent(tenant.id)}&branchId=${encodeURIComponent(branch.id)}`}
+                            target="_blank"
+                            rel="noreferrer"
+                          >
+                            <ExternalLink className="h-4 w-4" />
+                            فتح المنيو
+                          </Link>
+                        </Button>
+                        <Button
+                          type="button"
+                          size="icon"
+                          variant="outline"
+                          aria-label={`نسخ رابط منيو ${branch.name}`}
+                          onClick={async () => {
+                            const path = `/menu?tenantId=${encodeURIComponent(tenant.id)}&branchId=${encodeURIComponent(branch.id)}`;
+                            await navigator.clipboard.writeText(`${window.location.origin}${path}`);
+                            toast.success("تم نسخ رابط منيو الفرع.");
+                          }}
+                        >
+                          <Copy className="h-4 w-4" />
+                        </Button>
+                      </div>
+                    ) : (
+                      <span className="text-xs text-muted-foreground">
+                        فعّل الفرع واربطه بمنيو أولًا
+                      </span>
+                    )}
                   </td>
                 </tr>
               ))}

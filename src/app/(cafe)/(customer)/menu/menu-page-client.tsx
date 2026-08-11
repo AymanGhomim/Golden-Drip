@@ -22,6 +22,7 @@ import {
 import { cafeDataService } from "@/services/cafe-data.service";
 import type { Product } from "@/types/product.types";
 import { useCartStore } from "@/store/cart.store";
+import { useCustomerRoute } from "@/providers/customer-route-provider";
 
 const allCategoryId = "all";
 
@@ -46,6 +47,9 @@ export function MenuPageClient() {
   const dragStartX = useRef(0);
   const didDrag = useRef(false);
   const router = useRouter();
+  const customerRoute = useCustomerRoute();
+  const customerTenantId = customerRoute.context?.tenant.id;
+  const customerBranchId = customerRoute.context?.branch.id;
   const addItem = useCartStore((state) => state.addItem);
   const increaseQuantity = useCartStore((state) => state.increaseQuantity);
   const decreaseQuantity = useCartStore((state) => state.decreaseQuantity);
@@ -53,16 +57,19 @@ export function MenuPageClient() {
 
   useEffect(() => {
     const refresh = () => {
-      setBranchProducts(cafeDataService.getBranchProducts());
+      if (!customerTenantId || !customerBranchId) return;
+      setBranchProducts(
+        cafeDataService.getBranchProducts(customerBranchId, customerTenantId),
+      );
       setCategories(
         cafeDataService
-          .getCategories()
+          .getCategories(customerTenantId)
           .filter((category) => category.isActive)
           .sort((a, b) => a.sortOrder - b.sortOrder),
       );
       setActiveOffers(
         cafeDataService
-          .getOffers()
+          .getOffers(customerTenantId)
           .filter((offer) => offer.isActive)
           .sort((a, b) => a.sortOrder - b.sortOrder),
       );
@@ -77,7 +84,7 @@ export function MenuPageClient() {
       window.removeEventListener("branch:changed", refresh);
       window.removeEventListener("tenant:changed", refresh);
     };
-  }, []);
+  }, [customerBranchId, customerTenantId]);
 
   useEffect(() => {
     const savedLocale = window.localStorage.getItem("cafe-ui-locale");
@@ -206,14 +213,14 @@ export function MenuPageClient() {
                   className="group relative block min-h-[17rem] w-full shrink-0 overflow-hidden rounded-md border bg-muted text-start shadow-[0_10px_28px_hsl(var(--foreground)/0.07)] transition-all duration-200 ease-out hover:scale-[1.005] hover:-translate-y-0.5 hover:border-accent/60 hover:shadow-[0_16px_36px_hsl(var(--foreground)/0.1)] active:scale-[0.998] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring sm:h-64 sm:min-h-0"
                   onClick={() => {
                     if (didDrag.current) return;
-                    router.push(`/offers/${offer.id}`);
+                    router.push(customerRoute.href(`/offers/${offer.id}`));
                   }}
                 >
                   {!loadedImages.has(`offer-${offer.id}`) ? (
                     <Skeleton className="absolute inset-0 z-0 rounded-none bg-white/10" />
                   ) : null}
                   <Image
-                    src={offer.image}
+                    src={offer.image || "/cafe-placeholder.svg"}
                     alt={offer.title}
                     fill
                     sizes="(min-width: 1024px) 1152px, 100vw"
@@ -340,10 +347,10 @@ export function MenuPageClient() {
                 className="menu-card group cursor-pointer overflow-hidden rounded-md border border-border/70 bg-card shadow-[0_10px_28px_hsl(var(--foreground)/0.07)] transition-[border-color,box-shadow,transform] duration-200 ease-out hover:scale-[1.006] hover:-translate-y-0.5 hover:border-accent/45 hover:shadow-[0_16px_36px_hsl(var(--foreground)/0.1)] active:scale-[0.998] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/40"
                 role="button"
                 tabIndex={0}
-                onClick={() => router.push(`/menu/${product.id}`)}
+                onClick={() => router.push(customerRoute.href(`/menu/${product.id}`))}
                 onKeyDown={(event) => {
                   if (event.key === "Enter" || event.key === " ") {
-                    router.push(`/menu/${product.id}`);
+                    router.push(customerRoute.href(`/menu/${product.id}`));
                   }
                 }}
               >
@@ -457,6 +464,19 @@ export function MenuPageClient() {
             );
           })}
         </div>
+        {isHydrated && branchProducts.length === 0 ? (
+          <div className="rounded-2xl border border-dashed bg-card p-10 text-center">
+            <ShoppingBag className="mx-auto h-10 w-10 text-muted-foreground" />
+            <h2 className="mt-4 text-lg font-black">
+              {locale === "ar" ? "لا توجد منتجات متاحة" : "No products available"}
+            </h2>
+            <p className="mt-2 text-sm text-muted-foreground">
+              {locale === "ar"
+                ? "لم تتم إضافة منتجات متاحة إلى منيو هذا الفرع حتى الآن."
+                : "No available products have been added to this branch menu yet."}
+            </p>
+          </div>
+        ) : null}
       </section>
     </main>
   );

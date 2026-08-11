@@ -17,6 +17,8 @@ import { AdminShell } from "@/components/admin/admin-shell";
 import { PermissionGate } from "@/components/access/permission-gate";
 import { AdminStatCard } from "@/components/admin/admin-stat-card";
 import { ConfirmDialog } from "@/components/shared/confirm-dialog";
+import { Pagination } from "@/components/shared/pagination";
+import { EmptyState } from "@/components/shared/empty-state";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -30,8 +32,10 @@ import {
 import { Input } from "@/components/ui/input";
 import { cafeDataService } from "@/services/cafe-data.service";
 import { cafeOperationsService } from "@/services/cafe-operations.service";
+import { reportService } from "@/services/report.service";
 import type { Category } from "@/types/category.types";
 import type { Product } from "@/types/product.types";
+import { usePagination } from "@/hooks/use-pagination";
 
 type ProductRow = Product & {
   cost: number;
@@ -124,6 +128,7 @@ export default function ProductsPage() {
       ),
     [availability, category, products, query],
   );
+  const pagination = usePagination(filtered, `${query}:${category}:${availability}`);
   function start(product?: ProductRow) {
     setEditing(product ?? null);
     setForm({
@@ -140,9 +145,15 @@ export default function ProductsPage() {
   }
   function save() {
     const price = Number(form.price);
+    const cost = Number(form.cost);
+    const tax = Number(form.tax);
     if (!form.name.trim()) return toast.error("اسم المنتج مطلوب.");
-    if (!Number.isFinite(price) || price < 0)
-      return toast.error("سعر البيع غير صحيح.");
+    if (!Number.isFinite(price) || price <= 0)
+      return toast.error("سعر البيع يجب أن يكون أكبر من صفر.");
+    if (!Number.isFinite(cost) || cost < 0)
+      return toast.error("تكلفة المنتج لا يمكن أن تكون سالبة.");
+    if (!Number.isFinite(tax) || tax < 0 || tax > 100)
+      return toast.error("نسبة الضريبة يجب أن تكون بين 0 و100.");
     const data = {
       name: form.name.trim(),
       description: form.description,
@@ -183,6 +194,39 @@ export default function ProductsPage() {
     setDeleteTarget(null);
     toast.success("تم حذف المنتج.");
   }
+  function exportProducts() {
+    try {
+      const csv = reportService.toCsv(
+        products.map((product) => ({
+          "اسم المنتج": names[product.id] ?? product.name,
+          "القسم":
+            categoriesList.find((item) => item.id === product.categoryId)?.name ??
+            categoryNames[product.categoryId] ??
+            product.categoryId,
+          "المعرّف": product.id,
+          "السعر": product.price,
+          "التكلفة": product.cost,
+          "المخزون": product.stock,
+          "متاح في نقطة البيع": product.pos ? "نعم" : "لا",
+          "متاح أونلاين": product.online ? "نعم" : "لا",
+          "الحالة": product.isAvailable ? "متاح" : "غير متاح",
+        })),
+      );
+      const url = URL.createObjectURL(
+        new Blob([csv], { type: "text/csv;charset=utf-8" }),
+      );
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = `products-${new Date().toISOString().slice(0, 10)}.csv`;
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      URL.revokeObjectURL(url);
+      toast.success("تم تصدير المنتجات بنجاح.");
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "تعذر تصدير المنتجات.");
+    }
+  }
   return (
     <AdminShell>
       <section
@@ -198,12 +242,12 @@ export default function ProductsPage() {
             </p>
           </div>
           <div className="flex gap-2">
-            <PermissionGate permission="products.create"><Button
+            <PermissionGate permission="products.view"><Button
               type="button"
               variant="outline"
               className="h-10 rounded-lg"
-              disabled
-              title="التصدير يحتاج موصل ملفات وسيتم توفيره لاحقًا"
+              disabled={!products.length}
+              onClick={exportProducts}
             >
               <Download className="ml-2 h-4 w-4" />
               تصدير
@@ -296,7 +340,7 @@ export default function ProductsPage() {
                   </tr>
                 </thead>
                 <tbody>
-                  {filtered.map((product) => (
+                  {pagination.items.map((product) => (
                     <tr key={product.id} className="border-t">
                       <td className="px-4 py-3">
                         <div className="relative h-10 w-10 overflow-hidden rounded-lg bg-muted">
@@ -393,6 +437,8 @@ export default function ProductsPage() {
                   ))}
                 </tbody>
               </table>
+              {!filtered.length ? <EmptyState title="لا توجد منتجات حتى الآن" description="أضف منتجًا جديدًا أو غيّر البحث والفلاتر الحالية." icon="package" /> : null}
+              <Pagination {...pagination.state} onPageChange={pagination.setPage} onPageSizeChange={pagination.setPageSize} />
             </div>
           </CardContent>
         </Card>

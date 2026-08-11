@@ -1,5 +1,6 @@
 import { OfferPageResolver } from "./offer-page-resolver";
 
-export default function OfferPage({ params }: { params: { offerId: string } }) {
-  return <OfferPageResolver offerId={params.offerId} />;
+export default async function OfferPage({ params }: { params: Promise<{ offerId: string }> }) {
+  const { offerId } = await params;
+  return <OfferPageResolver offerId={offerId} />;
 }

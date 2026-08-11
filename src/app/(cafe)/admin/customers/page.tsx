@@ -16,6 +16,10 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { formatMoney } from "@/lib/money";
+import { formatDate } from "@/lib/formatters";
+import { Pagination } from "@/components/shared/pagination";
+import { SearchInput } from "@/components/shared/search-input";
+import { usePagination } from "@/hooks/use-pagination";
 import { useTenant } from "@/providers/tenant-provider";
 import { cafeOperationsService } from "@/services/cafe-operations.service";
 import { customerService } from "@/services/customer.service";
@@ -27,6 +31,8 @@ export default function CustomersPage() {
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState("");
   const [form, setForm] = useState(empty);
+  const [saving, setSaving] = useState(false);
+  const [formErrors, setFormErrors] = useState<Partial<Record<keyof typeof empty, string>>>({});
   const reload = () => setCustomers(customerService.getCustomers());
   useEffect(() => {
     reload();
@@ -51,25 +57,37 @@ export default function CustomersPage() {
       ),
     [customers, query],
   );
+  const pagination = usePagination(filtered, query);
   function save() {
-    if (!form.name.trim()) return toast.error("اسم العميل مطلوب.");
-    const customer = cafeOperationsService.create<Customer>("customers", {
+    const errors: typeof formErrors = {};
+    if (!form.name.trim()) errors.name = "اسم العميل مطلوب";
+    if (form.phone.trim() && !/^\+?[0-9\s()-]{7,20}$/.test(form.phone.trim())) errors.phone = "رقم الهاتف غير صحيح";
+    if (form.email.trim() && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.email.trim())) errors.email = "البريد الإلكتروني غير صحيح";
+    setFormErrors(errors);
+    if (Object.keys(errors).length) return;
+    setSaving(true);
+    try {
+      const customer = cafeOperationsService.create<Customer>("customers", {
       ...form,
       name: form.name.trim(),
       active: true,
       createdAt: new Date().toISOString(),
     });
-    cafeOperationsService.audit({
+      cafeOperationsService.audit({
       module: "customers",
       action: "CUSTOMER_CREATED",
       description: `تمت إضافة العميل ${customer.name}`,
       entityType: "customer",
       entityId: customer.id,
     });
-    setOpen(false);
-    setForm(empty);
-    reload();
-    toast.success("تمت إضافة العميل.");
+      setOpen(false);
+      setForm(empty);
+      setFormErrors({});
+      reload();
+      toast.success("تمت إضافة العميل بنجاح");
+    } finally {
+      setSaving(false);
+    }
   }
   return (
     <AdminShell>
@@ -95,12 +113,7 @@ export default function CustomersPage() {
         <Card>
           <CardContent className="p-0">
             <div className="border-b p-4">
-              <Input
-                className="max-w-sm"
-                placeholder="بحث بالاسم أو الهاتف"
-                value={query}
-                onChange={(e) => setQuery(e.target.value)}
-              />
+              <SearchInput className="max-w-sm" placeholder="بحث بالاسم أو الهاتف" value={query} onChange={setQuery} />
             </div>
             <div className="overflow-x-auto">
               <table className="w-full min-w-[1000px] text-right text-sm">
@@ -124,7 +137,7 @@ export default function CustomersPage() {
                   </tr>
                 </thead>
                 <tbody>
-                  {filtered.map((customer) => {
+                  {pagination.items.map((customer) => {
                     const analytics = customerService.getCustomerAnalytics(
                       customer.id,
                     );
@@ -150,15 +163,11 @@ export default function CustomersPage() {
                         </td>
                         <td className="px-4 py-3">
                           {analytics.lastVisit
-                            ? new Date(analytics.lastVisit).toLocaleDateString(
-                                "ar-EG",
-                              )
+                            ? formatDate(analytics.lastVisit)
                             : "—"}
                         </td>
                         <td className="px-4 py-3">
-                          {new Date(customer.createdAt).toLocaleDateString(
-                            "ar-EG",
-                          )}
+                          {formatDate(customer.createdAt)}
                         </td>
                         <td className="px-4 py-3">
                           <Button asChild size="sm" variant="outline">
@@ -178,6 +187,7 @@ export default function CustomersPage() {
                   لا يوجد عملاء حتى الآن.
                 </div>
               ) : null}
+              <Pagination {...pagination.state} onPageChange={pagination.setPage} onPageSizeChange={pagination.setPageSize} />
             </div>
           </CardContent>
         </Card>
@@ -202,11 +212,15 @@ export default function CustomersPage() {
                 <Input
                   type={type}
                   value={form[key]}
-                  onChange={(e) => setForm({ ...form, [key]: e.target.value })}
+                  required={key === "name"}
+                  aria-invalid={Boolean(formErrors[key])}
+                  aria-describedby={formErrors[key] ? `${key}-error` : undefined}
+                  onChange={(e) => { setForm({ ...form, [key]: e.target.value }); setFormErrors((current) => ({ ...current, [key]: undefined })); }}
                 />
+                {formErrors[key] ? <span id={`${key}-error`} className="mt-1 block text-xs font-semibold text-destructive">{formErrors[key]}</span> : null}
               </label>
             ))}
-            <Button onClick={save}>حفظ العميل</Button>
+            <Button disabled={saving} onClick={save}>{saving ? "جاري الحفظ..." : "حفظ العميل"}</Button>
           </DialogContent>
         </Dialog>
       </section>

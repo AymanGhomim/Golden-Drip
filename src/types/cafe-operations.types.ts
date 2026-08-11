@@ -39,7 +39,7 @@ export type InventoryItem = OperationRecord & {
 };
 export type StockMovement = OperationRecord & {
   inventoryItemId: string;
-  type: "PURCHASE" | "SALE" | "WASTE" | "ADJUSTMENT" | "RETURN";
+  type: "PURCHASE" | "SALE" | "WASTE" | "ADJUSTMENT" | "RETURN" | "ORDER_CANCELLATION_RESTORE";
   quantity: number;
   quantityBefore: number;
   quantityAfter: number;

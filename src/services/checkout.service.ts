@@ -20,7 +20,7 @@ import type {
   OrderType,
   PaymentMethod,
 } from "@/types/order.types";
-import { getEffectiveFeatures } from "@/config/plans.config";
+import { hasTenantFeature } from "@/config/feature-access.config";
 import { convertInventoryQuantity } from "@/lib/inventory-units";
 import { validateCoupon, customerService } from "@/services/customer.service";
 import { financeService } from "@/services/finance.service";
@@ -34,12 +34,16 @@ export type CheckoutInput = {
   customerName?: string;
   customerPhone?: string;
   customerAddress?: string;
+  customerNotes?: string;
   deliveryZoneId?: string;
   couponCode?: string;
   paymentMethod: PaymentMethod;
   paymentAllocations?: PaymentRecord["allocations"];
   receivedAmount?: number;
   source?: Order["source"];
+  expectedTenantId?: string;
+  expectedBranchId?: string;
+  deferPayment?: boolean;
 };
 export type CheckoutTotals = {
   subtotal: number;
@@ -65,10 +69,7 @@ function inventoryConsumptionEnabled(tenantId?: string) {
   if (!tenantId) return false;
   const tenant = tenantService.getTenant(tenantId);
   if (!tenant) return false;
-  return Boolean(
-    tenant.features.inventory &&
-    getEffectiveFeatures(tenant.plan, tenant.featureOverrides).inventory,
-  );
+  return hasTenantFeature(tenant, "inventory");
 }
 
 function getInventoryRequirements(
@@ -112,9 +113,15 @@ export const checkoutService = {
     const { tenantId } = activeContext();
     if (!items.length) throw new Error("السلة فارغة.");
     const catalog = new Map(
-      branchService
-        .getBranchProducts(undefined, tenantId)
-        .map((product) => [product.id, product]),
+      [
+        ...branchService.getBranchProducts(undefined, tenantId),
+        ...cafeDataService.getOffers().filter((offer) => offer.isActive).map((offer) => ({
+          id: offer.id,
+          name: offer.title,
+          price: offer.price,
+          isAvailable: offer.isActive,
+        })),
+      ].map((product) => [product.id, product]),
     );
     const orderItems = items.map((cart, index) => {
       const product = catalog.get(cart.productId);
@@ -195,6 +202,10 @@ export const checkoutService = {
   },
   checkout(input: CheckoutInput) {
     const { tenantId, branchId } = activeContext();
+    if (input.expectedTenantId && input.expectedTenantId !== tenantId)
+      throw new Error("سياق الكافيه لا يطابق رابط الطلب.");
+    if (input.expectedBranchId && input.expectedBranchId !== branchId)
+      throw new Error("سياق الفرع لا يطابق رابط الطلب.");
     if (input.orderType === "TABLE" && !input.tableId)
       throw new Error("اختر طاولة للطلب داخل الكافيه.");
     const table = input.tableId
@@ -220,6 +231,7 @@ export const checkoutService = {
     );
     const timestamp = new Date().toISOString();
     if (
+      !input.deferPayment &&
       input.paymentMethod === "CASH" &&
       Number(input.receivedAmount) < totals.total
     )
@@ -247,11 +259,12 @@ export const checkoutService = {
       customerName: input.customerName,
       customerPhone: input.customerPhone,
       customerAddress: input.customerAddress,
+      customerNotes: input.customerNotes,
       deliveryZoneId: input.deliveryZoneId,
       couponCode: input.couponCode?.trim().toUpperCase() || undefined,
       couponDiscount: totals.discount,
       status: "NEW",
-      paymentStatus: "PAID",
+      paymentStatus: input.deferPayment ? "PENDING" : "PAID",
       paymentMethod: input.paymentMethod,
       items,
       ...totals,
@@ -266,8 +279,10 @@ export const checkoutService = {
       ],
     };
     this.validateInventory(order);
+    const inventoryConsumed = this.consumeInventory(order);
+    if (inventoryConsumed) order.inventoryConsumedAt = timestamp;
     cafeDataService.saveOrders([order, ...cafeDataService.getOrders()]);
-    const payment = cafeOperationsService.create<PaymentRecord>("payments", {
+    const payment = input.deferPayment ? undefined : cafeOperationsService.create<PaymentRecord>("payments", {
       orderId: order.id,
       transactionNumber: `PAY-${String(Date.now()).slice(-8)}`,
       customerId: input.customerId,
@@ -283,9 +298,9 @@ export const checkoutService = {
       status: "PAID",
       createdAt: timestamp,
     });
-    this.consumeInventory(order);
-    const cashAmount =
-      input.paymentMethod === "CASH"
+    const cashAmount = input.deferPayment
+      ? 0
+      : input.paymentMethod === "CASH"
         ? order.total
         : input.paymentMethod === "MIXED"
           ? (input.paymentAllocations?.find((part) => part.method === "CASH")
@@ -294,7 +309,7 @@ export const checkoutService = {
     if (cashAmount > 0)
       financeService.createCashMovement({
         orderId: order.id,
-        paymentId: payment.id,
+        paymentId: payment?.id,
         type: "CASH_SALE",
         amount: cashAmount,
         reason: `بيع نقدي للطلب ${order.orderNumber}`,
@@ -350,11 +365,12 @@ export const checkoutService = {
     });
   },
   consumeInventory(order: Order) {
-    if (!inventoryConsumptionEnabled(order.tenantId)) return;
+    if (!inventoryConsumptionEnabled(order.tenantId)) return false;
     const recipes = cafeOperationsService.get<Recipe>("recipes");
     const inventory = cafeOperationsService.get<InventoryItem>("inventory");
-    if (!recipes.length || !inventory.length) return;
+    if (!recipes.length || !inventory.length) return false;
     const requirements = getInventoryRequirements(order, recipes, inventory);
+    if (!requirements.size) return false;
     this.validateInventory(order);
     const updated = inventory.map((item) => {
       const quantity = requirements.get(item.id);
@@ -397,5 +413,6 @@ export const checkoutService = {
           createdAt: new Date().toISOString(),
         });
       });
+    return true;
   },
 };

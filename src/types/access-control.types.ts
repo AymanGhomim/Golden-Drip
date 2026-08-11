@@ -100,6 +100,14 @@ export type CafeEmployee = {
   updatedAt: string;
 };
 
+export type CafeCredential = {
+  tenantId: string;
+  employeeId: string;
+  login: string;
+  passwordHash: string;
+  updatedAt: string;
+};
+
 export type PermissionDefinition = {
   key: PermissionKey;
   label: string;

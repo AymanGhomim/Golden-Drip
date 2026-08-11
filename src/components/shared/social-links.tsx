@@ -1,6 +1,6 @@
 "use client";
 
-import { Facebook, Instagram, MapPin, Music2 } from "lucide-react";
+import { Facebook, Instagram, MapPin, MessageCircle, Music2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import type { Locale } from "@/lib/menu-translations";
 import { cn } from "@/lib/utils";
@@ -16,6 +16,14 @@ export function SocialLinks({
   const { tenant } = useTenant();
   const contact = tenant.contact;
   const links = [
+    contact?.whatsapp && {
+      key: "whatsapp",
+      label: "WhatsApp",
+      href: /^https?:\/\//i.test(contact.whatsapp)
+        ? contact.whatsapp
+        : `https://wa.me/${contact.whatsapp.replace(/\D/g, "")}`,
+      icon: MessageCircle,
+    },
     contact?.facebook && {
       key: "facebook",
       label: "Facebook",

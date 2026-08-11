@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { useEffect, useState } from "react";
+import { createContext, useContext, useEffect, useState } from "react";
 import {
   BadgePercent,
   BookOpen,
@@ -21,7 +21,6 @@ import {
   QrCode,
   ReceiptText,
   Settings,
-  ShieldCheck,
   ShoppingCart,
   Tags,
   TableProperties,
@@ -34,13 +33,16 @@ import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { useTenant } from "@/providers/tenant-provider";
 import { useAuthStore } from "@/store/auth.store";
-import { getEffectiveFeatures } from "@/config/plans.config";
+import { getEffectiveTenantFeatures, getRequiredFeatureForRoute } from "@/config/feature-access.config";
 import { useBranch } from "@/providers/branch-provider";
 import { useCurrentEmployee } from "@/providers/current-employee-provider";
 import { getRoutePermission } from "@/config/permissions.config";
+import { FeatureUnavailableState, PermissionDeniedState } from "@/components/access/access-state";
 
 type NavItem = { href: string; label: string; icon: typeof LayoutDashboard };
 type NavGroup = { key: string; label: string; items: NavItem[] };
+
+const AdminShellNestingContext = createContext(false);
 
 const groups: NavGroup[] = [
   {
@@ -157,34 +159,26 @@ const groups: NavGroup[] = [
     ],
   },
 ];
-const featureForHref: Record<string, string> = {
-  "/admin/pos": "pos",
-  "/admin/orders": "orders",
-  "/admin/tables": "tables",
-  "/kitchen/orders": "kitchen",
-  "/admin/qr": "qrOrdering",
-  "/admin/delivery-zones": "delivery",
-  "/admin/inventory": "inventory",
-  "/admin/recipes": "recipes",
-  "/admin/suppliers": "suppliers",
-  "/admin/purchases": "purchases",
-  "/admin/expenses": "expenses",
-  "/admin/loyalty": "loyalty",
-  "/admin/employees": "employees",
-  "/admin/roles": "employees",
-  "/admin/reports": "reports",
-};
-
 export function AdminShell({ children }: { children: React.ReactNode }) {
+  const alreadyInsideShell = useContext(AdminShellNestingContext);
+  if (alreadyInsideShell) return <>{children}</>;
+
+  return (
+    <AdminShellNestingContext.Provider value>
+      <AdminShellContent>{children}</AdminShellContent>
+    </AdminShellNestingContext.Provider>
+  );
+}
+
+function AdminShellContent({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const router = useRouter();
   const { tenant } = useTenant();
   const { branch, branches, setActiveBranch } = useBranch();
   const { employee, role, hasPermission } = useCurrentEmployee();
-  const user = useAuthStore((state) => state.user);
   const authenticated = useAuthStore((state) => state.isAuthenticated);
   const logout = useAuthStore((state) => state.logout);
-  const [ready, setReady] = useState(false);
+  const [ready, setReady] = useState(() => useAuthStore.persist.hasHydrated());
   const [mobileOpen, setMobileOpen] = useState(false);
   const [desktopOpen, setDesktopOpen] = useState(true);
   const [openGroups, setOpenGroups] = useState<Record<string, boolean>>({
@@ -193,7 +187,11 @@ export function AdminShell({ children }: { children: React.ReactNode }) {
   });
 
   useEffect(() => {
-    void Promise.resolve(useAuthStore.persist.rehydrate()).then(() =>
+    if (useAuthStore.persist.hasHydrated()) {
+      setReady(true);
+      return;
+    }
+    void Promise.resolve(useAuthStore.persist.rehydrate()).finally(() =>
       setReady(true),
     );
   }, []);
@@ -276,7 +274,7 @@ export function AdminShell({ children }: { children: React.ReactNode }) {
       <span className="text-muted-foreground">·</span>
       <MapPin className="h-4 w-4 text-muted-foreground" />
       <span className="text-xs font-bold">الفرع الحالي</span>
-      {branches.length ? (
+      {branches.length > 1 ? (
         <select
           value={branch?.id ?? ""}
           onChange={(event) => setActiveBranch(event.target.value)}
@@ -293,11 +291,13 @@ export function AdminShell({ children }: { children: React.ReactNode }) {
               </option>
             ))}
         </select>
-      ) : (
+      ) : branches.length === 1 ? (
+        <span className="rounded-lg border bg-muted/40 px-3 py-2 text-xs font-bold">{branch?.name ?? branches[0].name}</span>
+      ) : hasPermission("branches.manage") ? (
         <Button asChild size="sm">
           <Link href="/admin/branches/new">إضافة أول فرع</Link>
         </Button>
-      )}
+      ) : <span className="text-xs text-muted-foreground">لا توجد فروع متاحة</span>}
     </div>
   );
   const branchRequiredRoutes = [
@@ -322,15 +322,8 @@ export function AdminShell({ children }: { children: React.ReactNode }) {
   const requiresBranch = branchRequiredRoutes.some((route) =>
     pathname.startsWith(route),
   );
-  const effectiveFeatures = getEffectiveFeatures(
-    tenant.plan,
-    tenant.featureOverrides,
-  );
-  const requiredFeature = Object.entries(featureForHref)
-    .sort(([left], [right]) => right.length - left.length)
-    .find(
-      ([href]) => pathname === href || pathname.startsWith(`${href}/`),
-    )?.[1];
+  const effectiveFeatures = getEffectiveTenantFeatures(tenant);
+  const requiredFeature = getRequiredFeatureForRoute(pathname);
   const featureUnavailable = Boolean(
     requiredFeature && !effectiveFeatures[requiredFeature],
   );
@@ -339,30 +332,9 @@ export function AdminShell({ children }: { children: React.ReactNode }) {
     requiredPermission && !hasPermission(requiredPermission),
   );
   const page = permissionUnavailable ? (
-    <section dir="rtl" className="mx-auto flex min-h-[70vh] max-w-xl items-center px-5">
-      <div className="w-full rounded-2xl border border-dashed bg-card p-10 text-center">
-        <ShieldCheck className="mx-auto h-10 w-10 text-muted-foreground" />
-        <h1 className="mt-4 text-xl font-black">ليس لديك صلاحية للوصول إلى هذه الصفحة.</h1>
-        <p className="mt-2 text-sm text-muted-foreground">
-          تواصل مع مدير الكافيه إذا كنت تحتاج إلى هذه الصلاحية.
-        </p>
-      </div>
-    </section>
+    <PermissionDeniedState />
   ) : featureUnavailable ? (
-    <section
-      dir="rtl"
-      className="mx-auto flex min-h-[70vh] max-w-xl items-center px-5"
-    >
-      <div className="w-full rounded-2xl border border-dashed bg-card p-10 text-center">
-        <Package className="mx-auto h-10 w-10 text-muted-foreground" />
-        <h1 className="mt-4 text-xl font-black">
-          هذه الميزة غير متاحة في باقتك الحالية
-        </h1>
-        <p className="mt-2 text-sm text-muted-foreground">
-          يمكنك مراجعة باقتك أو التواصل مع مسؤول المنصة لتفعيل هذه الميزة.
-        </p>
-      </div>
-    </section>
+    <FeatureUnavailableState />
   ) : !branch && requiresBranch ? (
     <section
       dir="rtl"
@@ -376,9 +348,7 @@ export function AdminShell({ children }: { children: React.ReactNode }) {
         <p className="mt-2 text-sm text-muted-foreground">
           أضف فرعًا أولًا لبدء استخدام هذه الصفحة.
         </p>
-        <Button asChild className="mt-6">
-          <Link href="/admin/branches/new">إضافة فرع</Link>
-        </Button>
+        {hasPermission("branches.manage") ? <Button asChild className="mt-6"><Link href="/admin/branches/new">إضافة فرع</Link></Button> : <p className="mt-4 text-sm font-semibold">تواصل مع مالك الحساب لإضافة الفرع.</p>}
       </div>
     </section>
   ) : (
@@ -394,7 +364,7 @@ export function AdminShell({ children }: { children: React.ReactNode }) {
     .map((group) => ({
       ...group,
       items: group.items.filter((item) => {
-        const feature = featureForHref[item.href];
+        const feature = getRequiredFeatureForRoute(item.href);
         const permission = getRoutePermission(item.href);
         return (!feature || effectiveFeatures[feature]) &&
           (!permission || hasPermission(permission));
@@ -412,7 +382,7 @@ export function AdminShell({ children }: { children: React.ReactNode }) {
               onClick={() =>
                 setOpenGroups((current) => ({ ...current, [group.key]: !open }))
               }
-              className="flex w-full items-center justify-between px-3 pb-1 pt-3 text-[0.65rem] font-bold tracking-wide text-[var(--tenant-sidebar-foreground)] opacity-70"
+              className="flex w-full items-center justify-between px-3 pb-1.5 pt-3 text-sm font-bold leading-6 tracking-wide text-[var(--tenant-sidebar-foreground)] opacity-80"
             >
               <span>{group.label}</span>
               <ChevronDown
@@ -426,7 +396,7 @@ export function AdminShell({ children }: { children: React.ReactNode }) {
           {collapsed || open
             ? group.items.map((item) => {
                 const Icon = item.icon;
-                const active = pathname === item.href;
+                const active = pathname === item.href || pathname.startsWith(`${item.href}/`);
                 return (
                   <Link
                     key={item.href}
@@ -434,7 +404,7 @@ export function AdminShell({ children }: { children: React.ReactNode }) {
                     onClick={onNavigate}
                     title={collapsed ? item.label : undefined}
                     className={cn(
-                      "group relative flex items-center rounded-lg py-2.5 text-xs font-semibold transition-all",
+                      "group relative flex items-center rounded-lg py-2.5 text-sm font-semibold leading-6 transition-all",
                       collapsed
                         ? "mx-auto h-11 w-11 justify-center px-0"
                         : "gap-3 px-3",
@@ -458,7 +428,7 @@ export function AdminShell({ children }: { children: React.ReactNode }) {
                           : "bg-[var(--tenant-sidebar-hover)]",
                       )}
                     >
-                      <Icon className="h-3.5 w-3.5" />
+                      <Icon className="h-4 w-4" />
                     </span>
                     {!collapsed ? (
                       <span className="truncate">{item.label}</span>
@@ -530,7 +500,8 @@ export function AdminShell({ children }: { children: React.ReactNode }) {
         {desktopOpen || mobile ? (
           <div className="mb-3 text-[var(--tenant-sidebar-foreground)]">
             <p className="truncate text-xs font-black">{employee.name}</p>
-            <p className="mt-1 truncate text-[11px] opacity-70">{role.name} · {user?.email}</p>
+            <p className="mt-1 truncate text-[11px] opacity-70">{role.name}</p>
+            <p className="mt-1 truncate text-[11px] opacity-70">{branch?.name ?? "لا يوجد فرع محدد"}</p>
           </div>
         ) : null}
         <Button
@@ -587,7 +558,7 @@ export function AdminShell({ children }: { children: React.ReactNode }) {
               onClick={() => setMobileOpen(false)}
               aria-label="إغلاق القائمة"
             />
-            <div className="relative h-full">{sidebar(true)}</div>
+            <div className="absolute inset-y-0 right-0">{sidebar(true)}</div>
           </div>
         ) : null}
         {children}

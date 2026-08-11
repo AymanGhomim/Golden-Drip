@@ -1,6 +1,6 @@
 "use client";
 import Link from "next/link";
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { CheckCheck } from "lucide-react";
 import { AdminShell } from "@/components/admin/admin-shell";
 import { PermissionGate } from "@/components/access/permission-gate";
@@ -9,6 +9,10 @@ import { Card, CardContent } from "@/components/ui/card";
 import { useCurrentEmployee } from "@/providers/current-employee-provider";
 import { engagementService } from "@/services/engagement.service";
 import type { NotificationRecord } from "@/types/cafe-operations.types";
+import { Pagination } from "@/components/shared/pagination";
+import { EmptyState } from "@/components/shared/empty-state";
+import { usePagination } from "@/hooks/use-pagination";
+import { formatRelativeTime } from "@/lib/formatters";
 const routes: Record<string, string> = {
   order: "/admin/orders",
   table: "/admin/tables",
@@ -35,6 +39,8 @@ export default function NotificationsPage() {
     window.addEventListener("operations:changed", reload);
     return () => window.removeEventListener("operations:changed", reload);
   }, []);
+  const sortedRecords = useMemo(() => [...records].reverse(), [records]);
+  const pagination = usePagination(sortedRecords);
   return (
     <AdminShell>
       <section
@@ -65,7 +71,7 @@ export default function NotificationsPage() {
         </div>
         <Card>
           <CardContent className="divide-y p-0">
-            {[...records].reverse().map((record) => {
+            {pagination.items.map((record) => {
               const entity = record.relatedEntityType;
               const route = entity ? routes[entity] : undefined;
               const allowed = entity
@@ -83,7 +89,7 @@ export default function NotificationsPage() {
                         {record.message}
                       </p>
                       <p className="mt-1 text-xs text-muted-foreground">
-                        {new Date(record.createdAt).toLocaleString("ar-EG")}
+                        {formatRelativeTime(record.createdAt)}
                       </p>
                     </div>
                     <div className="flex items-center gap-2">
@@ -119,10 +125,9 @@ export default function NotificationsPage() {
               );
             })}
             {!records.length ? (
-              <div className="p-12 text-center text-sm text-muted-foreground">
-                لا توجد إشعارات.
-              </div>
+              <EmptyState title="لا توجد إشعارات" description="ستظهر هنا تنبيهات الطلبات والمخزون والعمليات المهمة." />
             ) : null}
+            <Pagination {...pagination.state} onPageChange={pagination.setPage} onPageSizeChange={pagination.setPageSize} />
           </CardContent>
         </Card>
       </section>

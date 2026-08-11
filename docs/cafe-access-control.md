@@ -19,8 +19,9 @@ against the current Employee and replaces an invalid active Branch with the
 first allowed active Branch.
 
 The development login account selector is rendered only when
-`NODE_ENV !== "production"`. The common development password remains
-`admin123`. This is not authentication or security.
+`NODE_ENV !== "production"`. Development credentials must be supplied through
+explicit development-only environment configuration and are not authentication
+or security for a production deployment.
 
 ## Future login response
 

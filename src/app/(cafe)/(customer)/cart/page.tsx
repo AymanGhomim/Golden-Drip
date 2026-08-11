@@ -2,8 +2,9 @@
 
 import Image from "next/image";
 import Link from "next/link";
-import { useSearchParams } from "next/navigation";
+import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
+import { toast } from "sonner";
 import {
   Banknote,
   CreditCard,
@@ -31,6 +32,10 @@ import { Textarea } from "@/components/ui/textarea";
 import type { Locale } from "@/lib/menu-translations";
 import { useCartStore } from "@/store/cart.store";
 import { useSettingsStore } from "@/store/settings.store";
+import { useCustomerRoute } from "@/providers/customer-route-provider";
+import { checkoutService } from "@/services/checkout.service";
+import { cafeOperationsService } from "@/services/cafe-operations.service";
+import type { DeliveryZone } from "@/types/cafe-operations.types";
 
 const copy = {
   en: {
@@ -69,6 +74,10 @@ const copy = {
 } as const;
 
 export default function CartPage() {
+  const router = useRouter();
+  const customerRoute = useCustomerRoute();
+  const customerContext = customerRoute.context;
+  const lockedOrderType = Boolean(customerContext?.orderType);
   const [locale, setLocale] = useState<Locale>("en");
   const [paymentMethod, setPaymentMethod] = useState<"cash" | "instapay">(
     "cash",
@@ -76,14 +85,17 @@ export default function CartPage() {
   const [orderType, setOrderType] = useState<"delivery" | "takeaway" | null>(
     null,
   );
-  const [scannedTableNumber, setScannedTableNumber] = useState<string | null>(
-    null,
-  );
-  const searchParams = useSearchParams();
+  const [customerName, setCustomerName] = useState("");
+  const [customerPhone, setCustomerPhone] = useState("");
+  const [customerAddress, setCustomerAddress] = useState("");
+  const [customerNotes, setCustomerNotes] = useState("");
+  const [deliveryZoneId, setDeliveryZoneId] = useState("");
+  const [submitting, setSubmitting] = useState(false);
   const items = useCartStore((state) => state.items);
   const increaseQuantity = useCartStore((state) => state.increaseQuantity);
   const decreaseQuantity = useCartStore((state) => state.decreaseQuantity);
   const removeItem = useCartStore((state) => state.removeItem);
+  const clearCart = useCartStore((state) => state.clearCart);
   const serviceTaxPercent = useSettingsStore(
     (state) => state.serviceTaxPercent,
   );
@@ -96,21 +108,8 @@ export default function CartPage() {
 
   useEffect(() => {
     if (window.localStorage.getItem("cafe-ui-locale") === "ar") setLocale("ar");
-    const tableFromUrl =
-      searchParams.get("table") ??
-      searchParams.get("tableNumber") ??
-      searchParams.get("t");
-
-    if (tableFromUrl) {
-      window.localStorage.setItem("cafe-ui-table", tableFromUrl);
-      setScannedTableNumber(tableFromUrl);
-    } else {
-      setScannedTableNumber(window.localStorage.getItem("cafe-ui-table"));
-    }
-
-    void Promise.resolve();
     useSettingsStore.getState().loadForTenant();
-  }, [searchParams]);
+  }, []);
 
   useEffect(() => {
     document.documentElement.lang = locale;
@@ -118,7 +117,24 @@ export default function CartPage() {
     window.localStorage.setItem("cafe-ui-locale", locale);
   }, [locale]);
 
+  useEffect(() => {
+    if (customerContext?.table) {
+      setOrderType(null);
+      return;
+    }
+    if (customerContext?.orderType === "DELIVERY")
+      setOrderType("delivery");
+    else if (customerContext?.orderType === "TAKEAWAY")
+      setOrderType("takeaway");
+  }, [customerContext?.orderType, customerContext?.table]);
+
   const text = copy[locale];
+  const scannedTableNumber = customerContext?.table?.number
+    ? String(customerContext.table.number)
+    : null;
+  const deliveryZones = cafeOperationsService
+    .get<DeliveryZone>("deliveryZones")
+    .filter((zone) => zone.active);
   const orderText =
     locale === "en"
       ? {
@@ -179,6 +195,41 @@ export default function CartPage() {
   const total = getTotalWithServiceTax(subtotal);
   const totalItems = items.reduce((sum, item) => sum + item.quantity, 0);
   const serviceTaxLabel = locale === "en" ? "Service" : "الخدمة";
+
+  const submitOrder = () => {
+    if (!customerContext) return toast.error("تعذر تحديد بيانات الكافيه والفرع.");
+    if (!customerContext.table && !orderType) return toast.error("اختر نوع الطلب.");
+    if (!customerContext.table && (!customerName.trim() || !customerPhone.trim()))
+      return toast.error("اسم العميل ورقم الهاتف مطلوبان.");
+    if (orderType === "delivery" && (!customerAddress.trim() || !deliveryZoneId))
+      return toast.error("العنوان ومنطقة التوصيل مطلوبان.");
+    setSubmitting(true);
+    try {
+      const result = checkoutService.checkout({
+        items,
+        orderType: customerContext.table ? "TABLE" : orderType === "delivery" ? "DELIVERY" : "TAKEAWAY",
+        tableId: customerContext.table?.id,
+        customerName: customerName.trim() || undefined,
+        customerPhone: customerPhone.trim() || undefined,
+        customerAddress: customerAddress.trim() || undefined,
+        customerNotes: customerNotes.trim() || undefined,
+        deliveryZoneId: orderType === "delivery" ? deliveryZoneId : undefined,
+        paymentMethod: "CASH",
+        source:
+          customerContext.table || customerContext.orderType
+            ? "QR_MENU"
+            : "ONLINE_MENU",
+        expectedTenantId: customerContext.tenant.id,
+        expectedBranchId: customerContext.branch.id,
+        deferPayment: true,
+      });
+      clearCart();
+      router.push(customerRoute.href(`/order/${result.order.id}`));
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "تعذر إرسال الطلب.");
+      setSubmitting(false);
+    }
+  };
 
   return (
     <main
@@ -345,7 +396,7 @@ export default function CartPage() {
                 className="h-11 gap-2 rounded-md bg-primary px-5 text-sm font-bold text-primary-foreground shadow-sm transition-all hover:-translate-y-0.5 hover:bg-primary/90 hover:text-primary-foreground"
               >
                 <Link
-                  href="/menu"
+                  href={customerRoute.href("/menu")}
                   className="inline-flex items-center justify-center whitespace-nowrap"
                 >
                   <ShoppingBag className="h-4 w-4" />
@@ -500,9 +551,10 @@ export default function CartPage() {
                       </span>
                     </div>
                   ) : null}
-                  <div className="grid grid-cols-2 gap-2">
+                  {!customerContext?.table ? <div className="grid grid-cols-2 gap-2">
                     <Button
                       type="button"
+                      disabled={lockedOrderType}
                       variant={orderType === "delivery" ? "default" : "outline"}
                       className="h-11 gap-2 rounded-md text-xs font-bold"
                       onClick={() => setOrderType("delivery")}
@@ -512,6 +564,7 @@ export default function CartPage() {
                     </Button>
                     <Button
                       type="button"
+                      disabled={lockedOrderType}
                       variant={orderType === "takeaway" ? "default" : "outline"}
                       className="h-11 gap-2 rounded-md text-xs font-bold"
                       onClick={() => setOrderType("takeaway")}
@@ -519,7 +572,7 @@ export default function CartPage() {
                       <Store className="h-4 w-4" />
                       {orderText.takeaway}
                     </Button>
-                  </div>
+                  </div> : null}
                   <div className="space-y-3">
                     <p className="text-sm font-bold">
                       {orderText.customerInfo}
@@ -536,6 +589,8 @@ export default function CartPage() {
                         id="customer-name"
                         name="customerName"
                         autoComplete="name"
+                        value={customerName}
+                        onChange={(event) => setCustomerName(event.target.value)}
                       />
                     </div>
                     {orderType ? (
@@ -552,6 +607,8 @@ export default function CartPage() {
                           name="customerPhone"
                           type="tel"
                           autoComplete="tel"
+                          value={customerPhone}
+                          onChange={(event) => setCustomerPhone(event.target.value)}
                         />
                       </div>
                     ) : null}
@@ -569,7 +626,13 @@ export default function CartPage() {
                           name="customerAddress"
                           placeholder={orderText.addressHint}
                           className="min-h-20 resize-none"
+                          value={customerAddress}
+                          onChange={(event) => setCustomerAddress(event.target.value)}
                         />
+                        <select value={deliveryZoneId} onChange={(event) => setDeliveryZoneId(event.target.value)} className="h-10 w-full rounded-md border bg-background px-3 text-sm">
+                          <option value="">اختر منطقة التوصيل</option>
+                          {deliveryZones.map((zone) => <option key={zone.id} value={zone.id}>{zone.name} · {zone.fee}</option>)}
+                        </select>
                       </div>
                     ) : null}
                     <div className="space-y-2">
@@ -585,6 +648,8 @@ export default function CartPage() {
                         name="customerNotes"
                         placeholder={notesText.hint}
                         className="min-h-20 resize-none"
+                        value={customerNotes}
+                        onChange={(event) => setCustomerNotes(event.target.value)}
                       />
                     </div>
                   </div>
@@ -622,20 +687,16 @@ export default function CartPage() {
                 </div>
                 <Button
                   type="button"
-                  disabled
-                  title={
-                    locale === "ar"
-                      ? "إرسال الطلب الإلكتروني يحتاج Backend لتأكيد الطلب بأمان"
-                      : "Online ordering requires a backend for secure confirmation"
-                  }
+                  disabled={submitting || !items.length}
+                  onClick={submitOrder}
                   className="h-12 w-full rounded-md bg-accent font-bold text-accent-foreground shadow-sm transition-all hover:-translate-y-0.5 hover:bg-accent/90"
                 >
-                  {text.checkout}
+                  {submitting ? (locale === "ar" ? "جارٍ إرسال الطلب..." : "Placing order...") : text.checkout}
                 </Button>
                 <p className="text-center text-xs text-muted-foreground">
                   {locale === "ar"
-                    ? "إرسال الطلب والدفع الإلكتروني غير متاحين في نسخة Frontend فقط."
-                    : "Order submission and online payment are unavailable in the frontend-only build."}
+                    ? "سيتم تسجيل الطلب محليًا والدفع نقدًا عند الكاشير أو الاستلام. الدفع الإلكتروني غير متاح حتى ربط بوابة دفع."
+                    : "The order is stored locally and paid in cash at the cafe or on delivery. Online payment requires a gateway."}
                 </p>
               </CardContent>
             </Card>

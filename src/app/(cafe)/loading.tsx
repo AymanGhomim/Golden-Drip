@@ -1,5 +1,5 @@
-import { AppLoadingState } from "@/components/feedback/app-state";
+import { DashboardSkeleton } from "@/components/shared/skeleton-patterns";
 
 export default function CafeLoading() {
-  return <AppLoadingState variant="cafe" title="جاري تحميل مساحة الكافيه..." />;
+  return <main dir="rtl" className="min-h-screen bg-[var(--tenant-background)] text-[var(--tenant-text-primary)]"><div className="mx-auto w-full max-w-[1500px]"><DashboardSkeleton /></div></main>;
 }

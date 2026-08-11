@@ -7,6 +7,7 @@ import { tenantService } from "@/services/tenant.service";
 import { useCartStore } from "@/store/cart.store";
 import { useOrdersStore } from "@/store/orders.store";
 import { useSettingsStore } from "@/store/settings.store";
+import { useCustomerRoute } from "@/providers/customer-route-provider";
 
 type TenantContextValue = {
   tenant: Tenant;
@@ -65,12 +66,20 @@ function resolveTenant(): { tenant: Tenant; error?: string } {
 }
 
 export function TenantProvider({ children }: { children: React.ReactNode }) {
+  const customerRoute = useCustomerRoute();
   const [tenant, setTenant] = useState(DEFAULT_TENANT);
   const [error, setError] = useState<string>();
   const [resolved, setResolved] = useState(false);
   useEffect(() => {
     const refresh = (resetOperationalState: boolean) => {
-      const next = resolveTenant();
+      const next = customerRoute.context
+        ? { tenant: customerRoute.context.tenant }
+        : resolveTenant();
+      if (
+        customerRoute.context &&
+        tenantService.getSelectedDevelopmentTenant() !== next.tenant.id
+      )
+        tenantService.selectDevelopmentTenant(next.tenant.id);
       setTenant(next.tenant);
       setError(next.error);
       setResolved(true);
@@ -89,7 +98,7 @@ export function TenantProvider({ children }: { children: React.ReactNode }) {
       window.removeEventListener("tenant:changed", handleTenantChanged);
       window.removeEventListener("tenant:branding-changed", handleBrandingChanged);
     };
-  }, []);
+  }, [customerRoute.context]);
 
   if (!resolved) {
     return (

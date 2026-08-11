@@ -1,4 +1,5 @@
 import Link from "next/link";
+/* eslint-disable @next/next/no-img-element -- White-label logos may be stored as data URLs. */
 import { Button } from "@/components/ui/button";
 import type { TenantStatus } from "@/types/tenant.types";
 
