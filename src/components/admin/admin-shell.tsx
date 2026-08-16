@@ -10,7 +10,12 @@ import {
   PermissionDeniedState,
 } from "@/components/access/access-state";
 import { CafeAdminSidebar } from "@/components/layout/cafe-admin-sidebar";
-import { adminNavigationGroups } from "@/components/layout/admin-navigation";
+import { AdminCommandMenu } from "@/components/layout/admin-command-menu";
+import { AdminTableExperience } from "@/components/admin/admin-table-experience";
+import {
+  adminNavigationGroups,
+  adminPrimaryNavigation,
+} from "@/components/layout/admin-navigation";
 import { AppLogo } from "@/components/shared/app-logo";
 import { Button } from "@/components/ui/button";
 import {
@@ -23,6 +28,8 @@ import { useBranch } from "@/providers/branch-provider";
 import { useCurrentEmployee } from "@/providers/current-employee-provider";
 import { useTenant } from "@/providers/tenant-provider";
 import { branchService } from "@/services/branch.service";
+import { cafeDataService } from "@/services/cafe-data.service";
+import { engagementService } from "@/services/engagement.service";
 import { useAuthStore } from "@/store/auth.store";
 
 const AdminShellNestingContext = createContext(false);
@@ -67,10 +74,16 @@ function AdminShellContent({ children }: { children: React.ReactNode }) {
   const logout = useAuthStore((state) => state.logout);
   const [ready, setReady] = useState(() => useAuthStore.persist.hasHydrated());
   const [mobileOpen, setMobileOpen] = useState(false);
-  const [desktopOpen, setDesktopOpen] = useState(true);
+  const [commandOpen, setCommandOpen] = useState(false);
+  const [favoriteHrefs, setFavoriteHrefs] = useState<string[]>([]);
+  const [badgeCounts, setBadgeCounts] = useState<Record<string, number>>({});
+  const [desktopOpen, setDesktopOpen] = useState(() =>
+    typeof window === "undefined"
+      ? true
+      : window.localStorage.getItem("admin:sidebar-collapsed") !== "true",
+  );
   const [openGroups, setOpenGroups] = useState<Record<string, boolean>>({
-    sales: true,
-    menu: true,
+    "sales-menu": true,
   });
 
   useEffect(() => {
@@ -87,12 +100,73 @@ function AdminShellContent({ children }: { children: React.ReactNode }) {
   }, [authenticated, ready, router]);
   useEffect(() => {
     const active = adminNavigationGroups.find((group) =>
-      group.items.some((item) => pathname === item.href),
+      group.items.some(
+        (item) => pathname === item.href || pathname.startsWith(`${item.href}/`),
+      ),
     );
     if (active)
-      setOpenGroups((current) => ({ ...current, [active.key]: true }));
+      setOpenGroups({ [active.key]: true });
     setMobileOpen(false);
   }, [pathname]);
+  useEffect(() => {
+    window.localStorage.setItem(
+      "admin:sidebar-collapsed",
+      String(!desktopOpen),
+    );
+  }, [desktopOpen]);
+  useEffect(() => {
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === "k") {
+        event.preventDefault();
+        setCommandOpen((value) => !value);
+      }
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, []);
+  useEffect(() => {
+    if (!employee) {
+      setFavoriteHrefs([]);
+      return;
+    }
+    const key = `admin:favorites:${tenant.id}:${employee.id}`;
+    try {
+      const stored = JSON.parse(window.localStorage.getItem(key) || "[]");
+      setFavoriteHrefs(Array.isArray(stored) ? stored : []);
+    } catch {
+      setFavoriteHrefs([]);
+    }
+  }, [employee, tenant.id]);
+  useEffect(() => {
+    const updateBadges = () => {
+      const orders = branch
+        ? cafeDataService.getOrdersForBranch(branch.id, tenant.id)
+        : [];
+      setBadgeCounts({
+        "/admin/orders": orders.filter((item) => item.status === "NEW").length,
+        "/kitchen/orders": orders.filter((item) =>
+          ["NEW", "PREPARING"].includes(item.status),
+        ).length,
+        "/admin/waiter-requests": engagementService
+          .getWaiterRequests()
+          .filter((item) => item.status === "NEW").length,
+        "/admin/notifications": engagementService
+          .getNotifications()
+          .filter((item) => !item.read).length,
+      });
+    };
+    updateBadges();
+    window.addEventListener("operations:changed", updateBadges);
+    window.addEventListener("orders:changed", updateBadges);
+    window.addEventListener("branch:changed", updateBadges);
+    const interval = window.setInterval(updateBadges, 30000);
+    return () => {
+      window.removeEventListener("operations:changed", updateBadges);
+      window.removeEventListener("orders:changed", updateBadges);
+      window.removeEventListener("branch:changed", updateBadges);
+      window.clearInterval(interval);
+    };
+  }, [branch, tenant.id]);
 
   const signOut = () => {
     logout();
@@ -162,6 +236,37 @@ function AdminShellContent({ children }: { children: React.ReactNode }) {
       }),
     }))
     .filter((group) => group.items.length > 0);
+  const visiblePrimaryItems = adminPrimaryNavigation.filter((item) => {
+    const feature = getRequiredFeatureForRoute(item.href);
+    const permission = getRoutePermission(item.href);
+    return (
+      (!feature || effectiveFeatures[feature]) &&
+      (!permission || hasPermission(permission))
+    );
+  });
+  const commandItems = [
+    ...visiblePrimaryItems,
+    ...visibleGroups.flatMap((group) => group.items),
+  ].filter(
+    (item, index, items) =>
+      items.findIndex((candidate) => candidate.href === item.href) === index,
+  );
+  const favoriteItems = favoriteHrefs
+    .map((href) => commandItems.find((item) => item.href === href))
+    .filter((item): item is (typeof commandItems)[number] => Boolean(item));
+  const toggleFavorite = (href: string) => {
+    if (!employee) return;
+    setFavoriteHrefs((current) => {
+      const next = current.includes(href)
+        ? current.filter((item) => item !== href)
+        : [...current, href].slice(-5);
+      window.localStorage.setItem(
+        `admin:favorites:${tenant.id}:${employee.id}`,
+        JSON.stringify(next),
+      );
+      return next;
+    });
+  };
   const page =
     requiredPermission && !hasPermission(requiredPermission) ? (
       <PermissionDeniedState />
@@ -172,62 +277,40 @@ function AdminShellContent({ children }: { children: React.ReactNode }) {
     ) : (
       children
     );
-  const branchSelector = singleBranchCafe ? null : (
-    <div className="hidden items-center gap-2 border-b bg-background px-5 py-2 lg:flex">
-      <span className="text-xs font-black text-primary">{tenant.name}</span>
-      <span className="text-muted-foreground">·</span>
-      <MapPin className="h-4 w-4 text-muted-foreground" />
-      <span className="text-xs font-bold">الفرع الحالي</span>
-      {branches.length > 1 ? (
-        <select
-          value={branch?.id ?? ""}
-          onChange={(event) => setActiveBranch(event.target.value)}
-          className="h-9 min-w-52 rounded-lg border bg-background px-3 text-xs font-bold"
-        >
-          <option value="" disabled>
-            اختر الفرع
-          </option>
-          {branches
-            .filter((item) => item.status === "ACTIVE")
-            .map((item) => (
-              <option key={item.id} value={item.id}>
-                {item.name}
-              </option>
-            ))}
-        </select>
-      ) : branches.length === 1 ? (
-        <span className="rounded-lg border bg-muted/40 px-3 py-2 text-xs font-bold">
-          {branch?.name ?? branches[0].name}
-        </span>
-      ) : hasPermission("branches.manage") ? (
-        <Button asChild size="sm">
-          <Link href="/admin/branches/new">إضافة أول فرع</Link>
-        </Button>
-      ) : (
-        <span className="text-xs text-muted-foreground">
-          لا توجد فروع متاحة
-        </span>
-      )}
-    </div>
-  );
   const sidebarProps = {
     tenantName: tenant.name,
     employeeName: employee.name,
     roleName: role.name,
     branchName: branch?.name,
+    activeBranchId: branch?.id,
+    branches: branches
+      .filter((item) => item.status === "ACTIVE")
+      .map((item) => ({ id: item.id, name: item.name })),
     singleBranch: singleBranchCafe,
+    primaryItems: visiblePrimaryItems,
+    favoriteItems,
+    badgeCounts,
     groups: visibleGroups,
     pathname,
     openGroups,
     onToggleGroup: (key: string) =>
-      setOpenGroups((current) => ({ ...current, [key]: !current[key] })),
+      setOpenGroups((current) => (current[key] ? {} : { [key]: true })),
     onToggleCollapsed: () => setDesktopOpen((value) => !value),
     onCloseMobile: () => setMobileOpen(false),
+    onBranchChange: setActiveBranch,
+    onOpenSearch: () => setCommandOpen(true),
     onSignOut: signOut,
   };
 
   return (
     <div dir="rtl" lang="ar" className="min-h-screen bg-background lg:flex">
+      <AdminCommandMenu
+        open={commandOpen}
+        onOpenChange={setCommandOpen}
+        items={commandItems}
+        favoriteHrefs={favoriteHrefs}
+        onToggleFavorite={toggleFavorite}
+      />
       <div className="sticky top-0 hidden h-screen shrink-0 lg:flex">
         <CafeAdminSidebar
           {...sidebarProps}
@@ -235,7 +318,8 @@ function AdminShellContent({ children }: { children: React.ReactNode }) {
           mobile={false}
         />
       </div>
-      <div className="min-w-0 flex-1">
+      <div data-admin-workspace className="min-w-0 flex-1">
+        <AdminTableExperience />
         <header className="sticky top-0 z-20 flex items-center justify-between border-b bg-background/95 px-3 py-2.5 backdrop-blur lg:hidden">
           <Button
             type="button"
@@ -272,7 +356,6 @@ function AdminShellContent({ children }: { children: React.ReactNode }) {
             </div>
           </div>
         ) : null}
-        {branchSelector}
         {page}
       </div>
     </div>

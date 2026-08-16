@@ -52,14 +52,14 @@ export function DataTable<T>({
 
   return (
     <div className={cn("overflow-x-auto rounded-md border bg-card", className)}>
-      <Table className="min-w-[680px] text-xs">
-        <TableHeader className="bg-muted/45">
+      <Table className="min-w-[680px] text-sm">
+        <TableHeader>
           <TableRow>
             {columns.map((col) => (
               <TableHead
                 key={col.key}
                 className={cn(
-                  "h-9 px-3 text-[0.68rem] font-bold uppercase tracking-[0.08em]",
+                  "h-11 px-4 text-xs font-black tracking-wide",
                   col.className,
                   col.headerClassName,
                 )}
@@ -71,11 +71,11 @@ export function DataTable<T>({
         </TableHeader>
         <TableBody>
           {data.map((item) => (
-            <TableRow key={keyExtractor(item)} className="transition-colors hover:bg-muted/35">
+            <TableRow key={keyExtractor(item)}>
               {columns.map((col) => (
                 <TableCell
                   key={col.key}
-                  className={cn("px-3 py-2.5 align-middle", col.className, col.cellClassName)}
+                  className={cn("px-4 py-3 align-middle", col.className, col.cellClassName)}
                 >
                   {col.cell(item)}
                 </TableCell>

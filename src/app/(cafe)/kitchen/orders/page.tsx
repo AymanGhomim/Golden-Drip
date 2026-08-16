@@ -9,10 +9,15 @@ import { Card, CardContent } from "@/components/ui/card";
 import { useOrdersStore } from "@/store/orders.store";
 import type { Order, OrderStatus } from "@/types/order.types";
 
-const stages: Array<{ status: OrderStatus; title: string; action: string }> = [
-  { status: "NEW", title: "جديد", action: "بدء التحضير" },
-  { status: "PREPARING", title: "جاري التحضير", action: "تحديد كجاهز" },
-  { status: "READY", title: "جاهز", action: "إكمال" },
+const stages: Array<{
+  key: string;
+  statuses: OrderStatus[];
+  title: string;
+  action: string;
+}> = [
+  { key: "new", statuses: ["NEW", "ACCEPTED"], title: "جديد", action: "بدء التحضير" },
+  { key: "preparing", statuses: ["PREPARING"], title: "جاري التحضير", action: "تحديد كجاهز" },
+  { key: "ready", statuses: ["READY"], title: "جاهز", action: "إكمال" },
 ];
 export default function KitchenOrdersPage() {
   const orders = useOrdersStore((state) => state.orders).filter(
@@ -37,22 +42,32 @@ export default function KitchenOrdersPage() {
   }, []);
   const totals = useMemo(
     () => ({
-      fresh: orders.filter((order) => order.status === "NEW").length,
+      fresh: orders.filter((order) => ["NEW", "ACCEPTED"].includes(order.status)).length,
       preparing: orders.filter((order) => order.status === "PREPARING").length,
       ready: orders.filter((order) => order.status === "READY").length,
     }),
     [orders],
   );
   const advance = (order: Order) => {
-    const next =
-      order.status === "NEW"
-        ? "PREPARING"
-        : order.status === "PREPARING"
-          ? "READY"
-          : "COMPLETED";
-    updateStatus(order.id, next);
-    window.dispatchEvent(new Event("orders:changed"));
-    toast.success("تم تحديث حالة الطلب");
+    try {
+      if (order.status === "NEW") {
+        updateStatus(order.id, "ACCEPTED");
+        updateStatus(order.id, "PREPARING");
+      } else if (order.status === "ACCEPTED") {
+        updateStatus(order.id, "PREPARING");
+      } else if (order.status === "PREPARING") {
+        updateStatus(order.id, "READY");
+      } else if (order.status === "READY") {
+        updateStatus(order.id, "COMPLETED");
+      } else {
+        throw new Error("لا يوجد إجراء متاح للطلب في حالته الحالية.");
+      }
+      toast.success("تم تحديث حالة الطلب");
+    } catch (error) {
+      toast.error(
+        error instanceof Error ? error.message : "تعذر تحديث حالة الطلب.",
+      );
+    }
   };
   return (
     <AdminShell>
@@ -92,21 +107,21 @@ export default function KitchenOrdersPage() {
         <div className="grid gap-4 lg:grid-cols-3">
           {stages.map((stage) => (
             <div
-              key={stage.status}
+              key={stage.key}
               className="min-h-[520px] rounded-xl bg-muted/35 p-3"
             >
               <div className="mb-3 flex items-center justify-between">
                 <h2 className="font-black">{stage.title}</h2>
                 <Badge variant="outline">
                   {
-                    orders.filter((order) => order.status === stage.status)
+                    orders.filter((order) => stage.statuses.includes(order.status))
                       .length
                   }
                 </Badge>
               </div>
               <div className="space-y-3">
                 {orders
-                  .filter((order) => order.status === stage.status)
+                  .filter((order) => stage.statuses.includes(order.status))
                   .map((order) => (
                     <KitchenCard
                       key={order.id}
@@ -117,7 +132,7 @@ export default function KitchenOrdersPage() {
                     />
                   ))}
               </div>
-              {!orders.some((order) => order.status === stage.status) ? (
+              {!orders.some((order) => stage.statuses.includes(order.status)) ? (
                 <p className="p-8 text-center text-sm text-muted-foreground">
                   لا توجد طلبات
                 </p>

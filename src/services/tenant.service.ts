@@ -1,4 +1,5 @@
 import { mockTenantRepository } from "@/repositories/mock-tenant.repository";
+import { tenantStorage } from "@/repositories/tenant-storage";
 import type { Tenant } from "@/types/tenant.types";
 
 // Frontend-only local demo bootstrap. Normal navigation must use a selected,
@@ -24,6 +25,19 @@ export const tenantService = {
       mockTenantRepository.getSelected() === id
     )
       window.dispatchEvent(new Event("tenant:branding-changed"));
+    return tenant;
+  },
+  cancelSubscription: (id: string) => {
+    const tenant = mockTenantRepository.update(id, {
+      status: "SUSPENDED",
+      subscriptionStatus: "CANCELED",
+    });
+    if (!tenant) throw new Error("الكافيه غير موجود.");
+    return tenant;
+  },
+  deleteTenant: (id: string) => {
+    const tenant = mockTenantRepository.remove(id);
+    tenantStorage.removeTenant(id);
     return tenant;
   },
   selectDevelopmentTenant: (id: string) => mockTenantRepository.setSelected(id),

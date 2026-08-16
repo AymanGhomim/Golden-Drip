@@ -1,8 +1,9 @@
 "use client";
 
 import Link from "next/link";
-import { Download, Plus, RefreshCw } from "lucide-react";
+import { Banknote, BellRing, CheckCircle2, ChefHat, Download, Plus, RefreshCw } from "lucide-react";
 import { AdminShell } from "@/components/admin/admin-shell";
+import { AdminStatCard } from "@/components/admin/admin-stat-card";
 import { PermissionGate } from "@/components/access/permission-gate";
 import { OrderCancellationDialog } from "@/components/features/orders/order-cancellation-dialog";
 import { OrdersFilters } from "@/components/features/orders/orders-filters";
@@ -10,9 +11,13 @@ import { OrdersTable } from "@/components/features/orders/orders-table";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { useOrdersPage } from "@/hooks/use-orders-page";
+import { formatMoney } from "@/lib/money";
 
 export default function OrdersPage() {
   const controller = useOrdersPage();
+  const paidRevenue = controller.orders
+    .filter((order) => order.paymentStatus === "PAID")
+    .reduce((sum, order) => sum + order.total, 0);
   return (
     <AdminShell>
       <section
@@ -58,12 +63,17 @@ export default function OrdersPage() {
             </Button>
           </div>
         </div>
+        <div className="mb-4 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+          <AdminStatCard label="طلبات جديدة" value={controller.orders.filter((order) => order.status === "NEW").length} icon={BellRing} tone="blue" active={controller.status === "NEW"} onClick={() => controller.setStatus(controller.status === "NEW" ? "ALL" : "NEW")} />
+          <AdminStatCard label="قيد التحضير" value={controller.orders.filter((order) => order.status === "PREPARING").length} icon={ChefHat} tone="amber" active={controller.status === "PREPARING"} onClick={() => controller.setStatus(controller.status === "PREPARING" ? "ALL" : "PREPARING")} />
+          <AdminStatCard label="طلبات مكتملة" value={controller.orders.filter((order) => order.status === "COMPLETED").length} icon={CheckCircle2} tone="violet" active={controller.status === "COMPLETED"} onClick={() => controller.setStatus(controller.status === "COMPLETED" ? "ALL" : "COMPLETED")} />
+          <AdminStatCard label="إجمالي المدفوع" value={formatMoney(paidRevenue)} icon={Banknote} tone="green" />
+        </div>
         <Card className="overflow-hidden rounded-xl">
           <CardContent className="p-0">
             <OrdersFilters {...controller} />
             <OrdersTable
-              orders={controller.pagination.items}
-              pagination={controller.pagination}
+              orders={controller.filteredOrders}
               onAdvance={controller.advanceOrder}
               onCancel={controller.openCancellation}
             />

@@ -10,6 +10,15 @@ export const tenantStorage = {
   },
   set<T>(tenantId: string, resource: string, value: T) { if (typeof window !== "undefined") window.localStorage.setItem(key(tenantId, resource), JSON.stringify(value)); return value; },
   remove(tenantId: string, resource: string) { if (typeof window !== "undefined") window.localStorage.removeItem(key(tenantId, resource)); },
+  removeTenant(tenantId: string) {
+    if (typeof window === "undefined") return;
+    const tenantPrefix = `${PREFIX}:${tenantId}:`;
+    const keys = Array.from(
+      { length: window.localStorage.length },
+      (_, index) => window.localStorage.key(index),
+    ).filter((item): item is string => Boolean(item?.startsWith(tenantPrefix)));
+    keys.forEach((item) => window.localStorage.removeItem(item));
+  },
   getForBranch<T>(tenantId: string, branchId: string, resource: string, fallback: T): T { return this.get(tenantId, branchResource(branchId, resource), fallback); },
   setForBranch<T>(tenantId: string, branchId: string, resource: string, value: T) { return this.set(tenantId, branchResource(branchId, resource), value); },
   removeForBranch(tenantId: string, branchId: string, resource: string) { this.remove(tenantId, branchResource(branchId, resource)); },

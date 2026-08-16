@@ -56,10 +56,13 @@ export const cafeDataService = {
     const branchId = branchService.getActiveBranchId(id);
     if (!branchId) return value;
     const other = getTenantOrders(id).filter((order) => order.branchId !== branchId);
-    return tenantDataRepository.saveOrders(id, [
+    const saved = tenantDataRepository.saveOrders(id, [
       ...other,
       ...value.map((order) => ({ ...order, tenantId: id, branchId })),
     ]);
+    if (typeof window !== "undefined")
+      window.dispatchEvent(new Event("orders:changed"));
+    return saved;
   },
   getTables: () => {
     const id = activeTenantId();

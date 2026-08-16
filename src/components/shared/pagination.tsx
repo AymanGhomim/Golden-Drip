@@ -15,6 +15,11 @@ export function Pagination({ page, pageSize, total, totalPages, onPageChange, on
   if (total === 0) return null;
   const first = (page - 1) * pageSize + 1;
   const last = Math.min(page * pageSize, total);
+  const windowStart = Math.max(1, Math.min(page - 2, totalPages - 4));
+  const visiblePages = Array.from(
+    { length: Math.min(5, totalPages) },
+    (_, index) => Math.max(1, windowStart) + index,
+  );
 
   return (
     <nav dir="rtl" aria-label="ترقيم الصفحات" className="flex flex-col gap-3 border-t bg-card px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
@@ -30,7 +35,23 @@ export function Pagination({ page, pageSize, total, totalPages, onPageChange, on
         <Button type="button" variant="outline" size="icon" className="h-9 w-9" disabled={page <= 1} onClick={() => onPageChange(page - 1)} aria-label="الصفحة السابقة">
           <ChevronRight className="h-4 w-4" />
         </Button>
-        <span className="min-w-20 text-center text-xs font-semibold">{page} من {totalPages}</span>
+        <div className="hidden items-center gap-1 sm:flex">
+          {visiblePages.map((pageNumber) => (
+            <Button
+              key={pageNumber}
+              type="button"
+              variant={pageNumber === page ? "default" : "ghost"}
+              size="icon"
+              className="h-9 w-9 rounded-lg text-xs"
+              onClick={() => onPageChange(pageNumber)}
+              aria-label={`الصفحة ${pageNumber}`}
+              aria-current={pageNumber === page ? "page" : undefined}
+            >
+              {pageNumber}
+            </Button>
+          ))}
+        </div>
+        <span className="min-w-20 text-center text-xs font-semibold sm:hidden">{page} من {totalPages}</span>
         <Button type="button" variant="outline" size="icon" className="h-9 w-9" disabled={page >= totalPages} onClick={() => onPageChange(page + 1)} aria-label="الصفحة التالية">
           <ChevronLeft className="h-4 w-4" />
         </Button>

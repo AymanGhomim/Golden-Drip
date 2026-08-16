@@ -11,11 +11,15 @@ import { tenantService } from "@/services/tenant.service";
 import { useState } from "react";
 import { AppNotFoundState } from "@/components/feedback/app-state";
 import { STATUS_LABELS } from "@/constants/status-presentation";
+import { ConfirmDialog } from "@/components/shared/confirm-dialog";
+import { Ban } from "lucide-react";
 
 export default function TenantSubscriptionPage() {
   const { tenantId } = useParams<{ tenantId: string }>();
   const tenant = tenantService.getTenant(tenantId);
   const [months, setMonths] = useState("1");
+  const [cancelOpen, setCancelOpen] = useState(false);
+  const [, refresh] = useState(0);
   if (!tenant)
     return (
       <AppNotFoundState
@@ -41,8 +45,21 @@ export default function TenantSubscriptionPage() {
     });
     toast.success("تم تمديد الاشتراك في التخزين التجريبي");
   };
+  const cancel = () => {
+    tenantService.cancelSubscription(tenant.id);
+    refresh((value) => value + 1);
+    toast.success("تم إلغاء الاشتراك وإيقاف الكافيه.");
+  };
   return (
     <section className="mx-auto max-w-[1500px] p-5 sm:p-10">
+      <ConfirmDialog
+        open={cancelOpen}
+        onOpenChange={setCancelOpen}
+        title="إلغاء اشتراك الكافيه؟"
+        description="سيتم إيقاف الكافيه ومنع استخدامه، مع الاحتفاظ بجميع بياناته لإمكانية إعادة تفعيله لاحقًا."
+        confirmLabel="إلغاء الاشتراك"
+        onConfirm={cancel}
+      />
       <TenantDetailHeader tenant={tenant} />
       <TenantTabs id={tenant.id} active="subscription" />
       <Card className="mt-6 max-w-2xl">
@@ -78,6 +95,24 @@ export default function TenantSubscriptionPage() {
               </select>
             </label>
             <Button onClick={extend}>تمديد الاشتراك</Button>
+          </div>
+          <div className="mt-8 border-t border-destructive/20 pt-6">
+            <h3 className="font-black text-destructive">إلغاء الاشتراك</h3>
+            <p className="mt-1 text-sm text-muted-foreground">
+              يحتفظ الإلغاء ببيانات الكافيه، لكنه يوقف الوصول إلى لوحة الإدارة.
+            </p>
+            <Button
+              type="button"
+              variant="destructive"
+              className="mt-4"
+              disabled={tenant.subscriptionStatus === "CANCELED"}
+              onClick={() => setCancelOpen(true)}
+            >
+              <Ban className="ml-2 h-4 w-4" />
+              {tenant.subscriptionStatus === "CANCELED"
+                ? "الاشتراك ملغي"
+                : "إلغاء الاشتراك"}
+            </Button>
           </div>
         </CardContent>
       </Card>

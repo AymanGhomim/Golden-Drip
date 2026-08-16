@@ -1,9 +1,9 @@
 "use client";
 /* eslint-disable @next/next/no-img-element -- White-label logos may be data URLs. */
 import Link from "next/link";
-import { useParams } from "next/navigation";
+import { useParams, useRouter } from "next/navigation";
 import { useState } from "react";
-import { Copy, ExternalLink } from "lucide-react";
+import { Copy, ExternalLink, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -24,10 +24,13 @@ import {
 } from "@/services/branch.service";
 import { AppNotFoundState } from "@/components/feedback/app-state";
 import { ADMIN_CLIENT_MODE_LABELS } from "@/lib/admin-client-mode";
+import { ConfirmDialog } from "@/components/shared/confirm-dialog";
 
 export default function TenantDetailsPage() {
   const { tenantId } = useParams<{ tenantId: string }>();
+  const router = useRouter();
   const [revision, setRevision] = useState(0);
+  const [deleteOpen, setDeleteOpen] = useState(false);
   const tenant = tenantService.getTenant(tenantId);
   if (!tenant)
     return <AppNotFoundState variant="platform" description="تعذر العثور على الكافيه المطلوب داخل لوحة إدارة المنصة." actionHref="/platform/tenants" actionLabel="العودة إلى الكافيهات" />;
@@ -44,6 +47,18 @@ export default function TenantDetailsPage() {
     : null;
   return (
     <section className="mx-auto max-w-[1500px] p-5 sm:p-10">
+      <ConfirmDialog
+        open={deleteOpen}
+        onOpenChange={setDeleteOpen}
+        title={`حذف ${tenant.name} نهائيًا؟`}
+        description="سيتم حذف الكافيه وكل بياناته المحلية، بما فيها الفروع والمنتجات والطلبات والموظفون. لا يمكن التراجع عن هذا الإجراء."
+        confirmLabel="حذف الكافيه نهائيًا"
+        onConfirm={() => {
+          tenantService.deleteTenant(tenant.id);
+          toast.success("تم حذف الكافيه وكل بياناته.");
+          router.replace("/platform/tenants");
+        }}
+      />
       <TenantDetailHeader tenant={tenant} />
       <TenantTabs id={tenant.id} active="overview" />
       <div className="mt-4 flex justify-end">
@@ -289,6 +304,24 @@ export default function TenantDetailsPage() {
               لا توجد فروع لهذا الكافيه.
             </div>
           ) : null}
+        </CardContent>
+      </Card>
+      <Card className="mt-5 border-destructive/30">
+        <CardContent className="flex flex-col gap-4 p-5 sm:flex-row sm:items-center sm:justify-between">
+          <div>
+            <h2 className="font-black text-destructive">منطقة خطرة</h2>
+            <p className="mt-1 text-sm text-muted-foreground">
+              حذف الكافيه نهائي ويزيل كل البيانات المرتبطة به من هذا النظام.
+            </p>
+          </div>
+          <Button
+            type="button"
+            variant="destructive"
+            onClick={() => setDeleteOpen(true)}
+          >
+            <Trash2 className="ml-2 h-4 w-4" />
+            حذف الكافيه
+          </Button>
         </CardContent>
       </Card>
     </section>

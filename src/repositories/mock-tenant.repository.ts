@@ -71,6 +71,19 @@ export const mockTenantRepository = {
     write(updated);
     return updated.find((tenant) => tenant.id === id);
   },
+  remove: (id: string) => {
+    const tenant = read().find((item) => item.id === id);
+    if (!tenant) throw new Error("الكافيه غير موجود.");
+    write(read().filter((item) => item.id !== id));
+    if (
+      typeof window !== "undefined" &&
+      window.localStorage.getItem(SELECTED_KEY) === id
+    ) {
+      window.localStorage.removeItem(SELECTED_KEY);
+      window.dispatchEvent(new Event("tenant:changed"));
+    }
+    return tenant;
+  },
   setSelected: (id: string) => {
     if (!read().some((tenant) => tenant.id === id))
       throw new Error("لا يمكن اختيار كافيه غير موجود.");
